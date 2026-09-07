@@ -1,0 +1,118 @@
+services:
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.14
+    container_name: redpanda-broker
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --kafka-addr=internal://0.0.0.0:29092,external://0.0.0.0:9092
+      - --advertise-kafka-addr=internal://redpanda:29092,external://localhost:9092
+      - --pandaproxy-addr=internal://0.0.0.0:28082,external://0.0.0.0:8082
+      - --advertise-pandaproxy-addr=internal://redpanda:28082,external://localhost:8082
+      - --schema-registry-addr=0.0.0.0:8081
+      - --rpc-addr=0.0.0.0:33145
+      - --advertise-rpc-addr=redpanda:33145
+    ports:
+      - "9092:9092"     # Kafka Native Broker (Accessible from host)
+      - "8081:8081"     # Schema Registry
+      - "8082:8082"     # PandaProxy
+      - "9644:9644"     # Admin API
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "info"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  console:
+    image: docker.redpanda.com/redpandadata/console:v2.7.2
+    container_name: redpanda-console
+    restart: unless-stopped
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    ports:
+      - "8080:8080"     # Web Console UI
+    environment:
+      KAFKA_BROKERS: "redpanda:29092"
+      KAFKA_SCHEMAREGISTRY_ENABLED: "true"
+      KAFKA_SCHEMAREGISTRY_URLS: "http://redpanda:8081"
+      REDPANDA_ADMINAPI_ENABLED: "true"
+      REDPANDA_ADMINAPI_URLS: "http://redpanda:9644"
+
+  redis:
+    image: redis:alpine
+    container_name: redis-cache
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Optional containerized workers (run with `docker compose --profile workers up -d`)
+  worker-rss:
+    profiles: ["workers"]
+    build: .
+    container_name: worker-rss
+    command: python -m workers.rss_worker
+    restart: unless-stopped
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:29092
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+  worker-gdelt:
+    profiles: ["workers"]
+    build: .
+    container_name: worker-gdelt
+    command: python -m workers.gdelt_worker
+    restart: unless-stopped
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:29092
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+  worker-sec:
+    profiles: ["workers"]
+    build: .
+    container_name: worker-sec
+    command: python -m workers.sec_worker
+    restart: unless-stopped
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:29092
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+volumes:
+  redpanda-data:
+    driver: local
+  redis-data:
+    driver: local
