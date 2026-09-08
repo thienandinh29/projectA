@@ -93,8 +93,9 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
 
             event_id = hashlib.sha256((url or title).encode("utf-8")).hexdigest()
 
-            # Redis atomic check & set
-            if dedup.is_duplicate_or_set(event_id, source="GDELT"):
+            # Check Two-Tier Redis deduplication & near-duplicate clustering
+            is_exact, is_near, canon_id = dedup.check_dedup(event_id, title=title, source="GDELT")
+            if is_exact:
                 stats["duplicates"] += 1
                 continue
 
@@ -114,6 +115,8 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
                 url=url,
                 published_at=pub_time,
                 tickers_mentioned=tickers,
+                is_near_duplicate=is_near,
+                canonical_cluster_id=canon_id,
                 metadata={
                     "domain": domain,
                     "language": art.get("language"),
@@ -122,6 +125,10 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
                     "tone": tone
                 }
             )
+
+            # Attach embedding vector for DuckDB persistence (set by Tier 3)
+            event._embedding = getattr(dedup, '_last_embedding', None)
+            event._semantic_score = getattr(dedup, '_last_semantic_score', None)
 
             if producer.produce_event(TOPIC_GDELT, event):
                 stats["published"] += 1
@@ -196,7 +203,14 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
                 stats["fetched"] += 1
                 event_id = hashlib.sha256(url.encode("utf-8")).hexdigest()
 
-                if dedup.is_duplicate_or_set(event_id, source="GDELT"):
+                # Extract title/headline approximation from URL slug
+                slug = url.rstrip("/").split("/")[-1].replace("-", " ").replace("_", " ")
+                slug_clean = " ".join([w for w in slug.split() if not w.endswith((".html", ".htm", ".php"))])
+                title = slug_clean.capitalize() if len(slug_clean) > 5 else f"[{domain}] Macroeconomic & Policy News"
+
+                # Check Two-Tier Redis deduplication & near-duplicate clustering
+                is_exact, is_near, canon_id = dedup.check_dedup(event_id, title=title, source="GDELT")
+                if is_exact:
                     stats["duplicates"] += 1
                     continue
 
@@ -205,11 +219,6 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
                     pub_time = datetime.strptime(date_str, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
                 except Exception:
                     pub_time = datetime.now(timezone.utc)
-
-                # Extract title/headline approximation from URL slug
-                slug = url.rstrip("/").split("/")[-1].replace("-", " ").replace("_", " ")
-                slug_clean = " ".join([w for w in slug.split() if not w.endswith((".html", ".htm", ".php"))])
-                title = slug_clean.capitalize() if len(slug_clean) > 5 else f"[{domain}] Macroeconomic & Policy News"
 
                 tickers = extract_tickers(f"{title} {themes}")
 
@@ -221,12 +230,18 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
                     url=url,
                     published_at=pub_time,
                     tickers_mentioned=tickers,
+                    is_near_duplicate=is_near,
+                    canonical_cluster_id=canon_id,
                     metadata={
                         "domain": domain,
                         "themes": themes[:250],
                         "gkg_batch": fname
                     }
                 )
+
+                # Attach embedding vector for DuckDB persistence (set by Tier 3)
+                event._embedding = getattr(dedup, '_last_embedding', None)
+                event._semantic_score = getattr(dedup, '_last_semantic_score', None)
 
                 if producer.produce_event(TOPIC_GDELT, event):
                     stats["published"] += 1

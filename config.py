@@ -11,7 +11,9 @@ KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 REDIS_DB = int(os.getenv("REDIS_DB", 0))
-REDIS_TTL_SECONDS = int(os.getenv("REDIS_TTL_SECONDS", 604800))  # 7 days
+REDIS_TTL_SECONDS = int(os.getenv("REDIS_TTL_SECONDS", 604800))      # 7 days for exact match
+REDIS_LSH_TTL_SECONDS = int(os.getenv("REDIS_LSH_TTL_SECONDS", 86400))  # 24 hours for LSH near-duplicate window
+REDIS_SEMANTIC_TTL_SECONDS = int(os.getenv("REDIS_SEMANTIC_TTL_SECONDS", 7200))  # 120 minutes for semantic embedding window
 
 # Topics
 TOPIC_RSS = os.getenv("TOPIC_RSS", "financial.news.rss")

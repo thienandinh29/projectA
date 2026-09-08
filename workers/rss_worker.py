@@ -101,8 +101,9 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
                 hash_input = link or title
                 event_id = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
 
-                # Check atomic Redis deduplication
-                if dedup.is_duplicate_or_set(event_id, source="RSS"):
+                # Check Two-Tier Redis deduplication & near-duplicate clustering
+                is_exact, is_near, canon_id = dedup.check_dedup(event_id, title=title, source="RSS")
+                if is_exact:
                     stats["duplicates"] += 1
                     continue
 
@@ -122,12 +123,18 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
                     url=link,
                     published_at=pub_time,
                     tickers_mentioned=tickers,
+                    is_near_duplicate=is_near,
+                    canonical_cluster_id=canon_id,
                     metadata={
                         "feed_name": feed_name,
                         "feed_url": feed_url,
                         "author": getattr(entry, "author", None),
                     }
                 )
+
+                # Attach embedding vector for DuckDB persistence (set by Tier 3)
+                event._embedding = getattr(dedup, '_last_embedding', None)
+                event._semantic_score = getattr(dedup, '_last_semantic_score', None)
 
                 if producer.produce_event(TOPIC_RSS, event):
                     stats["published"] += 1
