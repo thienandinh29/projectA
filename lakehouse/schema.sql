@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS silver_financial_news (
 
     -- Tier 3: Semantic Embedding (all-MiniLM-L6-v2, 384-dim)
     embedding FLOAT[384],                         -- L2-normalized dense vector for semantic search
+    embedding_model VARCHAR,                      -- Model that produced `embedding` (vectors from different models are not comparable)
     semantic_score FLOAT,                         -- Cosine similarity score when flagged as semantic dup
 
     metadata JSON,

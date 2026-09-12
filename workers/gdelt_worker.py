@@ -14,7 +14,7 @@ from config import (
 from models.event import CommonEvent
 from utils.redis_cache import RedisDeduplicator
 from utils.kafka_producer import RedpandaProducer
-from workers.rss_worker import extract_tickers
+from utils.entity_extract import extract_financial_entities
 
 logging.basicConfig(
     level=logging.INFO,
@@ -93,8 +93,14 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
 
             event_id = hashlib.sha256((url or title).encode("utf-8")).hexdigest()
 
+            # Extract entities BEFORE dedup: Tier 3's entity gate needs them
+            # at merge-decision time (no-entity headlines bypass the gate).
+            tickers = extract_financial_entities(title)
+
             # Check Two-Tier Redis deduplication & near-duplicate clustering
-            is_exact, is_near, canon_id = dedup.check_dedup(event_id, title=title, source="GDELT")
+            is_exact, is_near, canon_id = dedup.check_dedup(
+                event_id, title=title, source="GDELT", tickers=tickers
+            )
             if is_exact:
                 stats["duplicates"] += 1
                 continue
@@ -104,8 +110,6 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
             domain = art.get("domain", "")
             socialimage = art.get("socialimage", "")
             tone = art.get("tone", None)
-
-            tickers = extract_tickers(title)
 
             event = CommonEvent(
                 id=event_id,
@@ -208,8 +212,14 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
                 slug_clean = " ".join([w for w in slug.split() if not w.endswith((".html", ".htm", ".php"))])
                 title = slug_clean.capitalize() if len(slug_clean) > 5 else f"[{domain}] Macroeconomic & Policy News"
 
+                # Extract entities BEFORE dedup: Tier 3's entity gate needs them
+                # at merge-decision time (no-entity headlines bypass the gate).
+                tickers = extract_financial_entities(f"{title} {themes}")
+
                 # Check Two-Tier Redis deduplication & near-duplicate clustering
-                is_exact, is_near, canon_id = dedup.check_dedup(event_id, title=title, source="GDELT")
+                is_exact, is_near, canon_id = dedup.check_dedup(
+                    event_id, title=title, source="GDELT", tickers=tickers
+                )
                 if is_exact:
                     stats["duplicates"] += 1
                     continue
@@ -219,8 +229,6 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
                     pub_time = datetime.strptime(date_str, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
                 except Exception:
                     pub_time = datetime.now(timezone.utc)
-
-                tickers = extract_tickers(f"{title} {themes}")
 
                 event = CommonEvent(
                     id=event_id,

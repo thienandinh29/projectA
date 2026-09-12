@@ -15,6 +15,7 @@ from config import (
 from models.event import CommonEvent
 from utils.redis_cache import RedisDeduplicator
 from utils.kafka_producer import RedpandaProducer
+from utils.entity_extract import extract_financial_entities
 
 logging.basicConfig(
     level=logging.INFO,
@@ -101,19 +102,24 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
                 hash_input = link or title
                 event_id = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
 
+                # Parse snippet and extract entities BEFORE dedup:
+                # Tier 3's entity gate needs them at merge-decision time.
+                # Dictionary extractor (~40% live coverage vs 29% regex);
+                # no-entity headlines bypass the gate by design.
+                summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
+                # Clean html tags from summary
+                clean_snippet = re.sub(r"<[^>]+>", "", summary).strip()[:500]
+                tickers = extract_financial_entities(f"{title} {clean_snippet}")
+
                 # Check Two-Tier Redis deduplication & near-duplicate clustering
-                is_exact, is_near, canon_id = dedup.check_dedup(event_id, title=title, source="RSS")
+                is_exact, is_near, canon_id = dedup.check_dedup(
+                    event_id, title=title, source="RSS", tickers=tickers
+                )
                 if is_exact:
                     stats["duplicates"] += 1
                     continue
 
-                # Parse snippet
-                summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
-                # Clean html tags from summary
-                clean_snippet = re.sub(r"<[^>]+>", "", summary).strip()[:500]
-
                 pub_time = parse_published_time(entry)
-                tickers = extract_tickers(f"{title} {clean_snippet}")
 
                 event = CommonEvent(
                     id=event_id,

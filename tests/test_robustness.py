@@ -117,16 +117,20 @@ class TestPipelineRobustness(unittest.TestCase):
         self.assertTrue(is_near_high)
         self.assertEqual(canon_high, base_id)
 
-        # Moderate similarity (Jaccard ~ 0.61) — below Tier 2 LSH threshold,
-        # BUT Tier 3 semantic dedup may catch it if the headlines are semantically
-        # equivalent. This is CORRECT behavior for the 3-tier system.
-        # We verify that the event IS flagged (by either Tier 2 or Tier 3).
-        _, is_near_low, _ = dedup.check_dedup(low_id, low_title, source="RSS")
-        # With Tier 3 semantic dedup active, semantically equivalent headlines
-        # with Jaccard < 0.75 should still be caught
-        self.assertTrue(is_near_low,
-            "3-tier dedup should catch semantically equivalent headlines "
-            "even if Jaccard is below 0.75 threshold")
+        # Moderate similarity (Jaccard ~ 0.61) — below Tier 2 LSH threshold.
+        # Cosine ~0.83. At the v1 hand-picked 0.65 this merged, but so did 8
+        # distinct-event pairs (precision 0.43). At v1's safe 0.88 it sat in
+        # the accepted recall hole. At the calibrated 0.76 (production entity
+        # extractor + antonym polarity guard, scripts/calibrate_tier3.py) the
+        # worst surviving negative is 0.7425, so this true duplicate safely
+        # MERGES via Tier 3 — the gates, not a high threshold, now carry
+        # precision.
+        _, is_near_low, canon_low = dedup.check_dedup(low_id, low_title, source="RSS")
+        self.assertTrue(
+            is_near_low,
+            "Calibrated Tier 3 (0.76 + gates) should catch this moderate rewrite"
+        )
+        self.assertEqual(canon_low, base_id)
 
         dedup.client.flushdb()
 

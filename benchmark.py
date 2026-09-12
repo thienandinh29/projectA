@@ -588,6 +588,121 @@ def run_stress_test(bootstrap_servers: str):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+#  6.5 TIER 3 WORST-CASE LATENCY BENCHMARK
+# ─────────────────────────────────────────────────────────────────────────────
+
+def run_tier3_benchmark(n_events: int = 300, window_sizes=(100, 1000, 5000)):
+    """
+    Worst-case Tier 3 path: NOTHING is caught by Tier 1/2, so every event pays
+    embedding + an O(window) Redis fetch + cosine scan + window registration.
+
+    Per pre-filled window size, measures in isolation:
+      - embed_text() latency (model only)
+      - check_semantic_duplicate() latency (Redis fetch + cosine + store)
+      - check_dedup() end-to-end (Tier 1 SET NX + Tier 2 LSH bands + Tier 3)
+    Runs on Redis db=15 and flushes it before/after — production db=0 untouched.
+    """
+    import numpy as np
+    from utils.redis_cache import RedisDeduplicator
+    from utils.semantic_dedup import SemanticDeduplicator, WINDOW_ZSET_KEY
+    from models.embedder import get_embedder
+
+    dedup = RedisDeduplicator(db=15)
+    if not dedup.ping():
+        print("  ❌ Redis not reachable — Tier 3 benchmark requires Redis (db=15).")
+        return
+    embedder = get_embedder()
+    sem = SemanticDeduplicator(db=15)
+    WINDOW_ZSET_KEY_BYTES = WINDOW_ZSET_KEY
+
+    print(f"\n{'='*76}")
+    print(f"  TIER 3 WORST-CASE BENCHMARK (n={n_events} probes per window size)")
+    print(f"  Window fills with unique headlines; nothing merges — every probe")
+    print(f"  pays the full fetch + scan + store cost. Redis db=15, flushed after.")
+    print(f"{'='*76}")
+    print(f"  {'window':>7} | {'embed p50/p95 (ms)':>21} | {'tier3 p50/p95 (ms)':>21} | "
+          f"{'check_dedup p50/p95 (ms)':>26} | {'events/s':>8}")
+
+    def pct(arr, p):
+        return float(np.percentile(arr, p))
+
+    # Probe titles must stay below Tier 2's Jaccard 0.75 against each other,
+    # otherwise Tier 2 short-circuits and the probe never reaches Tier 3 —
+    # silently excluding the worst case we are trying to measure.
+    word_bank = [
+        "iguana", "piano", "harbor", "velvet", "cascade", "nomad", "ember", "quartz",
+        "zephyr", "cobalt", "meadow", "falcon", "saffron", "tundra", "pebble", "onyx",
+        "willow", "crater", "garnet", "hazel", "juniper", "kelp", "lichen", "marble",
+        "nutmeg", "opal", "prairie", "ripple", "sage", "thistle", "umber", "violet",
+        "walnut", "yarrow", "zinc", "almond", "basil", "cedar", "dahlia", "glacier",
+    ]
+
+    def probe_title(i: int, W: int) -> str:
+        return (f"benchmark probe headline {i} {word_bank[i % len(word_bank)]} "
+                f"{word_bank[(i * 7 + 3) % len(word_bank)]} window {W}")
+
+    def prefill(window_size: int):
+        """
+        Writes window entries directly to Redis (O(W) pipelined ops). Going
+        through check_semantic_duplicate would be O(W^2): each fill event
+        scans all previously filled members, skewing setup into minutes.
+        """
+        filler = [f"benchmark filler headline {window_size} number {i} about equity index macro markets"
+                  for i in range(window_size)]
+        filler_vecs = embedder.embed_batch(filler)
+        now = time.time()
+        pipe = dedup.client.pipeline()
+        for i, (t, v) in enumerate(zip(filler, filler_vecs)):
+            eid = f"bench_fill_{window_size}_{i}".encode("utf-8")
+            pipe.set(b"emb:vec:" + eid, v.astype(np.float32).tobytes(), ex=7200)
+            pipe.set(b"emb:pol:" + eid, b"", ex=7200)
+            pipe.zadd(WINDOW_ZSET_KEY_BYTES, {eid: now})
+            if i % 1000 == 999:
+                pipe.execute()
+                pipe = dedup.client.pipeline()
+        pipe.execute()
+
+    try:
+        for W in window_sizes:
+            # Phase A: isolate embed + Tier 3 semantic check on a pristine window
+            dedup.client.flushdb()
+            prefill(W)
+            embed_ms, tier3_ms = [], []
+            for i in range(n_events):
+                title = probe_title(i, W)
+                event_id = f"bench_probe_{W}_{i}"
+
+                t0 = time.perf_counter()
+                vec = embedder.embed_text(title)
+                t1 = time.perf_counter()
+                sem.check_semantic_duplicate(event_id, vec, title=title)
+                t2 = time.perf_counter()
+                embed_ms.append((t1 - t0) * 1000)
+                tier3_ms.append((t2 - t1) * 1000)
+
+            # Phase B: full pipeline path (Tier 1 + 2 + 3) on a fresh window
+            dedup.client.flushdb()
+            prefill(W)
+            full_ms = []
+            for i in range(n_events):
+                title = probe_title(i, W)
+                t0 = time.perf_counter()
+                dedup.check_dedup(f"bench_probe_{W}_{i}", title=title, source="RSS")
+                full_ms.append((time.perf_counter() - t0) * 1000)
+
+            events_per_sec = n_events / (sum(full_ms) / 1000.0)
+            print(f"  {W:>7} | {pct(embed_ms,50):>9.2f}/{pct(embed_ms,95):<11.2f} | "
+                  f"{pct(tier3_ms,50):>9.2f}/{pct(tier3_ms,95):<11.2f} | "
+                  f"{pct(full_ms,50):>11.2f}/{pct(full_ms,95):<14.2f} | {events_per_sec:>8.1f}")
+    finally:
+        dedup.client.flushdb()
+        dedup.client.close()
+
+    print("\n  Note: check_dedup includes Tier 1/2 band writes (24h TTL) — its cost grows")
+    print("  with the LSH window too. The tier3 column isolates the semantic path.")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 #  MAIN REPORT
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -753,9 +868,13 @@ def main():
                         help="Run live throughput monitor for N seconds")
     parser.add_argument("--stress", action="store_true",
                         help="Run stress test: execute all workers + measure")
+    parser.add_argument("--tier3", type=int, default=0, metavar="N",
+                        help="Tier 3 worst-case latency benchmark with N probe events per window size")
     args = parser.parse_args()
 
-    if args.live > 0:
+    if args.tier3 > 0:
+        run_tier3_benchmark(n_events=args.tier3)
+    elif args.live > 0:
         live_monitor(KAFKA_BOOTSTRAP_SERVERS, args.live)
     elif args.stress:
         run_stress_test(KAFKA_BOOTSTRAP_SERVERS)

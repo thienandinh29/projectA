@@ -4,14 +4,16 @@ Tests all-MiniLM-L6-v2 embedding + Redis 120-min sliding window + DuckDB vector 
 
 Uses Redis db=15 (isolated from production db=0) with flushdb in setUp/tearDown.
 
-CALIBRATION NOTE (fastembed ONNX vs sentence-transformers PyTorch):
-The fastembed ONNX runtime produces different cosine similarity ranges than
-the PyTorch sentence-transformers version. Empirical calibration shows:
-  - True paraphrases (0% lexical overlap): 0.35 – 0.55
-  - Same-topic rewrites (partial overlap):  0.50 – 0.73
-  - Polarity pairs (beats/misses):          0.88 – 0.92
-  - Unrelated topics:                       ~0.06
-The production cosine threshold is set to 0.65 based on this calibration.
+CALIBRATION NOTE (scripts/calibrate_tier3.py — all-MiniLM-L6-v2 via fastembed ONNX):
+Cosine bands measured on a 63-pair labeled corpus (7 bands, gated sweep):
+  - Unrelated topics:                       -0.12 – 0.14
+  - Same-event rewrites / paraphrases:      0.25 – 0.92 (graded lexical overlap)
+  - Hard negatives (same ticker, different event): 0.44 – 0.74  ← overlaps rewrites
+  - Polarity inversions:                    0.69 – 0.92 (guard-blocked, not threshold-blocked)
+The bands are NOT separable: at the old hand-picked 0.65, gated precision was
+0.43 (8 distinct-event false merges). The production threshold is calibrated
+to 0.88 (SEMANTIC_COSINE_THRESHOLD, precision-first: gated precision 1.000,
+~5% corpus recall — the accepted hole is pinned in test_tier3_hard_negatives).
 """
 
 import os

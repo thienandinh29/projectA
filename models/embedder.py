@@ -8,13 +8,17 @@ Vectors are L2-normalized at output, so cosine similarity = dot product.
 """
 
 import logging
+import threading
 from typing import List, Optional
 import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# Singleton instance — lazily initialized on first use
+# Singleton instance — lazily initialized on first use.
+# Guarded by a lock: main.py runs RSS/GDELT/SEC workers in parallel threads,
+# and an unlocked lazy init would let two threads each load the ONNX model.
 _EMBEDDER_INSTANCE: Optional["FinancialEmbedder"] = None
+_EMBEDDER_LOCK = threading.Lock()
 
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 EMBEDDING_DIM = 384
@@ -27,7 +31,10 @@ class FinancialEmbedder:
     - embed_text(text) → np.ndarray of shape (384,), L2-normalized.
     - embed_batch(texts) → np.ndarray of shape (N, 384), L2-normalized.
 
-    Thread Safety: fastembed's ONNX session is thread-safe for inference.
+    Thread Safety: the singleton is constructed under a lock. fastembed's ONNX
+    session (onnxruntime.InferenceSession.run) is documented thread-safe for
+    concurrent inference; tests/test_semantic_embedding.py includes a concurrent
+    smoke test that verifies outputs match single-threaded execution.
     """
 
     def __init__(self):
@@ -90,9 +97,13 @@ class FinancialEmbedder:
 def get_embedder() -> FinancialEmbedder:
     """
     Returns the singleton FinancialEmbedder instance.
-    Lazily initializes on first call (downloads model weights if needed).
+    Lazily initializes on first call (downloads model weights if needed),
+    under a lock with double-checked locking so parallel workers cannot
+    each construct the model.
     """
     global _EMBEDDER_INSTANCE
     if _EMBEDDER_INSTANCE is None:
-        _EMBEDDER_INSTANCE = FinancialEmbedder()
+        with _EMBEDDER_LOCK:
+            if _EMBEDDER_INSTANCE is None:
+                _EMBEDDER_INSTANCE = FinancialEmbedder()
     return _EMBEDDER_INSTANCE

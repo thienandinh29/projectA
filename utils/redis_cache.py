@@ -1,32 +1,18 @@
 import logging
 import re
+import threading
 from typing import Optional, Tuple, Set, List
 import redis
 import numpy as np
 from datasketch import MinHash
 from config import REDIS_HOST, REDIS_PORT, REDIS_DB, REDIS_TTL_SECONDS, REDIS_LSH_TTL_SECONDS, REDIS_SEMANTIC_TTL_SECONDS
+from utils.polarity import POLARITY_KEYWORDS, base_form
 
 logger = logging.getLogger(__name__)
 
 # Lazy-loaded semantic components (avoid model download at import time)
 _semantic_dedup: Optional["SemanticDeduplicator"] = None
-_embedder = None
-
-# Key financial polarity words that should never be conflated/merged
-# Includes both base and inflected forms for robust matching
-POLARITY_KEYWORDS = {
-    "beat", "beats", "miss", "misses",
-    "surge", "surges", "plunge", "plunges",
-    "soar", "soars", "crash", "crashes",
-    "upgrade", "upgrades", "downgrade", "downgrades",
-    "rise", "rises", "fall", "falls",
-    "jump", "jumps", "sink", "sinks",
-    "raise", "raises", "cut", "cuts",
-    "hike", "hikes", "lower", "lowers",
-    "gain", "gains", "loss", "losses",
-    "bullish", "bearish",
-    "rally", "rallies", "drop", "drops", "decline", "declines",
-}
+_SEMANTIC_INIT_LOCK = threading.Lock()
 
 
 class RedisDeduplicator:
@@ -111,11 +97,13 @@ class RedisDeduplicator:
         for i in range(len(tokens) - 1):
             shingles.add(f"{tokens[i]} {tokens[i+1]}")
 
-        # Inject polarity keywords with amplified weight to protect market reversals
+        # Inject polarity keywords with amplified weight to protect market reversals.
+        # Anchored by base form so inflections ("beats"/"missed"/"tumbled") share anchors.
         for token in tokens:
-            if token in POLARITY_KEYWORDS:
-                shingles.add(f"__POLAR_ANCHOR_1__{token}")
-                shingles.add(f"__POLAR_ANCHOR_2__{token}")
+            base = base_form(token)
+            if base:
+                shingles.add(f"__POLAR_ANCHOR_1__{base}")
+                shingles.add(f"__POLAR_ANCHOR_2__{base}")
 
         m = MinHash(num_perm=self.num_perm)
         for s in shingles:
@@ -215,14 +203,16 @@ class RedisDeduplicator:
         self,
         event_id: str,
         title: str,
-        source: str = "RSS"
+        source: str = "RSS",
+        tickers: Optional[List[str]] = None,
     ) -> Tuple[bool, bool, Optional[str]]:
         """
         Executes Three-Tier Deduplication:
         1. Exact Match on ID/URL -> Returns (True, False, None) if duplicate.
         2. MinHash LSH on Title  -> Returns (False, True, canonical_id) if clustered.
-        3. Semantic Embedding     -> Returns (False, True, canonical_id) if cosine >= 0.85.
-        4. Novel Event           -> Returns (False, False, None).
+        3. Semantic Embedding    -> Returns (False, True, canonical_id) if cosine >=
+           SEMANTIC_COSINE_THRESHOLD (calibrated by scripts/calibrate_tier3.py),
+           gated by ticker overlap and polarity-class conflict.
 
         Side effects:
             Sets self._last_embedding (np.ndarray or None) after each call.
@@ -242,7 +232,7 @@ class RedisDeduplicator:
         # Tier 3: Semantic Embedding Dedup (skip for SEC filings)
         if source.upper() != "SEC" and title:
             try:
-                embedding, is_sem_dup, sem_canonical, sem_score = self._check_semantic(event_id, title)
+                embedding, is_sem_dup, sem_canonical, sem_score = self._check_semantic(event_id, title, tickers)
                 self._last_embedding = embedding
                 self._last_semantic_score = sem_score if is_sem_dup else None
                 if is_sem_dup:
@@ -252,30 +242,34 @@ class RedisDeduplicator:
 
         return False, False, None
 
-    def _check_semantic(self, event_id: str, title: str):
+    def _check_semantic(self, event_id: str, title: str, tickers: Optional[List[str]] = None):
         """
-        Lazily initializes the embedding model and semantic deduplicator,
+        Lazily initializes the embedding model and semantic deduplicator
+        (both under locks — main.py runs RSS/GDELT workers in parallel threads),
         then checks for semantic duplicates.
 
         Returns:
             (embedding, is_sem_dup, canonical_id, cosine_score)
         """
-        global _semantic_dedup, _embedder
+        global _semantic_dedup
 
-        if _embedder is None:
-            from models.embedder import get_embedder
-            _embedder = get_embedder()
+        from models.embedder import get_embedder
+        embedder = get_embedder()
 
         if _semantic_dedup is None:
-            from utils.semantic_dedup import SemanticDeduplicator
-            _semantic_dedup = SemanticDeduplicator(
-                host=self.client.connection_pool.connection_kwargs.get("host", REDIS_HOST),
-                port=self.client.connection_pool.connection_kwargs.get("port", REDIS_PORT),
-                db=self.client.connection_pool.connection_kwargs.get("db", REDIS_DB),
-            )
+            with _SEMANTIC_INIT_LOCK:
+                if _semantic_dedup is None:
+                    from utils.semantic_dedup import SemanticDeduplicator
+                    _semantic_dedup = SemanticDeduplicator(
+                        host=self.client.connection_pool.connection_kwargs.get("host", REDIS_HOST),
+                        port=self.client.connection_pool.connection_kwargs.get("port", REDIS_PORT),
+                        db=self.client.connection_pool.connection_kwargs.get("db", REDIS_DB),
+                    )
 
-        embedding = _embedder.embed_text(title)
-        is_sem_dup, canonical_id, score = _semantic_dedup.check_semantic_duplicate(event_id, embedding, title=title)
+        embedding = embedder.embed_text(title)
+        is_sem_dup, canonical_id, score = _semantic_dedup.check_semantic_duplicate(
+            event_id, embedding, title=title, tickers=tickers
+        )
         return embedding, is_sem_dup, canonical_id, score
 
     def is_duplicate_or_set(self, event_id: str, source: Optional[str] = None) -> bool:

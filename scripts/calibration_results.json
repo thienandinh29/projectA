@@ -1,0 +1,1680 @@
+{
+  "recommended_threshold": 0.76,
+  "rationale": "OVERLAP: bands are not separable at any threshold. Precision-first keeps the threshold just above the worst negative and accepts the recall cost below.",
+  "t_neg_max": 0.7425351142883301,
+  "t_pos_min": 0.2474651038646698,
+  "margin": -0.4950700104236603,
+  "at_threshold": {
+    "t": 0.76,
+    "gated": true,
+    "precision": 1.0,
+    "recall": 0.15,
+    "f1": 0.2608695652173913,
+    "false_merges": 0
+  },
+  "band_stats": {
+    "B1_unrelated": {
+      "n": 12,
+      "label": "distinct",
+      "min": -0.11843880265951157,
+      "median": -0.014993853401392698,
+      "max": 0.14138194918632507,
+      "gate_blocked": 0,
+      "min_surviving": -0.11843880265951157,
+      "max_surviving": 0.14138194918632507
+    },
+    "B2_paraphrase": {
+      "n": 12,
+      "label": "dup",
+      "min": 0.29980403184890747,
+      "median": 0.5060389786958694,
+      "max": 0.9180997014045715,
+      "gate_blocked": 0,
+      "min_surviving": 0.29980403184890747,
+      "max_surviving": 0.9180997014045715
+    },
+    "B3_rewrite": {
+      "n": 8,
+      "label": "dup",
+      "min": 0.2474651038646698,
+      "median": 0.4301163852214813,
+      "max": 0.6793813705444336,
+      "gate_blocked": 0,
+      "min_surviving": 0.2474651038646698,
+      "max_surviving": 0.6793813705444336
+    },
+    "B4_hard_negative": {
+      "n": 10,
+      "label": "distinct",
+      "min": 0.4352594017982483,
+      "median": 0.6257325410842896,
+      "max": 0.7425351142883301,
+      "gate_blocked": 0,
+      "min_surviving": 0.4352594017982483,
+      "max_surviving": 0.7425351142883301
+    },
+    "B5_cross_entity": {
+      "n": 8,
+      "label": "distinct",
+      "min": 0.5980709195137024,
+      "median": 0.771918535232544,
+      "max": 0.8528372645378113,
+      "gate_blocked": 8,
+      "min_surviving": null,
+      "max_surviving": null
+    },
+    "B6_polarity": {
+      "n": 10,
+      "label": "distinct",
+      "min": 0.6911154985427856,
+      "median": 0.8618248999118805,
+      "max": 0.9196467399597168,
+      "gate_blocked": 10,
+      "min_surviving": null,
+      "max_surviving": null
+    },
+    "B7_guard_cost": {
+      "n": 3,
+      "label": "dup-guard-blocked",
+      "min": 0.6372355818748474,
+      "median": 0.733040452003479,
+      "max": 0.753822386264801,
+      "gate_blocked": 0,
+      "min_surviving": 0.6372355818748474,
+      "max_surviving": 0.753822386264801
+    }
+  },
+  "sweep": [
+    {
+      "t": 0.4,
+      "gated": false,
+      "precision": 0.3333333333333333,
+      "recall": 0.7,
+      "f1": 0.45161290322580644,
+      "false_merges": 28
+    },
+    {
+      "t": 0.4,
+      "gated": true,
+      "precision": 0.5833333333333334,
+      "recall": 0.7,
+      "f1": 0.6363636363636365,
+      "false_merges": 10
+    },
+    {
+      "t": 0.41,
+      "gated": false,
+      "precision": 0.3170731707317073,
+      "recall": 0.65,
+      "f1": 0.42622950819672134,
+      "false_merges": 28
+    },
+    {
+      "t": 0.41,
+      "gated": true,
+      "precision": 0.5652173913043478,
+      "recall": 0.65,
+      "f1": 0.6046511627906976,
+      "false_merges": 10
+    },
+    {
+      "t": 0.42,
+      "gated": false,
+      "precision": 0.28205128205128205,
+      "recall": 0.55,
+      "f1": 0.3728813559322034,
+      "false_merges": 28
+    },
+    {
+      "t": 0.42,
+      "gated": true,
+      "precision": 0.5238095238095238,
+      "recall": 0.55,
+      "f1": 0.5365853658536585,
+      "false_merges": 10
+    },
+    {
+      "t": 0.43,
+      "gated": false,
+      "precision": 0.28205128205128205,
+      "recall": 0.55,
+      "f1": 0.3728813559322034,
+      "false_merges": 28
+    },
+    {
+      "t": 0.43,
+      "gated": true,
+      "precision": 0.5238095238095238,
+      "recall": 0.55,
+      "f1": 0.5365853658536585,
+      "false_merges": 10
+    },
+    {
+      "t": 0.44,
+      "gated": false,
+      "precision": 0.2894736842105263,
+      "recall": 0.55,
+      "f1": 0.37931034482758624,
+      "false_merges": 27
+    },
+    {
+      "t": 0.44,
+      "gated": true,
+      "precision": 0.55,
+      "recall": 0.55,
+      "f1": 0.55,
+      "false_merges": 9
+    },
+    {
+      "t": 0.45,
+      "gated": false,
+      "precision": 0.2894736842105263,
+      "recall": 0.55,
+      "f1": 0.37931034482758624,
+      "false_merges": 27
+    },
+    {
+      "t": 0.45,
+      "gated": true,
+      "precision": 0.55,
+      "recall": 0.55,
+      "f1": 0.55,
+      "false_merges": 9
+    },
+    {
+      "t": 0.46,
+      "gated": false,
+      "precision": 0.2972972972972973,
+      "recall": 0.55,
+      "f1": 0.38596491228070173,
+      "false_merges": 26
+    },
+    {
+      "t": 0.46,
+      "gated": true,
+      "precision": 0.5789473684210527,
+      "recall": 0.55,
+      "f1": 0.5641025641025641,
+      "false_merges": 8
+    },
+    {
+      "t": 0.47,
+      "gated": false,
+      "precision": 0.2777777777777778,
+      "recall": 0.5,
+      "f1": 0.35714285714285715,
+      "false_merges": 26
+    },
+    {
+      "t": 0.47,
+      "gated": true,
+      "precision": 0.5555555555555556,
+      "recall": 0.5,
+      "f1": 0.5263157894736842,
+      "false_merges": 8
+    },
+    {
+      "t": 0.48,
+      "gated": false,
+      "precision": 0.2777777777777778,
+      "recall": 0.5,
+      "f1": 0.35714285714285715,
+      "false_merges": 26
+    },
+    {
+      "t": 0.48,
+      "gated": true,
+      "precision": 0.5555555555555556,
+      "recall": 0.5,
+      "f1": 0.5263157894736842,
+      "false_merges": 8
+    },
+    {
+      "t": 0.49,
+      "gated": false,
+      "precision": 0.2571428571428571,
+      "recall": 0.45,
+      "f1": 0.32727272727272727,
+      "false_merges": 26
+    },
+    {
+      "t": 0.49,
+      "gated": true,
+      "precision": 0.5294117647058824,
+      "recall": 0.45,
+      "f1": 0.48648648648648646,
+      "false_merges": 8
+    },
+    {
+      "t": 0.5,
+      "gated": false,
+      "precision": 0.2571428571428571,
+      "recall": 0.45,
+      "f1": 0.32727272727272727,
+      "false_merges": 26
+    },
+    {
+      "t": 0.5,
+      "gated": true,
+      "precision": 0.5294117647058824,
+      "recall": 0.45,
+      "f1": 0.48648648648648646,
+      "false_merges": 8
+    },
+    {
+      "t": 0.51,
+      "gated": false,
+      "precision": 0.2647058823529412,
+      "recall": 0.45,
+      "f1": 0.33333333333333337,
+      "false_merges": 25
+    },
+    {
+      "t": 0.51,
+      "gated": true,
+      "precision": 0.5625,
+      "recall": 0.45,
+      "f1": 0.5,
+      "false_merges": 7
+    },
+    {
+      "t": 0.52,
+      "gated": false,
+      "precision": 0.2647058823529412,
+      "recall": 0.45,
+      "f1": 0.33333333333333337,
+      "false_merges": 25
+    },
+    {
+      "t": 0.52,
+      "gated": true,
+      "precision": 0.5625,
+      "recall": 0.45,
+      "f1": 0.5,
+      "false_merges": 7
+    },
+    {
+      "t": 0.53,
+      "gated": false,
+      "precision": 0.2727272727272727,
+      "recall": 0.45,
+      "f1": 0.339622641509434,
+      "false_merges": 24
+    },
+    {
+      "t": 0.53,
+      "gated": true,
+      "precision": 0.6,
+      "recall": 0.45,
+      "f1": 0.5142857142857143,
+      "false_merges": 6
+    },
+    {
+      "t": 0.54,
+      "gated": false,
+      "precision": 0.2727272727272727,
+      "recall": 0.45,
+      "f1": 0.339622641509434,
+      "false_merges": 24
+    },
+    {
+      "t": 0.54,
+      "gated": true,
+      "precision": 0.6,
+      "recall": 0.45,
+      "f1": 0.5142857142857143,
+      "false_merges": 6
+    },
+    {
+      "t": 0.55,
+      "gated": false,
+      "precision": 0.25,
+      "recall": 0.4,
+      "f1": 0.3076923076923077,
+      "false_merges": 24
+    },
+    {
+      "t": 0.55,
+      "gated": true,
+      "precision": 0.5714285714285714,
+      "recall": 0.4,
+      "f1": 0.47058823529411764,
+      "false_merges": 6
+    },
+    {
+      "t": 0.56,
+      "gated": false,
+      "precision": 0.22580645161290322,
+      "recall": 0.35,
+      "f1": 0.2745098039215686,
+      "false_merges": 24
+    },
+    {
+      "t": 0.56,
+      "gated": true,
+      "precision": 0.5384615384615384,
+      "recall": 0.35,
+      "f1": 0.4242424242424242,
+      "false_merges": 6
+    },
+    {
+      "t": 0.57,
+      "gated": false,
+      "precision": 0.22580645161290322,
+      "recall": 0.35,
+      "f1": 0.2745098039215686,
+      "false_merges": 24
+    },
+    {
+      "t": 0.57,
+      "gated": true,
+      "precision": 0.5384615384615384,
+      "recall": 0.35,
+      "f1": 0.4242424242424242,
+      "false_merges": 6
+    },
+    {
+      "t": 0.58,
+      "gated": false,
+      "precision": 0.22580645161290322,
+      "recall": 0.35,
+      "f1": 0.2745098039215686,
+      "false_merges": 24
+    },
+    {
+      "t": 0.58,
+      "gated": true,
+      "precision": 0.5384615384615384,
+      "recall": 0.35,
+      "f1": 0.4242424242424242,
+      "false_merges": 6
+    },
+    {
+      "t": 0.59,
+      "gated": false,
+      "precision": 0.22580645161290322,
+      "recall": 0.35,
+      "f1": 0.2745098039215686,
+      "false_merges": 24
+    },
+    {
+      "t": 0.59,
+      "gated": true,
+      "precision": 0.5384615384615384,
+      "recall": 0.35,
+      "f1": 0.4242424242424242,
+      "false_merges": 6
+    },
+    {
+      "t": 0.6,
+      "gated": false,
+      "precision": 0.23333333333333334,
+      "recall": 0.35,
+      "f1": 0.28,
+      "false_merges": 23
+    },
+    {
+      "t": 0.6,
+      "gated": true,
+      "precision": 0.5384615384615384,
+      "recall": 0.35,
+      "f1": 0.4242424242424242,
+      "false_merges": 6
+    },
+    {
+      "t": 0.61,
+      "gated": false,
+      "precision": 0.23333333333333334,
+      "recall": 0.35,
+      "f1": 0.28,
+      "false_merges": 23
+    },
+    {
+      "t": 0.61,
+      "gated": true,
+      "precision": 0.5384615384615384,
+      "recall": 0.35,
+      "f1": 0.4242424242424242,
+      "false_merges": 6
+    },
+    {
+      "t": 0.62,
+      "gated": false,
+      "precision": 0.23333333333333334,
+      "recall": 0.35,
+      "f1": 0.28,
+      "false_merges": 23
+    },
+    {
+      "t": 0.62,
+      "gated": true,
+      "precision": 0.5384615384615384,
+      "recall": 0.35,
+      "f1": 0.4242424242424242,
+      "false_merges": 6
+    },
+    {
+      "t": 0.63,
+      "gated": false,
+      "precision": 0.21428571428571427,
+      "recall": 0.3,
+      "f1": 0.25,
+      "false_merges": 22
+    },
+    {
+      "t": 0.63,
+      "gated": true,
+      "precision": 0.5454545454545454,
+      "recall": 0.3,
+      "f1": 0.3870967741935483,
+      "false_merges": 5
+    },
+    {
+      "t": 0.64,
+      "gated": false,
+      "precision": 0.2222222222222222,
+      "recall": 0.3,
+      "f1": 0.25531914893617025,
+      "false_merges": 21
+    },
+    {
+      "t": 0.64,
+      "gated": true,
+      "precision": 0.6,
+      "recall": 0.3,
+      "f1": 0.4,
+      "false_merges": 4
+    },
+    {
+      "t": 0.65,
+      "gated": false,
+      "precision": 0.23076923076923078,
+      "recall": 0.3,
+      "f1": 0.2608695652173913,
+      "false_merges": 20
+    },
+    {
+      "t": 0.65,
+      "gated": true,
+      "precision": 0.6666666666666666,
+      "recall": 0.3,
+      "f1": 0.41379310344827586,
+      "false_merges": 3
+    },
+    {
+      "t": 0.66,
+      "gated": false,
+      "precision": 0.24,
+      "recall": 0.3,
+      "f1": 0.2666666666666666,
+      "false_merges": 19
+    },
+    {
+      "t": 0.66,
+      "gated": true,
+      "precision": 0.75,
+      "recall": 0.3,
+      "f1": 0.4285714285714285,
+      "false_merges": 2
+    },
+    {
+      "t": 0.67,
+      "gated": false,
+      "precision": 0.20833333333333334,
+      "recall": 0.25,
+      "f1": 0.22727272727272727,
+      "false_merges": 19
+    },
+    {
+      "t": 0.67,
+      "gated": true,
+      "precision": 0.7142857142857143,
+      "recall": 0.25,
+      "f1": 0.37037037037037035,
+      "false_merges": 2
+    },
+    {
+      "t": 0.68,
+      "gated": false,
+      "precision": 0.17391304347826086,
+      "recall": 0.2,
+      "f1": 0.18604651162790697,
+      "false_merges": 19
+    },
+    {
+      "t": 0.68,
+      "gated": true,
+      "precision": 0.6666666666666666,
+      "recall": 0.2,
+      "f1": 0.30769230769230765,
+      "false_merges": 2
+    },
+    {
+      "t": 0.69,
+      "gated": false,
+      "precision": 0.18181818181818182,
+      "recall": 0.2,
+      "f1": 0.1904761904761905,
+      "false_merges": 18
+    },
+    {
+      "t": 0.69,
+      "gated": true,
+      "precision": 0.6666666666666666,
+      "recall": 0.2,
+      "f1": 0.30769230769230765,
+      "false_merges": 2
+    },
+    {
+      "t": 0.7,
+      "gated": false,
+      "precision": 0.19047619047619047,
+      "recall": 0.2,
+      "f1": 0.1951219512195122,
+      "false_merges": 17
+    },
+    {
+      "t": 0.7,
+      "gated": true,
+      "precision": 0.6666666666666666,
+      "recall": 0.2,
+      "f1": 0.30769230769230765,
+      "false_merges": 2
+    },
+    {
+      "t": 0.71,
+      "gated": false,
+      "precision": 0.21052631578947367,
+      "recall": 0.2,
+      "f1": 0.20512820512820512,
+      "false_merges": 15
+    },
+    {
+      "t": 0.71,
+      "gated": true,
+      "precision": 0.8,
+      "recall": 0.2,
+      "f1": 0.32000000000000006,
+      "false_merges": 1
+    },
+    {
+      "t": 0.72,
+      "gated": false,
+      "precision": 0.17647058823529413,
+      "recall": 0.15,
+      "f1": 0.16216216216216214,
+      "false_merges": 14
+    },
+    {
+      "t": 0.72,
+      "gated": true,
+      "precision": 0.75,
+      "recall": 0.15,
+      "f1": 0.24999999999999997,
+      "false_merges": 1
+    },
+    {
+      "t": 0.73,
+      "gated": false,
+      "precision": 0.17647058823529413,
+      "recall": 0.15,
+      "f1": 0.16216216216216214,
+      "false_merges": 14
+    },
+    {
+      "t": 0.73,
+      "gated": true,
+      "precision": 0.75,
+      "recall": 0.15,
+      "f1": 0.24999999999999997,
+      "false_merges": 1
+    },
+    {
+      "t": 0.74,
+      "gated": false,
+      "precision": 0.17647058823529413,
+      "recall": 0.15,
+      "f1": 0.16216216216216214,
+      "false_merges": 14
+    },
+    {
+      "t": 0.74,
+      "gated": true,
+      "precision": 0.75,
+      "recall": 0.15,
+      "f1": 0.24999999999999997,
+      "false_merges": 1
+    },
+    {
+      "t": 0.75,
+      "gated": false,
+      "precision": 0.1875,
+      "recall": 0.15,
+      "f1": 0.16666666666666663,
+      "false_merges": 13
+    },
+    {
+      "t": 0.75,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.15,
+      "f1": 0.2608695652173913,
+      "false_merges": 0
+    },
+    {
+      "t": 0.76,
+      "gated": false,
+      "precision": 0.1875,
+      "recall": 0.15,
+      "f1": 0.16666666666666663,
+      "false_merges": 13
+    },
+    {
+      "t": 0.76,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.15,
+      "f1": 0.2608695652173913,
+      "false_merges": 0
+    },
+    {
+      "t": 0.77,
+      "gated": false,
+      "precision": 0.1875,
+      "recall": 0.15,
+      "f1": 0.16666666666666663,
+      "false_merges": 13
+    },
+    {
+      "t": 0.77,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.15,
+      "f1": 0.2608695652173913,
+      "false_merges": 0
+    },
+    {
+      "t": 0.78,
+      "gated": false,
+      "precision": 0.25,
+      "recall": 0.15,
+      "f1": 0.18749999999999997,
+      "false_merges": 9
+    },
+    {
+      "t": 0.78,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.15,
+      "f1": 0.2608695652173913,
+      "false_merges": 0
+    },
+    {
+      "t": 0.79,
+      "gated": false,
+      "precision": 0.25,
+      "recall": 0.15,
+      "f1": 0.18749999999999997,
+      "false_merges": 9
+    },
+    {
+      "t": 0.79,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.15,
+      "f1": 0.2608695652173913,
+      "false_merges": 0
+    },
+    {
+      "t": 0.8,
+      "gated": false,
+      "precision": 0.25,
+      "recall": 0.15,
+      "f1": 0.18749999999999997,
+      "false_merges": 9
+    },
+    {
+      "t": 0.8,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.15,
+      "f1": 0.2608695652173913,
+      "false_merges": 0
+    },
+    {
+      "t": 0.81,
+      "gated": false,
+      "precision": 0.25,
+      "recall": 0.15,
+      "f1": 0.18749999999999997,
+      "false_merges": 9
+    },
+    {
+      "t": 0.81,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.15,
+      "f1": 0.2608695652173913,
+      "false_merges": 0
+    },
+    {
+      "t": 0.82,
+      "gated": false,
+      "precision": 0.25,
+      "recall": 0.15,
+      "f1": 0.18749999999999997,
+      "false_merges": 9
+    },
+    {
+      "t": 0.82,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.15,
+      "f1": 0.2608695652173913,
+      "false_merges": 0
+    },
+    {
+      "t": 0.83,
+      "gated": false,
+      "precision": 0.25,
+      "recall": 0.15,
+      "f1": 0.18749999999999997,
+      "false_merges": 9
+    },
+    {
+      "t": 0.83,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.15,
+      "f1": 0.2608695652173913,
+      "false_merges": 0
+    },
+    {
+      "t": 0.84,
+      "gated": false,
+      "precision": 0.25,
+      "recall": 0.15,
+      "f1": 0.18749999999999997,
+      "false_merges": 9
+    },
+    {
+      "t": 0.84,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.15,
+      "f1": 0.2608695652173913,
+      "false_merges": 0
+    },
+    {
+      "t": 0.85,
+      "gated": false,
+      "precision": 0.18181818181818182,
+      "recall": 0.1,
+      "f1": 0.12903225806451613,
+      "false_merges": 9
+    },
+    {
+      "t": 0.85,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.1,
+      "f1": 0.18181818181818182,
+      "false_merges": 0
+    },
+    {
+      "t": 0.86,
+      "gated": false,
+      "precision": 0.14285714285714285,
+      "recall": 0.05,
+      "f1": 0.07407407407407408,
+      "false_merges": 6
+    },
+    {
+      "t": 0.86,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.05,
+      "f1": 0.09523809523809523,
+      "false_merges": 0
+    },
+    {
+      "t": 0.87,
+      "gated": false,
+      "precision": 0.2,
+      "recall": 0.05,
+      "f1": 0.08000000000000002,
+      "false_merges": 4
+    },
+    {
+      "t": 0.87,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.05,
+      "f1": 0.09523809523809523,
+      "false_merges": 0
+    },
+    {
+      "t": 0.88,
+      "gated": false,
+      "precision": 0.2,
+      "recall": 0.05,
+      "f1": 0.08000000000000002,
+      "false_merges": 4
+    },
+    {
+      "t": 0.88,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.05,
+      "f1": 0.09523809523809523,
+      "false_merges": 0
+    },
+    {
+      "t": 0.89,
+      "gated": false,
+      "precision": 0.25,
+      "recall": 0.05,
+      "f1": 0.08333333333333334,
+      "false_merges": 3
+    },
+    {
+      "t": 0.89,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.05,
+      "f1": 0.09523809523809523,
+      "false_merges": 0
+    },
+    {
+      "t": 0.9,
+      "gated": false,
+      "precision": 0.25,
+      "recall": 0.05,
+      "f1": 0.08333333333333334,
+      "false_merges": 3
+    },
+    {
+      "t": 0.9,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.05,
+      "f1": 0.09523809523809523,
+      "false_merges": 0
+    },
+    {
+      "t": 0.91,
+      "gated": false,
+      "precision": 0.25,
+      "recall": 0.05,
+      "f1": 0.08333333333333334,
+      "false_merges": 3
+    },
+    {
+      "t": 0.91,
+      "gated": true,
+      "precision": 1.0,
+      "recall": 0.05,
+      "f1": 0.09523809523809523,
+      "false_merges": 0
+    },
+    {
+      "t": 0.92,
+      "gated": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_merges": 0
+    },
+    {
+      "t": 0.92,
+      "gated": true,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_merges": 0
+    },
+    {
+      "t": 0.93,
+      "gated": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_merges": 0
+    },
+    {
+      "t": 0.93,
+      "gated": true,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_merges": 0
+    },
+    {
+      "t": 0.94,
+      "gated": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_merges": 0
+    },
+    {
+      "t": 0.94,
+      "gated": true,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_merges": 0
+    },
+    {
+      "t": 0.95,
+      "gated": false,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_merges": 0
+    },
+    {
+      "t": 0.95,
+      "gated": true,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_merges": 0
+    }
+  ],
+  "pairs": [
+    {
+      "band": "B1_unrelated",
+      "label": "distinct",
+      "cos": 0.06061113625764847,
+      "a": "Federal Reserve raises interest rates by 25 basis points",
+      "b": "Manchester United signs new striker in record transfer deal",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B1_unrelated",
+      "label": "distinct",
+      "cos": -0.11843880265951157,
+      "a": "Oil prices slip amid demand concerns in Asia",
+      "b": "New breakthrough in quantum computing announced",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B1_unrelated",
+      "label": "distinct",
+      "cos": -0.015016858465969563,
+      "a": "US inflation cools to 2.9% in July",
+      "b": "Wimbledon final draws record global audience",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B1_unrelated",
+      "label": "distinct",
+      "cos": -0.014970848336815834,
+      "a": "Goldman Sachs lifts S&P 500 year-end target",
+      "b": "Severe drought affects wheat harvest in Australia",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B1_unrelated",
+      "label": "distinct",
+      "cos": 0.1013251543045044,
+      "a": "Treasury yields edge higher ahead of jobs report",
+      "b": "New study links sleep quality to memory retention",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B1_unrelated",
+      "label": "distinct",
+      "cos": -0.04611435532569885,
+      "a": "Euro slides against the dollar after PMI data",
+      "b": "Electric vehicle charging network expands to rural areas",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B1_unrelated",
+      "label": "distinct",
+      "cos": -0.08376747369766235,
+      "a": "Housing starts fall to three-month low",
+      "b": "Archaeologists uncover ancient Roman mosaic",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B1_unrelated",
+      "label": "distinct",
+      "cos": 0.14138194918632507,
+      "a": "Consumer confidence rebounds in September",
+      "b": "Streaming service rolls out ad-supported tier",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B1_unrelated",
+      "label": "distinct",
+      "cos": -0.0730380266904831,
+      "a": "Jobless claims tick up slightly last week",
+      "b": "Chef wins award for sustainable seafood menu",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B1_unrelated",
+      "label": "distinct",
+      "cos": -0.012061179615557194,
+      "a": "Dollar strengthens as traders pare Fed cut bets",
+      "b": "Local library launches digital lending pilot",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B1_unrelated",
+      "label": "distinct",
+      "cos": -0.08131464570760727,
+      "a": "Copper prices retreat on China growth worries",
+      "b": "Marathon record broken in Berlin",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B1_unrelated",
+      "label": "distinct",
+      "cos": 0.06881251186132431,
+      "a": "Retail sales miss forecasts in August",
+      "b": "Astronomers discover exoplanet with water vapor",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B2_paraphrase",
+      "label": "dup",
+      "cos": 0.9180997014045715,
+      "a": "Apple beats third-quarter earnings estimates",
+      "b": "Apple tops third-quarter earnings estimates",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B2_paraphrase",
+      "label": "dup",
+      "cos": 0.8595003485679626,
+      "a": "Oil prices surge as OPEC announces production cuts",
+      "b": "Oil surges after OPEC announces output cut",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B2_paraphrase",
+      "label": "dup",
+      "cos": 0.8475576639175415,
+      "a": "Tesla misses delivery estimates for the first quarter",
+      "b": "Tesla first-quarter deliveries fall short of estimates",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B2_paraphrase",
+      "label": "dup",
+      "cos": 0.40360063314437866,
+      "a": "Federal Reserve holds benchmark rate steady",
+      "b": "Fed leaves key rate unchanged",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B2_paraphrase",
+      "label": "dup",
+      "cos": 0.6254847645759583,
+      "a": "Amazon forecasts holiday-quarter sales below estimates",
+      "b": "Amazon gives weak holiday outlook",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B2_paraphrase",
+      "label": "dup",
+      "cos": 0.41566383838653564,
+      "a": "US job growth slows sharply in August",
+      "b": "Hiring cools considerably last month",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B2_paraphrase",
+      "label": "dup",
+      "cos": 0.4628402292728424,
+      "a": "Bitcoin drops below $60,000 amid ETF outflows",
+      "b": "Crypto selloff deepens as outflows accelerate",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B2_paraphrase",
+      "label": "dup",
+      "cos": 0.32878100872039795,
+      "a": "US inflation cools more than expected in July",
+      "b": "Consumer price growth slows unexpectedly",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B2_paraphrase",
+      "label": "dup",
+      "cos": 0.5492377281188965,
+      "a": "Nvidia tops revenue views on data center boom",
+      "b": "Chipmaker's data center sales power beat-and-raise quarter",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B2_paraphrase",
+      "label": "dup",
+      "cos": 0.4149744212627411,
+      "a": "Bank of England cuts rates to 4.75%",
+      "b": "Policymakers trim borrowing costs by a quarter point",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B2_paraphrase",
+      "label": "dup",
+      "cos": 0.7154877185821533,
+      "a": "GM recalls 400,000 vehicles over brake software",
+      "b": "Automaker recalls trucks and SUVs for software fix",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B2_paraphrase",
+      "label": "dup",
+      "cos": 0.29980403184890747,
+      "a": "Eurozone factory activity contracts for a sixth month",
+      "b": "Manufacturing downturn extends across the currency bloc",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B3_rewrite",
+      "label": "dup",
+      "cos": 0.6626489162445068,
+      "a": "Bitcoin falls below $60,000 amid ETF outflows",
+      "b": "Crypto markets slide as BTC drops under $60K",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B3_rewrite",
+      "label": "dup",
+      "cos": 0.5508477687835693,
+      "a": "Microsoft unveils $60 billion buyback program",
+      "b": "Software giant expands shareholder returns with buyback",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B3_rewrite",
+      "label": "dup",
+      "cos": 0.3643704950809479,
+      "a": "Airline cancels 1,000 flights ahead of hurricane",
+      "b": "Carrier grounds weekend schedule as storm approaches",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B3_rewrite",
+      "label": "dup",
+      "cos": 0.4892963171005249,
+      "a": "Starbucks workers strike over wage talks",
+      "b": "Coffee chain baristas walk out in pay dispute",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B3_rewrite",
+      "label": "dup",
+      "cos": 0.6793813705444336,
+      "a": "Disney streaming turns first profit",
+      "b": "Media giant's streaming unit posts inaugural profit",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B3_rewrite",
+      "label": "dup",
+      "cos": 0.2771555781364441,
+      "a": "Chip export curbs tighten for China",
+      "b": "Washington expands semiconductor sales restrictions",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B3_rewrite",
+      "label": "dup",
+      "cos": 0.37093645334243774,
+      "a": "Housing market cools as mortgage rates hover near 7%",
+      "b": "Home sales slow with borrowing costs at decade highs",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B3_rewrite",
+      "label": "dup",
+      "cos": 0.2474651038646698,
+      "a": "Ports brace for dockworker strike",
+      "b": "Shipping hubs prepare for labor stoppage",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B4_hard_negative",
+      "label": "distinct",
+      "cos": 0.7425351142883301,
+      "a": "Apple stock rises on strong earnings beat",
+      "b": "Apple stock rises after analyst upgrade",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B4_hard_negative",
+      "label": "distinct",
+      "cos": 0.7040739059448242,
+      "a": "Tesla shares climb after record quarterly deliveries",
+      "b": "Tesla shares climb on robotaxi unveiling",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B4_hard_negative",
+      "label": "distinct",
+      "cos": 0.6594372391700745,
+      "a": "Nvidia surges on data center demand",
+      "b": "Nvidia surges as it joins the Dow Jones",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B4_hard_negative",
+      "label": "distinct",
+      "cos": 0.6208161115646362,
+      "a": "Amazon rises on record Prime Day sales",
+      "b": "Amazon rises after announcing a stock split",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B4_hard_negative",
+      "label": "distinct",
+      "cos": 0.6306489706039429,
+      "a": "Microsoft gains on Azure cloud growth",
+      "b": "Microsoft gains after raising its dividend",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B4_hard_negative",
+      "label": "distinct",
+      "cos": 0.4352594017982483,
+      "a": "Goldman upgrades Ford on margin recovery",
+      "b": "Morgan Stanley upgrades Ford citing EV demand",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B4_hard_negative",
+      "label": "distinct",
+      "cos": 0.5071043968200684,
+      "a": "Apple discloses CFO transition in 8-K filing",
+      "b": "Apple announces $110 billion buyback in 8-K filing",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B4_hard_negative",
+      "label": "distinct",
+      "cos": 0.5298806428909302,
+      "a": "Meta jumps on strong ad revenue",
+      "b": "Meta jumps after unveiling AI assistant",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B4_hard_negative",
+      "label": "distinct",
+      "cos": 0.6460677981376648,
+      "a": "Boeing climbs as deliveries resume",
+      "b": "Boeing climbs on new defense contract",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B4_hard_negative",
+      "label": "distinct",
+      "cos": 0.4578380286693573,
+      "a": "Salesforce rises on activist stake report",
+      "b": "Salesforce rises after earnings guidance raise",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B5_cross_entity",
+      "label": "distinct",
+      "cos": 0.7756916284561157,
+      "a": "Federal Reserve raises interest rates by 25 basis points",
+      "b": "European Central Bank raises interest rates by 25 basis points",
+      "entity_blocked": true,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": true
+    },
+    {
+      "band": "B5_cross_entity",
+      "label": "distinct",
+      "cos": 0.7760660648345947,
+      "a": "Apple beats quarterly earnings expectations",
+      "b": "Microsoft beats quarterly earnings expectations",
+      "entity_blocked": true,
+      "oracle_blocked": true,
+      "polarity_blocked": false,
+      "gate_blocked": true
+    },
+    {
+      "band": "B5_cross_entity",
+      "label": "distinct",
+      "cos": 0.5980709195137024,
+      "a": "Tesla recalls 100,000 vehicles over autopilot",
+      "b": "Ford recalls 100,000 vehicles over brake defect",
+      "entity_blocked": true,
+      "oracle_blocked": true,
+      "polarity_blocked": false,
+      "gate_blocked": true
+    },
+    {
+      "band": "B5_cross_entity",
+      "label": "distinct",
+      "cos": 0.7711007595062256,
+      "a": "Bank of America cut to neutral by analyst",
+      "b": "Wells Fargo cut to neutral by analyst",
+      "entity_blocked": true,
+      "oracle_blocked": true,
+      "polarity_blocked": false,
+      "gate_blocked": true
+    },
+    {
+      "band": "B5_cross_entity",
+      "label": "distinct",
+      "cos": 0.7107094526290894,
+      "a": "Google announces sweeping layoffs",
+      "b": "Amazon announces sweeping layoffs",
+      "entity_blocked": true,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": true
+    },
+    {
+      "band": "B5_cross_entity",
+      "label": "distinct",
+      "cos": 0.7727363109588623,
+      "a": "Netflix subscriber growth beats forecasts",
+      "b": "Disney subscriber growth beats forecasts",
+      "entity_blocked": true,
+      "oracle_blocked": true,
+      "polarity_blocked": false,
+      "gate_blocked": true
+    },
+    {
+      "band": "B5_cross_entity",
+      "label": "distinct",
+      "cos": 0.8528372645378113,
+      "a": "Exxon posts record quarterly profit",
+      "b": "Chevron posts record quarterly profit",
+      "entity_blocked": true,
+      "oracle_blocked": true,
+      "polarity_blocked": false,
+      "gate_blocked": true
+    },
+    {
+      "band": "B5_cross_entity",
+      "label": "distinct",
+      "cos": 0.6895331144332886,
+      "a": "Novartis drug wins FDA approval",
+      "b": "Pfizer drug wins FDA approval",
+      "entity_blocked": true,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": true
+    },
+    {
+      "band": "B6_polarity",
+      "label": "distinct",
+      "cos": 0.916336178779602,
+      "a": "Tesla beats Q3 earnings estimates sending shares higher",
+      "b": "Tesla misses Q3 earnings estimates sending shares lower",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": true,
+      "gate_blocked": true
+    },
+    {
+      "band": "B6_polarity",
+      "label": "distinct",
+      "cos": 0.8847295045852661,
+      "a": "Federal Reserve announces surprise rate hike of 50 basis points",
+      "b": "Federal Reserve announces surprise rate cut of 50 basis points",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": true,
+      "gate_blocked": true
+    },
+    {
+      "band": "B6_polarity",
+      "label": "distinct",
+      "cos": 0.8522194623947144,
+      "a": "Nvidia shares surged after the bell",
+      "b": "Nvidia shares slumped after the bell",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": true,
+      "gate_blocked": true
+    },
+    {
+      "band": "B6_polarity",
+      "label": "distinct",
+      "cos": 0.8633414506912231,
+      "a": "Amazon revenue missed analyst estimates by a wide margin",
+      "b": "Amazon revenue topped analyst estimates by a wide margin",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": true,
+      "gate_blocked": true
+    },
+    {
+      "band": "B6_polarity",
+      "label": "distinct",
+      "cos": 0.8508129119873047,
+      "a": "Analysts expect the company to beat expectations",
+      "b": "Analysts said the company did not beat expectations",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": true,
+      "gate_blocked": true
+    },
+    {
+      "band": "B6_polarity",
+      "label": "distinct",
+      "cos": 0.9123181104660034,
+      "a": "Morgan Stanley upgrades Nike to overweight",
+      "b": "Morgan Stanley downgrades Nike to underweight",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": true,
+      "gate_blocked": true
+    },
+    {
+      "band": "B6_polarity",
+      "label": "distinct",
+      "cos": 0.7058463096618652,
+      "a": "Stocks rally on stimulus hopes",
+      "b": "Stocks sink as stimulus hopes fade",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": true,
+      "gate_blocked": true
+    },
+    {
+      "band": "B6_polarity",
+      "label": "distinct",
+      "cos": 0.6911154985427856,
+      "a": "Oil climbs on supply worries",
+      "b": "Oil tumbles on supply worries",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": true,
+      "gate_blocked": true
+    },
+    {
+      "band": "B6_polarity",
+      "label": "distinct",
+      "cos": 0.8603083491325378,
+      "a": "Profit rose 12% year over year",
+      "b": "Profit fell 12% year over year",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": true,
+      "gate_blocked": true
+    },
+    {
+      "band": "B6_polarity",
+      "label": "distinct",
+      "cos": 0.9196467399597168,
+      "a": "Homebuilder sentiment jumps to five-month high",
+      "b": "Homebuilder sentiment sinks to five-month low",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": true,
+      "gate_blocked": true
+    },
+    {
+      "band": "B7_guard_cost",
+      "label": "dup-guard-blocked",
+      "cos": 0.733040452003479,
+      "a": "Oil prices surge as OPEC cuts production",
+      "b": "Crude oil rallies on OPEC supply reduction",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B7_guard_cost",
+      "label": "dup-guard-blocked",
+      "cos": 0.6372355818748474,
+      "a": "Tesla surges on record deliveries despite price cuts",
+      "b": "Tesla rallies as record volumes offset price reductions",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    },
+    {
+      "band": "B7_guard_cost",
+      "label": "dup-guard-blocked",
+      "cos": 0.753822386264801,
+      "a": "Gold gains as dollar slides on rate-cut bets",
+      "b": "Gold climbs with the dollar lower on easing bets",
+      "entity_blocked": false,
+      "oracle_blocked": false,
+      "polarity_blocked": false,
+      "gate_blocked": false
+    }
+  ]
+}

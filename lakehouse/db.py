@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 import duckdb
 from models.event import CommonEvent
+from models.embedder import MODEL_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -37,12 +38,30 @@ class LakehouseManager:
         migration_statements = [
             "ALTER TABLE silver_financial_news ADD COLUMN IF NOT EXISTS embedding FLOAT[384];",
             "ALTER TABLE silver_financial_news ADD COLUMN IF NOT EXISTS semantic_score FLOAT;",
+            # Embedding versioning: vectors from different models are not
+            # comparable. Stamp the producing model on every row.
+            "ALTER TABLE silver_financial_news ADD COLUMN IF NOT EXISTS embedding_model VARCHAR;",
         ]
         for stmt in migration_statements:
             try:
                 self.conn.execute(stmt)
             except Exception as e:
                 logger.debug(f"Migration note: {e}")
+
+        # Backfill: every embedding in this database was produced by the one
+        # model this pipeline has ever run (MODEL_NAME), so stamping NULL rows
+        # is safe and prevents them from being excluded by model-filtered
+        # queries. Idempotent: only touches still-NULL rows.
+        try:
+            stamped = self.conn.execute(
+                "UPDATE silver_financial_news SET embedding_model = ? "
+                "WHERE embedding IS NOT NULL AND embedding_model IS NULL",
+                [MODEL_NAME],
+            ).fetchone()
+            if stamped and stamped[0]:
+                logger.info(f"Backfilled embedding_model={MODEL_NAME} on {stamped[0]} rows")
+        except Exception as e:
+            logger.debug(f"Backfill note: {e}")
 
         logger.info(f"Initialized Lakehouse schema at {self.db_path}")
 
@@ -99,6 +118,7 @@ class LakehouseManager:
                 e.canonical_cluster_id,
                 embedding_list,
                 semantic_score,
+                MODEL_NAME if embedding_list is not None else None,
                 json.dumps(e.metadata),
                 e.schema_version
             ))
@@ -108,9 +128,9 @@ class LakehouseManager:
             id, source, title, content_snippet, content_full, url,
             event_time, published_time, ingested_time,
             tickers_mentioned, is_near_duplicate, canonical_cluster_id,
-            embedding, semantic_score,
+            embedding, semantic_score, embedding_model,
             metadata, schema_version
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         self.conn.executemany(sql, rows)
         logger.info(f"Inserted {len(rows)} events into silver_financial_news")
@@ -270,6 +290,7 @@ class LakehouseManager:
         as_of_time: Optional[datetime] = None,
         exclude_duplicates: bool = True,
         limit: int = 5,
+        embedding_model: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Semantic similarity search using DuckDB's array_cosine_similarity.
@@ -279,6 +300,12 @@ class LakehouseManager:
             query_embedding: List of 384 floats (L2-normalized).
             as_of_time:      Optional PiT cutoff (only articles available at this time).
             exclude_duplicates: Whether to exclude near-duplicates.
+            embedding_model: Optional EXPLICIT opt-in filter — restricts search
+                             to rows stamped with this model. Never default-on:
+                             rows with a different/NULL model are silently
+                             excluded only when the caller passes this. Pre-
+                             existing rows are backfilled at init, so NULLs
+                             should not occur in practice.
             limit:           Max results to return.
 
         Returns:
@@ -286,6 +313,10 @@ class LakehouseManager:
         """
         conditions = ["embedding IS NOT NULL"]
         params: List[Any] = []
+
+        if embedding_model:
+            conditions.append("embedding_model = ?")
+            params.append(embedding_model)
 
         if as_of_time:
             if as_of_time.tzinfo is None:
