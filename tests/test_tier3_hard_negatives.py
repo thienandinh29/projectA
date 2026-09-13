@@ -7,18 +7,23 @@ adversarial half. All threshold/gate behavior is traceable to
 scripts/calibrate_tier3.py (63-pair labeled corpus, 7 bands, gated sweep,
 precision-first policy):
 
-  - SEMANTIC_COSINE_THRESHOLD was hand-picked 0.65, now calibrated 0.88.
+  - SEMANTIC_COSINE_THRESHOLD history: hand-picked 0.65 -> 0.88 (gates only,
+    no entity extractor) -> 0.76 (production entity extractor + antonym
+    polarity guard). The live value always comes from config.py, never from
+    this file.
   - Measured on all-MiniLM-L6-v2 (fastembed ONNX): hard negatives (same ticker,
     different event) score 0.44-0.74 and OVERLAP the same-event rewrite band
-    (0.25-0.86) — the bands are not separable. At 0.65 the gated merge had
-    precision 0.43 (8 distinct-event false merges); at 0.88 precision is 1.000.
-  - Accepted cost: recall on low-overlap paraphrases drops to ~5% on the
-    corpus; Tier 2 LSH remains the main dedup workhorse. The hole is pinned
-    by test_recall_hole_documented below.
+    (0.25-0.92) — the bands are not separable, so precision comes from the
+    gates, not the cutoff. At the hand-picked 0.65 the gated merge had
+    precision 0.43 (8 distinct-event false merges).
+  - Accepted cost: recall on low-overlap paraphrases is low (measured value
+    and its n=20 sample size live in config.py / README); Tier 2 LSH remains
+    the main dedup workhorse. The hole is pinned by
+    test_recall_hole_documented below.
 
 Also verifies the ticker/entity gate and the polarity-class guard
 (utils/polarity.py) as merge gates, including the regression for the old
-set-inequality over-blocking bug.
+set-inequality over-blocking bug and the antonym-map structural invariants.
 
 Redis db=15 (isolated from production db=0), flushed per test.
 """
@@ -142,7 +147,9 @@ class TestTier3HardNegatives(unittest.TestCase):
         """
         beats/misses pair measures cosine 0.916 — ABOVE the calibrated
         threshold. Same ticker (gate passes). Only the polarity-class guard
-        stops this merge. Without it, 0.88 would ship opposite-event merges.
+        stops this merge: no cosine cutoff can separate beats from misses
+        (~0.92), so without the guard any calibrated threshold ships
+        opposite-event merges.
         """
         from utils.polarity import polarity_profile, has_conflict
 
@@ -192,20 +199,22 @@ class TestTier3HardNegatives(unittest.TestCase):
 
     def test_recall_hole_documented(self):
         """
-        Documents the ACCEPTED recall hole, pinned in CI: this same-event
-        paraphrase pair measures cosine ~0.86 — below the calibrated 0.88, so
-        it is deliberately NOT merged (the old 0.65 caught it, but also merged
-        8 distinct-event pairs). Tier 2 LSH is expected to catch this class in
-        production via shared vocabulary. If the cosine drifts above the
-        threshold, this test flips into asserting a merge instead.
+        Documents the ACCEPTED recall hole with a pair the gates cannot save:
+        same-event paraphrase, entity gate passes (FED on both sides),
+        identical neutral polarity — a pure cosine miss at the calibrated
+        threshold (measured 0.4036). The previous hole example (the OPEC
+        paraphrase pair at cosine ~0.86) now MERGES at the current threshold,
+        so it no longer demonstrates a hole. Tier 2 LSH is expected to catch
+        this class in production via shared vocabulary. If the cosine drifts
+        above the threshold, this test flips into asserting a merge instead.
         """
         import numpy as np
         from models.embedder import get_embedder
         from config import SEMANTIC_COSINE_THRESHOLD
 
         ts = int(time.time() * 1000)
-        a = "Oil prices surge as OPEC announces production cuts"
-        b = "Oil surges after OPEC announces output cut"
+        a = "Federal Reserve holds benchmark rate steady"
+        b = "Fed leaves key rate unchanged"
         _, _, _ = self._check(f"hole_a_{ts}", a)
         _, is_near, _ = self._check(f"hole_b_{ts}", b)
 
@@ -216,7 +225,7 @@ class TestTier3HardNegatives(unittest.TestCase):
         else:
             self.assertFalse(is_near,
                 "Behavior changed: pair below threshold got merged — precision regression")
-            self.assertGreaterEqual(cos, 0.80, "hole band drifted; re-run scripts/calibrate_tier3.py")
+            self.assertGreaterEqual(cos, 0.30, "hole band drifted; re-run scripts/calibrate_tier3.py")
 
 
 class TestPolarityOverBlockRegression(unittest.TestCase):
@@ -250,9 +259,10 @@ class TestPolarityOverBlockRegression(unittest.TestCase):
     def test_true_duplicate_merges_despite_extra_polarity_word(self):
         """
         Tier-3 isolated: explicit threshold 0.65 so the merge decision exercises
-        the GUARD, not the calibrated threshold (cosine ~0.86 misses 0.88).
-        Under the old set-inequality guard this pair was blocked at any
-        threshold — that was the bug.
+        the GUARD regardless of whatever the calibrated threshold is (this
+        pair's cosine ~0.86 is above the current 0.76, so post-fix it merges
+        in production too). Under the old set-inequality guard this pair was
+        blocked at any threshold — that was the bug.
         """
         from utils.semantic_dedup import SemanticDeduplicator
         from models.embedder import get_embedder
@@ -267,6 +277,38 @@ class TestPolarityOverBlockRegression(unittest.TestCase):
             "ob_b", vec_b, title="Tesla beats Q3 estimates, shares rise")
         self.assertTrue(is_dup, f"True duplicate over-blocked by the guard (score={score:.3f})")
         self.assertEqual(canon, "ob_a")
+
+
+class TestAntonymMapInvariant(unittest.TestCase):
+    """
+    Structural guards that make the slide/lower/warn antonym-key gap class
+    impossible to reintroduce (round-4 review: the bug was invisible because
+    no test used those words as the isolated negative signal):
+      1. Key existence — every lexicon word is an ANTONYMS key or explicitly
+         exempt (a silent absence disables the guard for that word).
+      2. No self-reference — no word maps to its own antonym set.
+      3. Full pairwise symmetry — the closure deriving ANTONYMS from the raw
+         pairs must never leave a one-directional pair behind.
+    """
+
+    def test_key_existence_no_self_reference_symmetry(self):
+        from utils.polarity import POSITIVE, NEGATIVE, ANTONYMS, _ANTONYM_EXEMPT
+
+        lexicon = POSITIVE | NEGATIVE
+        unkeyed = sorted(w for w in lexicon if w not in ANTONYMS and w not in _ANTONYM_EXEMPT)
+        self.assertEqual(
+            unkeyed, [],
+            f"lexicon words missing from ANTONYMS and not in _ANTONYM_EXEMPT: {unkeyed} — "
+            "opposite-direction pairs using only these words can never conflict"
+        )
+
+        for w1, antonyms in ANTONYMS.items():
+            self.assertNotIn(w1, antonyms, f"self-referential antonym entry: {w1}")
+            for w2 in antonyms:
+                self.assertIn(
+                    w1, ANTONYMS.get(w2, frozenset()),
+                    f"asymmetric antonym pair: {w1}->{w2} without {w2}->{w1}"
+                )
 
 
 class TestEmbedderThreadSafety(unittest.TestCase):
@@ -370,6 +412,73 @@ class TestMixedPolarityAdversarials(unittest.TestCase):
             "mx2_b", embedder.embed_text(b), title=b)
         self.assertTrue(is_dup, f"True same-direction duplicate over-blocked (score={score:.3f})")
         self.assertEqual(canon, "mx2_a")
+
+    def test_shared_negative_antonym_linked_no_conflict(self):
+        """
+        DISCRIMINATING regression for the non-shared-negative refinement.
+        Both sides share neg {fall}, and 'fall' IS antonym-linked to 'climb'
+        and 'rise'. WITHOUT the subtraction (pos_a & ant(neg_b)) this returns
+        a false conflict ({climb} ∩ ant({fall}) = {climb}) — this test fails
+        on pre-refinement code and passes only on fixed code.
+        """
+        from utils.polarity import polarity_profile, has_conflict
+        a = "Stocks climb even as profit falls"
+        b = "Shares rise even as profit falls"
+        self.assertFalse(has_conflict(polarity_profile(a), polarity_profile(b)),
+            "shared negative 'fall' is agreed context, not a conflict dimension")
+
+        # End-to-end: the guard no longer false-blocks, so at the measured
+        # cosine 0.795 (>= calibrated threshold) this same-direction pair
+        # legitimately MERGES — asserting that pins the fix's real effect.
+        import numpy as np
+        from models.embedder import get_embedder
+        from config import SEMANTIC_COSINE_THRESHOLD
+        ts = int(time.time() * 1000)
+        _, _, _ = self.dedup.check_dedup(f"sn_a_{ts}", a, source="RSS")
+        _, is_near, _ = self.dedup.check_dedup(f"sn_b_{ts}", b, source="RSS")
+        cos = float(np.dot(get_embedder().embed_text(a), get_embedder().embed_text(b)))
+        if cos >= SEMANTIC_COSINE_THRESHOLD:
+            self.assertTrue(is_near,
+                "post-fix the guard must not block this same-direction pair")
+        else:
+            self.assertFalse(is_near)
+
+    def test_slide_lower_conflict_unit(self):
+        """
+        Regression for the round-4 bug: 'slide' and 'lower' had no ANTONYMS
+        keys, so opposite-direction pairs whose ONLY negative signal was
+        slide/lower never conflicted.
+        """
+        from utils.polarity import polarity_profile, has_conflict
+        self.assertTrue(has_conflict(
+            polarity_profile("Stocks slide on rate fears"),
+            polarity_profile("Stocks surge on rate cut hopes")))
+        self.assertTrue(has_conflict(
+            polarity_profile("Fed lowers rates by 25 basis points"),
+            polarity_profile("Fed hikes rates by 25 basis points")))
+
+    def test_slide_lower_not_merged_end_to_end(self):
+        ts = int(time.time() * 1000)
+        pairs = [
+            ("Stocks slide on rate fears", "Stocks surge on rate cut hopes"),
+            ("Fed lowers rates by 25 basis points", "Fed hikes rates by 25 basis points"),
+        ]
+        for i, (a, b) in enumerate(pairs):
+            _, _, _ = self.dedup.check_dedup(f"sl_a{i}_{ts}", a, source="RSS")
+            _, is_near, _ = self.dedup.check_dedup(f"sl_b{i}_{ts}", b, source="RSS")
+            self.assertFalse(is_near, f"opposite-direction pair merged: '{a}' || '{b}'")
+
+    def test_net_opposite_still_conflicts_after_subtraction(self):
+        """
+        The refinement only neutralizes SHARED negatives; unshared ones still
+        clash. b carries no negative, so ant(neg_a={fall}) ∋ 'rise' from
+        pos_b — conflict must fire.
+        """
+        from utils.polarity import polarity_profile, has_conflict
+        a = "Stocks climb even as profit falls"
+        b = "Shares rise even as companies beat expectations"
+        self.assertTrue(has_conflict(polarity_profile(a), polarity_profile(b)),
+            "subtraction refinement over-corrected: unshared negatives must still clash")
 
 
 class TestMultiTickerGateSemantics(unittest.TestCase):

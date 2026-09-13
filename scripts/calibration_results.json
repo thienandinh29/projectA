@@ -79,9 +79,9 @@
       "min": 0.6372355818748474,
       "median": 0.733040452003479,
       "max": 0.753822386264801,
-      "gate_blocked": 0,
+      "gate_blocked": 1,
       "min_surviving": 0.6372355818748474,
-      "max_surviving": 0.753822386264801
+      "max_surviving": 0.733040452003479
     }
   },
   "sweep": [
@@ -1673,8 +1673,8 @@
       "b": "Gold climbs with the dollar lower on easing bets",
       "entity_blocked": false,
       "oracle_blocked": false,
-      "polarity_blocked": false,
-      "gate_blocked": false
+      "polarity_blocked": true,
+      "gate_blocked": true
     }
   ]
 }

@@ -12,8 +12,10 @@ Cosine bands measured on a 63-pair labeled corpus (7 bands, gated sweep):
   - Polarity inversions:                    0.69 – 0.92 (guard-blocked, not threshold-blocked)
 The bands are NOT separable: at the old hand-picked 0.65, gated precision was
 0.43 (8 distinct-event false merges). The production threshold is calibrated
-to 0.88 (SEMANTIC_COSINE_THRESHOLD, precision-first: gated precision 1.000,
-~5% corpus recall — the accepted hole is pinned in test_tier3_hard_negatives).
+(see config.py / scripts/calibration_results.json for the live value and full
+P/R/F1 curve — calibrated 0.76 with the entity extractor + antonym polarity
+guard active: gated precision 1.000, recall 0.15 on n=20 hand-authored pairs;
+the accepted hole is pinned in test_tier3_hard_negatives).
 """
 
 import os

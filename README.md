@@ -146,9 +146,10 @@ All numbers below are measured, not asserted: `scripts/calibrate_tier3.py`
 
 - **Threshold**: `SEMANTIC_COSINE_THRESHOLD=0.76` (config.py). At τ=0.76 with
   gates active: **precision 1.000, recall 0.150, F1 0.261, 0 false merges** on
-  the corpus. The cosine bands of same-event rewrites (0.25–0.92) and
-  same-company-different-event pairs (0.44–0.74) overlap — no threshold is
-  separable, so precision comes from the gates, not the cutoff.
+  the corpus (n=20 hand-authored positive pairs — a small-sample estimate,
+  not a population recall rate). The cosine bands of same-event rewrites
+  (0.25–0.92) and same-company-different-event pairs (0.44–0.74) overlap — no
+  threshold is separable, so precision comes from the gates, not the cutoff.
 - **Entity gate**: `utils/entity_extract.py` (~110 aliases incl. central
   banks). Coverage: 58% of corpus titles, 37% of live lakehouse titles
   (29% with the old regex). Semantics: no entities on either side → gate
@@ -167,5 +168,5 @@ All numbers below are measured, not asserted: `scripts/calibrate_tier3.py`
 - **Embedding versioning**: `embedding_model` stamped on every insert;
   pre-existing rows backfilled at init; `query_similar_news(embedding_model=...)`
   is an explicit opt-in filter (never default-on).
-- **Known limitation**: recall 0.15 on low-overlap paraphrases — Tier 3 is a
-  precision-first safety net; Tier 2 LSH remains the primary dedup tier.
+- **Known limitation**: recall 0.15 on low-overlap paraphrases (n=20 pairs) —
+  Tier 3 is a precision-first safety net; Tier 2 LSH remains the primary dedup tier.

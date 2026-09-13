@@ -17,7 +17,8 @@ Design notes
 """
 
 import re
-from typing import List, Optional, Set, Tuple
+from collections import defaultdict
+from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 
 POSITIVE = frozenset({
     "beat", "surge", "soar", "spike", "jump", "rally", "rebound",
@@ -51,28 +52,30 @@ IRREGULAR_FORMS = {
     "shrank": "shrink", "sprang": "spring",
 }
 
-# Word-level antonym map (symmetric). A conflict requires an actual
-# opposite-direction WORD PAIR across the two profiles — sharing a negative
-# word while using different positive verbs ("surges ... cuts" vs
-# "rallies ... cuts") is a same-direction paraphrase, not a conflict.
-ANTONYMS = {
+# Raw antonym pairs — the SINGLE canonical direction list. Both directions of
+# the public ANTONYMS map are derived from this by closure at import time, so
+# partial forward-only links (e.g. a "crash -> rise" without the reciprocal)
+# self-heal and dual-entry maintenance can never drift again. Nothing already
+# recorded here is dropped in the rewrite.
+_RAW_ANTONYMS = {
     # earnings/results dimension
     "beat": {"miss", "underperform"}, "miss": {"beat", "top", "exceed", "outperform"},
     "top": {"miss"}, "exceed": {"miss", "underperform"},
     "outperform": {"miss", "underperform"}, "underperform": {"beat", "top", "exceed", "outperform"},
     # rates/actions dimension
-    "hike": {"cut", "slash"}, "raise": {"cut", "slash"}, "boost": {"cut", "slash"},
+    "hike": {"cut", "slash", "lower"}, "raise": {"cut", "slash", "lower"}, "boost": {"cut", "slash", "lower"},
     "cut": {"hike", "raise", "boost"}, "slash": {"hike", "raise", "boost"},
+    "lower": {"hike", "raise", "boost"},
     # price-action dimension
-    "surge": {"plunge", "plummet", "crash", "slump", "sink"},
-    "soar": {"plunge", "plummet", "crash", "slump", "sink"},
-    "spike": {"plunge", "plummet", "crash", "slump", "sink"},
-    "jump": {"plunge", "plummet", "sink", "slump", "tumble"},
-    "rally": {"plunge", "plummet", "crash", "sink", "slump"},
-    "rebound": {"plunge", "plummet", "crash", "slump"},
-    "climb": {"tumble", "plunge", "plummet", "crash", "slump", "sink", "fall"},
-    "rise": {"fall", "drop", "decline", "sink", "slump", "plunge", "plummet", "tumble"},
-    "gain": {"loss", "drop", "fall", "decline"},
+    "surge": {"plunge", "plummet", "crash", "slump", "sink", "slide"},
+    "soar": {"plunge", "plummet", "crash", "slump", "sink", "slide"},
+    "spike": {"plunge", "plummet", "crash", "slump", "sink", "slide"},
+    "jump": {"plunge", "plummet", "sink", "slump", "tumble", "slide"},
+    "rally": {"plunge", "plummet", "crash", "sink", "slump", "slide"},
+    "rebound": {"plunge", "plummet", "crash", "slump", "slide"},
+    "climb": {"tumble", "plunge", "plummet", "crash", "slump", "sink", "fall", "slide"},
+    "rise": {"fall", "drop", "decline", "sink", "slump", "plunge", "plummet", "tumble", "slide"},
+    "gain": {"loss", "drop", "fall", "decline", "slide"},
     "plunge": {"surge", "soar", "spike", "jump", "rally", "rebound", "climb", "rise"},
     "plummet": {"surge", "soar", "spike", "jump", "rally", "rebound", "climb", "rise"},
     "crash": {"surge", "soar", "spike", "rally", "rebound", "climb", "rise"},
@@ -82,13 +85,30 @@ ANTONYMS = {
     "fall": {"rise", "jump", "surge", "soar", "spike", "rally", "climb", "gain", "rebound"},
     "drop": {"rise", "jump", "surge", "rally", "climb", "gain", "rebound"},
     "decline": {"rise", "surge", "jump", "rally", "rebound", "gain", "climb"},
+    "slide": {"surge", "soar", "spike", "jump", "rally", "rebound", "climb", "rise", "gain"},
     "loss": {"gain"},
     # ratings/sentiment dimension
     "upgrade": {"downgrade"}, "downgrade": {"upgrade"},
     "bullish": {"bearish"}, "bearish": {"bullish"},
     "strong": {"weak"}, "weak": {"strong"},
-    "record": frozenset(),  # no antonym
 }
+
+# Lexicon words with no directional antonym anywhere in this vocabulary.
+# Explicit, not absent: distinguishes "intentionally unpaired" from a missing
+# key (the slide/lower/warn bug class this set + the invariant test close).
+_ANTONYM_EXEMPT = {
+    "record",  # "record profit" vs "record loss" — direction carried by the other word
+    "warn",    # no positive counterpart in this lexicon ("reassure"/"affirm" absent)
+}
+
+# Symmetric closure: every recorded pair (w, s) becomes s ∈ ant(w) AND
+# w ∈ ant(s), regardless of which direction was originally written.
+_SYMMETRIC: Dict[str, Set[str]] = defaultdict(set)
+for _w, _ants in _RAW_ANTONYMS.items():
+    for _s in _ants:
+        _SYMMETRIC[_w].add(_s)
+        _SYMMETRIC[_s].add(_w)
+ANTONYMS: Dict[str, FrozenSet[str]] = {w: frozenset(v) for w, v in _SYMMETRIC.items()}
 
 
 def _antonyms_of(words: Set[str]) -> Set[str]:
@@ -174,14 +194,19 @@ def has_conflict(profile_a: Tuple[Set[str], Set[str]],
       - Plain set differences: "beats Q3 estimates" vs "beats Q3 estimates,
         shares rise" (pos {beat} vs {beat, rise}) — same direction, true dup.
       - Shared negative + different positive verbs: "surges ... cuts" vs
-        "rallies ... cuts" — same-direction paraphrase (mixed vs mixed).
+        "rallies ... cuts" — same-direction paraphrase (mixed vs mixed). The
+        antonym clash is computed against NON-SHARED negatives only: a
+        negative word present on both sides is agreed context ("...as OPEC
+        cuts...", "...as stocks slide..."), not a conflict dimension. Without
+        this, adding "slide" to the map would false-block "Oil surges as
+        stocks slide" vs "Oil rallies as stocks slide".
       - Any pair where one side has no polarity signal at all.
     """
     pos_a, neg_a = profile_a
     pos_b, neg_b = profile_b
     same_word_opposite = bool((pos_a & neg_b) or (pos_b & neg_a))
     antonym_clash = bool(
-        (pos_a & _antonyms_of(neg_b)) or (pos_b & _antonyms_of(neg_a))
+        (pos_a & _antonyms_of(neg_b - neg_a)) or (pos_b & _antonyms_of(neg_a - neg_b))
     )
     return same_word_opposite or antonym_clash
 

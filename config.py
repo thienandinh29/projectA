@@ -25,7 +25,8 @@ REDIS_SEMANTIC_TTL_SECONDS = int(os.getenv("REDIS_SEMANTIC_TTL_SECONDS", 7200)) 
 #     Tier 3 was near-inert because hard negatives (0.44-0.74) overlapped
 #     same-event rewrites (0.25-0.92).
 #   - v2 (0.76, production extractor + antonym guard): precision 1.000,
-#     RECALL 0.150, F1 0.261, 0 false merges, gate false-reject 0%.
+#     RECALL 0.150 (n=20 hand-authored pairs — small-sample estimate), F1
+#     0.261, 0 false merges, gate false-reject 0%.
 #     Highest surviving negative 0.7425; extractor coverage corpus 58% /
 #     live 37% (oracle-perfect tags would only add 0.03 threshold headroom).
 # Precision-first policy: a wrong merge hides a real event from canonical PiT
