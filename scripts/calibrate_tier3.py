@@ -137,6 +137,11 @@ B6_POLARITY = [
 B7_GUARD_COST = [
     ("Oil prices surge as OPEC cuts production", [], "Crude oil rallies on OPEC supply reduction", []),
     ("Tesla surges on record deliveries despite price cuts", ["TSLA"], "Tesla rallies as record volumes offset price reductions", ["TSLA"]),
+    # Cross-subject over-block, accepted round 5: 'slide' describes the dollar,
+    # 'climb' describes gold — antonym-linked regardless of subject, so the
+    # guard blocks a true duplicate. Precision-first accepts this (redundancy
+    # kept, never wrong data). Pinned by
+    # test_known_cross_subject_overblock_is_documented.
     ("Gold gains as dollar slides on rate-cut bets", [], "Gold climbs with the dollar lower on easing bets", []),
 ]
 
@@ -246,6 +251,13 @@ def main():
               f"({len(blocked)/len(positives)*100:.0f}%)")
         for r in blocked:
             print(f"      - [{r['band']}] {r['a'][:48]} || {r['b'][:48]} (cos={r['cos']:.3f})")
+
+    b7 = [r for r in scored if r["band"] == "B7_guard_cost"]
+    b7_blocked = [r for r in b7 if r["gate_blocked"]]
+    print(f"  B7 guard cost    : {len(b7_blocked)}/{len(b7)} curated true-duplicate pairs blocked "
+          f"(also see the B7 row in section 1). Cross-subject over-blocks — a polarity word "
+          f"describing a different entity than the one it clashes with — are an expected, accepted "
+          f"cost under precision-first; pinned by test_known_cross_subject_overblock_is_documented.")
 
     # ── 4. Threshold sweep ──
     print("\n=== 4. THRESHOLD SWEEP (precision-first: wrong merges are fatal) ===")

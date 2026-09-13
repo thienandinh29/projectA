@@ -158,7 +158,10 @@ All numbers below are measured, not asserted: `scripts/calibrate_tier3.py`
 - **Polarity guard**: antonym-pair rule (`utils/polarity.py`) with inflection
   + irregular-form normalization and a 3-token negation window. Blocks
   beats/misses-class inversions that score up to 0.92 cosine; measured 0%
-  false rejects on same-event pairs.
+  false rejects on same-event pairs. Known accepted cost: cross-subject
+  mixed pairs may over-block — measured **1 of the 3 hand-picked B7
+  guard-cost pairs** (a curated adversarial band, not a production rate),
+  pinned by `test_known_cross_subject_overblock_is_documented`.
 - **Scan cap**: `SEMANTIC_SCAN_LIMIT=1000` newest-first. Worst case at a
   5,000-entry window: Tier 3 p50 366ms → **78ms**, full `check_dedup`
   407ms → **101ms** (8.5 events/s single-threaded). Parity with brute-force

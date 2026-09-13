@@ -67,6 +67,15 @@ _RAW_ANTONYMS = {
     "cut": {"hike", "raise", "boost"}, "slash": {"hike", "raise", "boost"},
     "lower": {"hike", "raise", "boost"},
     # price-action dimension
+    # Known accepted cost (round 5, B7 band in scripts/calibrate_tier3.py):
+    # cross-subject over-block. "Gold gains as dollar slides on rate-cut bets"
+    # vs "Gold climbs with the dollar lower on easing bets" is a TRUE duplicate
+    # the guard blocks — 'slide' describes the dollar, 'climb' describes gold,
+    # but they are antonym-linked regardless of subject. Accepted under
+    # precision-first: a false block keeps redundancy, it never merges wrong
+    # data. Subject-level resolution (NER/dependency parsing) is deliberately
+    # out of scope for a keyword guard; pinned by
+    # test_known_cross_subject_overblock_is_documented.
     "surge": {"plunge", "plummet", "crash", "slump", "sink", "slide"},
     "soar": {"plunge", "plummet", "crash", "slump", "sink", "slide"},
     "spike": {"plunge", "plummet", "crash", "slump", "sink", "slide"},

@@ -480,6 +480,21 @@ class TestMixedPolarityAdversarials(unittest.TestCase):
         self.assertTrue(has_conflict(polarity_profile(a), polarity_profile(b)),
             "subtraction refinement over-corrected: unshared negatives must still clash")
 
+    def test_known_cross_subject_overblock_is_documented(self):
+        """
+        Accepted trade-off, not a bug: 'slide' (dollar) and 'climb' (gold) are
+        antonym-linked even though they describe different subjects here.
+        Blocks a true duplicate — the safe failure direction under
+        precision-first. If subject-aware resolution is ever added, flip this
+        to assertFalse with an updated comment — do not delete silently.
+        """
+        from utils.polarity import polarity_profile, has_conflict
+        a = "Gold gains as dollar slides on rate-cut bets"
+        b = "Gold climbs with the dollar lower on easing bets"
+        self.assertTrue(has_conflict(polarity_profile(a), polarity_profile(b)),
+            "if this now returns False, either the antonym map changed or "
+            "subject-aware resolution was added — update this test intentionally")
+
 
 class TestMultiTickerGateSemantics(unittest.TestCase):
     """Defined behavior for multi-ticker headlines: overlap merges, disjoint blocks."""
