@@ -1,4 +1,8 @@
-"__pycache__/" 
-"*.pyc" 
-".env" 
-"!.env.example" 
+# NOTE: gitignore patterns do NOT support quoting. The previous version of
+# this file wrapped every pattern in literal double quotes ("*.pyc"), so none
+# of them ever matched anything — which is how 21 .pyc binaries got tracked
+# (round-5 review). Keep patterns bare.
+__pycache__/
+*.pyc
+.env
+!.env.example
