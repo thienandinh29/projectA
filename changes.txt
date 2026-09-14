@@ -1,0 +1,1579 @@
+diff --git a/.env.example b/.env.example
+index 11f7bd5..7d1859e 100644
+--- a/.env.example
++++ b/.env.example
+@@ -21,3 +21,6 @@ SEC_MAX_REQUESTS_PER_SECOND=8
+ RSS_POLL_INTERVAL_SECONDS=180     # 3 minutes
+ GDELT_POLL_INTERVAL_SECONDS=900   # 15 minutes
+ SEC_POLL_INTERVAL_SECONDS=300     # 5 minutes
++# Durable outgoing messages (default: project data/delivery-outbox.sqlite3).
++# Set OUTBOX_PATH to an absolute persistent path to override the default.
++DEDUP_RESERVATION_SECONDS=60
+diff --git a/.gitignore b/.gitignore
+index 2bc6ed3..5114242 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -6,3 +6,6 @@ __pycache__/
+ *.pyc
+ .env
+ !.env.example
++data/delivery-outbox.sqlite3*
++data/week3-test-results.txt
++data/week3-focused-results.txt
+diff --git a/README.md b/README.md
+index 06fb878..1bf0d90 100644
+--- a/README.md
++++ b/README.md
+@@ -138,6 +138,79 @@ To run workers as background Docker containers alongside Redpanda and Redis:
+ docker compose --profile workers up -d --build
+ ```
+ 
++## Tier 2 exact-Jaccard verification
++
++MinHash LSH (128 permutations, 32 bands of 4) retrieves candidates. Acceptance
++uses exact `|A ∩ B| / |A ∪ B| >= 0.75` on the same normalized unigram/bigram
++sets, including existing polarity anchors, that produced the signatures.
++MinHash's estimated Jaccard no longer decides whether an article is merged.
++
++V2 records are stored under `lsh:news:v2:event:<id>` and contain the ordered
++headline, shingles, and original canonical ID. RSS/GDELT share V2 LSH buckets.
++Records have the configured LSH TTL (24 hours by default); missing, expired,
++or malformed records cannot authorize a match. Old V1 records and signature-only
++buckets are left untouched and ignored. Coverage rebuilds as new events arrive.
++Restart all workers together; mixed versions use different candidate windows.
++
++Candidates must also pass the shared polarity guard, handling antonyms,
++inflections, and short negation windows. Duplicate records preserve the original
++canonical ID, including when Tier 3 targets a V2 lexical duplicate. This remains
++a keyword heuristic: unknown verbs and subject-specific conflicts are limitations.
++Concurrent LSH lookup/insertion is not a distributed atomic clustering operation.
++
++All retrieved candidates are checked in sorted ID order, with Redis reads
++batched in groups of 256. The highest exact score wins, with lexical ID order
++breaking ties. This removes the arbitrary 15-candidate cutoff, but does not
++bound total work in a crowded bucket. Shingle payloads and full verification
++need memory/latency measurement before production throughput claims.
++
++LSH retrieval remains probabilistic. Tier 3 can still accept an event rejected
++by Tier 2's lexical gate. Previously measured Tier 3 figures below predate this
++Tier 2 change and are not new benchmarks.
++
++Run all regressions:
++
++```powershell
++python -m unittest discover -s tests -v
++```
++
++The acceptance-gate tests mock candidate retrieval. `test_tier2_live.py` tests
++actual Redis retrieval with unique prefixed keys and cleans up only its own keys.
++Legacy Redis tests flush their designated test databases (14/15), so reserve
++those databases for testing. These checks do not measure production throughput.
++
++## Event handoff and delivery recovery
++
++Workers use explicit event-specific dedup results and serialize public
++`embedding` and `semantic_score` fields. Sync validates the complete CommonEvent
++model, preserving `event_time` and `content_full` as well.
++
++Workers first reserve exact IDs for `DEDUP_RESERVATION_SECONDS` (default 60).
++Once a message is persisted in the SQLite outbox, its Redis marker is promoted
++to the normal seven-day TTL. Local staging failures release the marker and
++fuzzy payloads. A crash before staging leaves a short reservation rather than
++a seven-day suppression. Set the reservation TTL above normal per-event
++processing time; expiry can allow concurrent reprocessing.
++
++`produce_event()` returns whether a message is durably staged. Delivery callbacks
++remove acknowledged outbox records; queue or broker failures retain them.
++Workers retry up to 100 pending records for their topic at each fetch cycle,
++including after restart. Original wire payloads and ingestion times are preserved.
++Statistics separate `queued`, acknowledged `published` during the cycle, and
++`pending_delivery`. Published can include recovered messages from earlier cycles.
++
++Delivery is at-least-once: a crash after broker acceptance but before local
++acknowledgement can resend an event. Multiple producers recovering a shared
++outbox can also resend it; downstream replay-safe storage remains week 4 work.
++Docker workers persist the outbox in the `ingestion-data` volume. Host workers
++use `data/delivery-outbox.sqlite3`; `OUTBOX_PATH` can override it. Host and Docker
++outboxes are separate unless configured to share storage. Removing the volume
++loses pending messages. SEC's critical profile requires confluent-kafka rather
++than silently falling back without its idempotence guarantee.
++
++Recovery tests use a real temporary SQLite outbox and mocked Kafka callbacks;
++they do not claim a live broker outage test.
++
+ ## Tier 3 Semantic Dedup — Measured Status (calibrated 2026-09)
+ 
+ All numbers below are measured, not asserted: `scripts/calibrate_tier3.py`
+diff --git a/config.py b/config.py
+index c902a2c..cb271b6 100644
+--- a/config.py
++++ b/config.py
+@@ -11,6 +11,8 @@ KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+ REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+ REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+ REDIS_DB = int(os.getenv("REDIS_DB", 0))
++OUTBOX_PATH = os.getenv("OUTBOX_PATH", str(Path(__file__).resolve().parent / "data" / "delivery-outbox.sqlite3"))
++DEDUP_RESERVATION_SECONDS = int(os.getenv("DEDUP_RESERVATION_SECONDS", "60"))
+ REDIS_TTL_SECONDS = int(os.getenv("REDIS_TTL_SECONDS", 604800))      # 7 days for exact match
+ REDIS_LSH_TTL_SECONDS = int(os.getenv("REDIS_LSH_TTL_SECONDS", 86400))  # 24 hours for LSH near-duplicate window
+ REDIS_SEMANTIC_TTL_SECONDS = int(os.getenv("REDIS_SEMANTIC_TTL_SECONDS", 7200))  # 120 minutes for semantic embedding window
+diff --git a/docker-compose.yml b/docker-compose.yml
+index fa1c800..c76397b 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -69,6 +69,8 @@ services:
+     container_name: worker-rss
+     command: python -m workers.rss_worker
+     restart: unless-stopped
++    volumes:
++      - ingestion-data:/app/data
+     depends_on:
+       redpanda:
+         condition: service_healthy
+@@ -85,6 +87,8 @@ services:
+     container_name: worker-gdelt
+     command: python -m workers.gdelt_worker
+     restart: unless-stopped
++    volumes:
++      - ingestion-data:/app/data
+     depends_on:
+       redpanda:
+         condition: service_healthy
+@@ -101,6 +105,8 @@ services:
+     container_name: worker-sec
+     command: python -m workers.sec_worker
+     restart: unless-stopped
++    volumes:
++      - ingestion-data:/app/data
+     depends_on:
+       redpanda:
+         condition: service_healthy
+@@ -116,3 +122,5 @@ volumes:
+     driver: local
+   redis-data:
+     driver: local
++  ingestion-data:
++    driver: local
+diff --git a/docs/week3-progress.md b/docs/week3-progress.md
+new file mode 100644
+index 0000000..fdf2fb5
+--- /dev/null
++++ b/docs/week3-progress.md
+@@ -0,0 +1,60 @@
++# Week 3 implementation progress
++
++This is the week 3 slice of Phase 0 (roadmap weeks 1–5).
++
++| Planned work | Status | Implementation / evidence |
++|---|---|---|
++| Exact Tier 2 Jaccard verification | Implemented | Shared shingles; exact set intersection/union; boundary regressions |
++| Explicit Tier 2 polarity protection | Implemented | Shared antonym/negation guard; long-headline regressions |
++| RSS/GDELT syndication clustering | Implemented | Shared V2 buckets; live Redis cross-source tests |
++| Original canonical IDs | Implemented for sequential V2 processing | Duplicate records retain root IDs; semantic targets resolve V2 cluster IDs |
++| Deterministic candidate verification | Implemented | All candidates checked in sorted batches of 256 |
++| Complete event handoff | Implemented | Public embeddings/scores; complete Pydantic wire parsing; SQLite-independent DuckDB roundtrip and PiT tests |
++| Recoverable Kafka delivery failures | Implemented | Durable SQLite outbox; topic-specific retries; acknowledgement-only deletion |
++| Distinguish queued and published | Implemented | Published counts actual callbacks; pending count exposed |
++| Recover after crash before outbox staging | Implemented | Short Redis reservation promoted only after durable staging |
++
++Validation commands:
++
++```powershell
++python -m unittest discover -s tests -v
++python -m compileall -q workers utils lakehouse models
++docker compose config --quiet
++```
++
++Tests use actual Redis and temporary DuckDB/SQLite files. Kafka failures are
++simulated through callbacks. No production feeds or topics are populated by
++the new tests. Existing legacy tests clear Redis test databases 14/15.
++
++Validated on 2026-09-14: the full 84-test suite passed, followed by three
++additional worker tests (87 passing tests total). Python compilation and
++Compose configuration validation passed. Docker printed a warning that it
++could not read the user's credential config, but Compose validation exited
++successfully. Containers were not rebuilt or restarted during this change.
++
++## Remaining Phase 0 work for weeks 4–5
++
++1. Replace the bounded replay sync with a continuous micro-batch writer.
++2. Use a stable Kafka consumer group and commit offsets after DB transactions.
++3. Populate Bronze with raw messages and topic/partition/offset provenance.
++4. Make Silver replay-safe without changing original ingestion history;
++   define how revised content is versioned rather than blindly replaced.
++5. Persist malformed events and parsing errors for review and recovery.
++6. Package the writer with persistent storage; define supported reader access.
++7. Validate live broker failures, writer restart, replay, delayed events,
++   and end-to-end PiT queries. Measure lag, throughput, latency, and memory.
++
++## Limits to carry forward
++
++- Keyword polarity guards cannot prove universal semantic safety.
++- Concurrent Redis LSH lookup/insertion can create multiple canonical IDs;
++  atomic distributed clustering is separate hardening work.
++- All-candidate checks need benchmarks for crowded buckets and memory use.
++- V2 is a new candidate window: restart workers together; coverage repopulates.
++- Outbox delivery is at-least-once; acknowledgements can be lost across crashes,
++  and multiple producers can resend shared pending records.
++- The 60-second reservation is configurable and should exceed processing time.
++- Older records and clusters are not retroactively repaired by this change.
++- Docker and host outboxes use separate storage by default.
++
++FinBERT belongs to Phase 0.5 after the storage and validation checks above.
+diff --git a/lakehouse/sync.py b/lakehouse/sync.py
+index 77e8118..bf1b859 100644
+--- a/lakehouse/sync.py
++++ b/lakehouse/sync.py
+@@ -1,8 +1,7 @@
+-import json
+ import logging
+ import argparse
+-from datetime import datetime, timezone
+-from confluent_kafka import Consumer, TopicPartition, KafkaError
++from datetime import datetime
++from confluent_kafka import Consumer, KafkaError
+ from config import KAFKA_BOOTSTRAP_SERVERS, TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC
+ from models.event import CommonEvent
+ from lakehouse.db import LakehouseManager
+@@ -14,6 +13,11 @@ logging.basicConfig(
+ logger = logging.getLogger("LakehouseSync")
+ 
+ 
++def parse_event_payload(raw: bytes) -> CommonEvent:
++    """Validate the complete wire model without reconstructing a subset."""
++    return CommonEvent.model_validate_json(raw)
++
++
+ def sync_redpanda_to_lakehouse(limit_per_topic: int = 500):
+     """
+     Consumes events from Redpanda topics and syncs them into DuckDB Lakehouse tables.
+@@ -52,31 +56,8 @@ def sync_redpanda_to_lakehouse(limit_per_topic: int = 500):
+ 
+                 empty_polls = 0
+                 try:
+-                    payload = json.loads(msg.value().decode("utf-8"))
+-                    # Parse timestamp
+-                    pub_time_str = payload.get("published_at")
+-                    pub_time = datetime.fromisoformat(pub_time_str) if pub_time_str else datetime.now(timezone.utc)
+-                    ingested_time_str = payload.get("ingested_time")
+-                    ingested_time = datetime.fromisoformat(ingested_time_str) if ingested_time_str else datetime.now(timezone.utc)
+-
+-                    event = CommonEvent(
+-                        id=payload["id"],
+-                        source=payload["source"],
+-                        title=payload["title"],
+-                        content_snippet=payload.get("content_snippet", ""),
+-                        url=payload.get("url"),
+-                        published_at=pub_time,
+-                        ingested_time=ingested_time,
+-                        tickers_mentioned=payload.get("tickers_mentioned", []),
+-                        is_near_duplicate=payload.get("is_near_duplicate", False),
+-                        canonical_cluster_id=payload.get("canonical_cluster_id"),
+-                        embedding=payload.get("embedding"),
+-                        semantic_score=payload.get("semantic_score"),
+-                        metadata=payload.get("metadata", {}),
+-                        schema_version=payload.get("schema_version", "1.0")
+-                    )
+-
+-                    if payload["source"] == "SEC":
++                    event = parse_event_payload(msg.value())
++                    if event.source == "SEC":
+                         sec_batch.append(event)
+                     else:
+                         news_batch.append(event)
+@@ -93,7 +74,7 @@ def sync_redpanda_to_lakehouse(limit_per_topic: int = 500):
+                     logger.info(f"Computing embeddings for {len(unembedded)} news events...")
+                     vectors = embedder.embed_batch([e.title for e in unembedded])
+                     for e, vec in zip(unembedded, vectors):
+-                        e._embedding = vec
++                        e.embedding = vec.tolist()
+ 
+                 count = lakehouse.insert_news_batch(news_batch)
+                 total_synced["news"] += count
+diff --git a/models/event.py b/models/event.py
+index 4363aea..e1f75bf 100644
+--- a/models/event.py
++++ b/models/event.py
+@@ -33,7 +33,7 @@ class CommonEvent(BaseModel):
+ 
+     # Deduplication & Clustering Tracking
+     is_near_duplicate: bool = Field(default=False, description="Flag indicating if this event is a semantic/LSH near-duplicate")
+-    canonical_cluster_id: Optional[str] = Field(default=None, description="ID of the first canonical event in this 120-min cluster")
++    canonical_cluster_id: Optional[str] = Field(default=None, description="ID of the original event in this deduplication cluster")
+     embedding: Optional[List[float]] = Field(default=None, description="Dense 384-dim vector embedding from all-MiniLM-L6-v2")
+     semantic_score: Optional[float] = Field(default=None, description="Cosine similarity score if semantic near-duplicate")
+ 
+diff --git a/tests/test_delivery_recovery.py b/tests/test_delivery_recovery.py
+new file mode 100644
+index 0000000..7212087
+--- /dev/null
++++ b/tests/test_delivery_recovery.py
+@@ -0,0 +1,85 @@
++import tempfile
++import unittest
++from datetime import datetime, timezone
++from pathlib import Path
++from unittest.mock import MagicMock, patch
++
++from models.event import CommonEvent
++from utils.kafka_producer import RedpandaProducer
++from utils.outbox import DeliveryOutbox
++
++
++class TestDeliveryRecovery(unittest.TestCase):
++    def setUp(self):
++        self.tmp = tempfile.TemporaryDirectory()
++        self.path = str(Path(self.tmp.name) / 'outbox.sqlite3')
++        self.event = CommonEvent(id='event', source='RSS', title='Headline',
++                                 published_at=datetime.now(timezone.utc))
++
++    def tearDown(self):
++        self.tmp.cleanup()
++
++    def producer(self):
++        with patch.object(RedpandaProducer, '_init_producer'):
++            producer = RedpandaProducer(outbox_path=self.path)
++        producer._is_confluent = True
++        producer._producer = MagicMock()
++        return producer
++
++    def test_failed_delivery_survives_restart_and_recovers(self):
++        first = self.producer()
++        self.assertTrue(first.produce_event('rss', self.event))
++        self.assertEqual(first.delivered_count('rss'), 0)
++        callback = first._producer.produce.call_args.kwargs['on_delivery']
++        callback(RuntimeError('Broker offline'), None)
++        self.assertEqual(first.outbox.count('rss'), 1)
++        # Recovery does not ask Redis whether this event has already been seen.
++        second = self.producer()
++        second.retry_pending('rss')
++        self.assertEqual(second._producer.produce.call_args.kwargs['value'], self.event.to_json_bytes())
++        callback = second._producer.produce.call_args.kwargs['on_delivery']
++        callback(None, None)
++        self.assertEqual(second.outbox.count('rss'), 0)
++        self.assertEqual(second.delivered_count('rss'), 1)
++
++    def test_local_queue_error_remains_durable(self):
++        producer = self.producer()
++        producer._producer.produce.side_effect = BufferError('Queue full')
++        self.assertTrue(producer.produce_event('rss', self.event))
++        self.assertEqual(producer.outbox.count('rss'), 1)
++        self.assertEqual(producer.delivered_count('rss'), 0)
++
++    def test_inflight_messages_not_queued_twice_and_first_payload_preserved(self):
++        producer = self.producer()
++        producer.produce_event('rss', self.event)
++        later = self.event.model_copy(update={'title': 'Changed during retry'})
++        producer.produce_event('rss', later)
++        producer.retry_pending('rss')
++        self.assertEqual(producer._producer.produce.call_count, 1)
++        self.assertEqual(producer.outbox.pending('rss')[0][2], self.event.to_json_bytes())
++
++    def test_disk_failure_does_not_queue_or_report_success(self):
++        producer = self.producer()
++        with patch.object(producer.outbox, 'enqueue', side_effect=OSError('Disk full')):
++            self.assertFalse(producer.produce_event('rss', self.event))
++        producer._producer.produce.assert_not_called()
++
++    def test_cycle_counts_acknowledgements_separately_from_queued(self):
++        producer = self.producer()
++        producer.produce_event('rss', self.event)
++        stats = {'queued': 1, 'published': 0, '_delivery_start': 0}
++        self.assertEqual(producer.finish_cycle('rss', stats)['published'], 0)
++        self.assertEqual(stats['pending_delivery'], 1)
++
++    def test_topic_recovery_respects_producer_profile_boundary(self):
++        outbox = DeliveryOutbox(self.path)
++        outbox.enqueue('rss', 'event', self.event.to_json_bytes())
++        outbox.enqueue('sec', 'filing', b'filing')
++        producer = self.producer()
++        producer.retry_pending('rss')
++        self.assertEqual(producer._producer.produce.call_count, 1)
++        self.assertEqual(producer._producer.produce.call_args.kwargs['topic'], 'rss')
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/tests/test_tier2_exact_jaccard.py b/tests/test_tier2_exact_jaccard.py
+new file mode 100644
+index 0000000..40bb555
+--- /dev/null
++++ b/tests/test_tier2_exact_jaccard.py
+@@ -0,0 +1,96 @@
++"""Tier 2 precision-gate tests, independent of Redis and embedding downloads."""
++import json
++import unittest
++from unittest.mock import MagicMock, patch
++
++from datasketch import MinHash
++from utils.redis_cache import RedisDeduplicator
++
++
++class TestTier2ExactJaccard(unittest.TestCase):
++    def setUp(self):
++        self.dedup = RedisDeduplicator()
++        self.dedup.client = MagicMock()
++
++    def run_candidates(self, title, payloads):
++        """Force LSH retrieval so these tests isolate the acceptance gate."""
++        lookup = MagicMock()
++        lookup.execute.return_value = [set(payloads)] * self.dedup.num_bands
++        readers = []
++        ordered = sorted(payloads)
++        for start in range(0, len(ordered), 256):
++            reader = MagicMock()
++            reader.execute.return_value = [payloads[k] for k in ordered[start:start + 256]]
++            readers.append(reader)
++        writer = MagicMock()
++        self.dedup.client.pipeline.side_effect = [lookup, *readers, writer]
++        # An accidental regression to estimated Jaccard would fail the result
++        # assertion (the production fail-open handler catches this exception).
++        with patch.object(MinHash, 'jaccard', side_effect=AssertionError('Must use exact sets')):
++            result = self.dedup.check_near_duplicate('incoming', title)
++        return result, writer
++
++    def payload(self, title):
++        return json.dumps({'title': title, 'shingles': sorted(self.dedup._create_shingles(title)), 'canonical_id': 'original'}).encode()
++
++    def test_exact_threshold_below_at_and_above(self):
++        for length, accepted in [(10, False), (11, True), (12, True)]:
++            with self.subTest(words=length):
++                tokens = [f'word{i}' for i in range(length)]
++                title = ' '.join(tokens)
++                tokens[4] = 'replacement'
++                candidate = ' '.join(tokens)
++                # One interior replacement changes three of 2*n-1 shingles.
++                expected_score = (2 * length - 4) / (2 * length + 2)
++                self.assertEqual(self.dedup._exact_jaccard(
++                    self.dedup._create_shingles(title),
++                    self.dedup._create_shingles(candidate)), expected_score)
++                result, _ = self.run_candidates(title, {b'original': self.payload(candidate)})
++                self.assertEqual(result, (True, 'original') if accepted else (False, None))
++
++    def test_all_candidates_checked_and_ties_deterministic(self):
++        payloads = {f'a{i:03}'.encode(): self.payload('unrelated headline') for i in range(270)}
++        payloads[b'z-first'] = self.payload('example headline').replace(b'original', b'z-first')
++        payloads[b'z-second'] = self.payload('example headline').replace(b'original', b'z-second')
++        result, _ = self.run_candidates('example headline', payloads)
++        self.assertEqual(result, (True, 'z-first'))
++
++    def test_missing_and_invalid_candidates_do_not_hide_valid_match(self):
++        result, _ = self.run_candidates('example headline', {
++            b'a-legacy-or-expired': None,
++            b'b-corrupt': b'not json',
++            b'c-wrong-shape': b'{"title": "example headline"}',
++            b'd-valid': self.payload('example headline'),
++        })
++        self.assertEqual(result, (True, 'original'))
++
++    def test_signature_only_candidate_cannot_merge(self):
++        result, writer = self.run_candidates('example headline', {b'legacy': None})
++        self.assertEqual(result, (False, None))
++        self.assertTrue(writer.execute.called)
++
++    def test_new_and_duplicate_payloads_have_window_ttl(self):
++        for candidates in ({}, {b'original': self.payload('Example headline')}):
++            with self.subTest(duplicate=bool(candidates)):
++                _, writer = self.run_candidates('Example headline', candidates)
++                key, saved = writer.set.call_args.args
++                self.assertEqual(key, b'lsh:news:v2:event:incoming')
++                self.assertEqual(set(json.loads(saved)['shingles']), {'example', 'headline', 'example headline'})
++                self.assertEqual(writer.set.call_args.kwargs, {'ex': self.dedup.lsh_ttl})
++
++    def test_empty_normalized_headlines_and_sec_bypass_redis(self):
++        for title, source in [('!!!', 'RSS'), ('  ', 'RSS'), ('Filing title', 'SEC')]:
++            self.assertEqual(self.dedup.check_near_duplicate('id', title, source), (False, None))
++        self.dedup.client.pipeline.assert_not_called()
++
++    def test_normalization_and_shared_shingle_representation(self):
++        shingles = self.dedup._create_shingles('Tesla BEATS, estimates!')
++        self.assertTrue({'tesla', 'beats', 'estimates', 'tesla beats', 'beats estimates'} <= shingles)
++        self.assertIn('__POLAR_ANCHOR_1__beat', shingles)
++        self.assertEqual(self.dedup._exact_jaccard(set(), set()), 0.0)
++        self.assertTrue((self.dedup._create_minhash('Tesla BEATS, estimates!').hashvalues ==
++                         self.dedup._minhash_shingles(shingles).hashvalues).all())
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/tests/test_tier2_live.py b/tests/test_tier2_live.py
+new file mode 100644
+index 0000000..671c143
+--- /dev/null
++++ b/tests/test_tier2_live.py
+@@ -0,0 +1,93 @@
++"""Live Redis tests use unique prefixed keys and never flush a database."""
++import json
++import unittest
++import uuid
++
++import redis
++from utils.redis_cache import RedisDeduplicator
++from config import DEDUP_RESERVATION_SECONDS
++
++
++class NamespacedRedis:
++    def __init__(self, client, prefix, keys=None):
++        self.client = client
++        self.prefix = prefix
++        self.keys = keys if keys is not None else set()
++
++    def pipeline(self):
++        return NamespacedRedis(self.client.pipeline(), self.prefix, self.keys)
++
++    def execute(self):
++        return self.client.execute()
++
++    def __getattr__(self, name):
++        def command(key, *args, **kwargs):
++            scoped = self.prefix + key
++            self.keys.add(scoped)
++            if name == 'delete':
++                args = tuple(self.prefix + k for k in args)
++                self.keys.update(args)
++            return getattr(self.client, name)(scoped, *args, **kwargs)
++        return command
++
++
++class TestTier2Live(unittest.TestCase):
++    def setUp(self):
++        self.dedup = RedisDeduplicator(db=15)
++        self.raw = self.dedup.client
++        try:
++            self.raw.ping()
++        except redis.RedisError:
++            self.skipTest('Redis unavailable')
++        self.scoped = NamespacedRedis(self.raw, f'test:{uuid.uuid4()}:'.encode())
++        self.dedup.client = self.scoped
++
++    def tearDown(self):
++        if hasattr(self, 'scoped') and self.scoped.keys:
++            self.raw.delete(*self.scoped.keys)
++
++    def test_cross_source_rewrites_share_original_cluster(self):
++        original = 'Federal Reserve raises interest rates by 25 basis points to battle inflation'
++        rewrite = original.replace('battle', 'curb')
++        self.assertEqual(self.dedup.check_near_duplicate('original', original, 'RSS'), (False, None))
++        self.assertEqual(self.dedup.check_near_duplicate('rewrite', rewrite, 'GDELT'), (True, 'original'))
++        # Exact match to the rewrite wins, but must return the original root.
++        self.assertEqual(self.dedup.check_near_duplicate('third', rewrite, 'RSS'), (True, 'original'))
++        record = json.loads(self.scoped.get(b'lsh:news:v2:event:third'))
++        self.assertEqual(record['canonical_id'], 'original')
++        self.assertGreater(self.raw.ttl(self.scoped.prefix + b'lsh:news:v2:event:third'), 0)
++
++    def test_long_opposite_and_negated_headlines_remain_distinct(self):
++        title = ('Tesla quarterly revenue beats Wall Street estimates as investors review '
++                 'the latest financial results and management commentary on global demand '
++                 'production margins and next year outlook')
++        self.dedup.check_near_duplicate('beat', title, 'RSS')
++        self.assertEqual(self.dedup.check_near_duplicate('miss', title.replace('beats', 'misses'), 'GDELT'), (False, None))
++        # "Did not beat" agrees with the negative "misses" story, while
++        # remaining separate from the original positive "beats" cluster.
++        self.assertEqual(self.dedup.check_near_duplicate('negated', title.replace('beats', 'did not beat'), 'RSS'), (True, 'miss'))
++
++    def test_expired_record_cannot_authorize_merge(self):
++        self.dedup.check_near_duplicate('original', 'example headline')
++        self.raw.delete(self.scoped.prefix + b'lsh:news:v2:event:original')
++        self.assertEqual(self.dedup.check_near_duplicate('new', 'example headline'), (False, None))
++
++    def test_reservation_promoted_only_after_durable_staging(self):
++        self.assertFalse(self.dedup.is_exact_duplicate('id', 'RSS', reserve_for_delivery=True))
++        scoped_key = self.scoped.prefix + b'dedup:exact:rss:id'
++        self.assertEqual(self.raw.get(scoped_key), b'pending')
++        self.assertLessEqual(self.raw.ttl(scoped_key), DEDUP_RESERVATION_SECONDS)
++        self.dedup.confirm_staged('id', 'RSS')
++        self.assertEqual(self.raw.get(scoped_key), b'1')
++        self.assertGreater(self.raw.ttl(scoped_key), DEDUP_RESERVATION_SECONDS)
++
++    def test_failed_staging_releases_exact_and_fuzzy_records(self):
++        self.dedup.is_exact_duplicate('id', 'RSS', reserve_for_delivery=True)
++        self.dedup.check_near_duplicate('id', 'example headline')
++        self.dedup.release_unstaged('id', 'RSS')
++        self.assertFalse(self.dedup.is_exact_duplicate('id', 'RSS', reserve_for_delivery=True))
++        self.assertEqual(self.dedup.check_near_duplicate('second', 'example headline'), (False, None))
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/tests/test_week3_handoff.py b/tests/test_week3_handoff.py
+new file mode 100644
+index 0000000..5fdb5c8
+--- /dev/null
++++ b/tests/test_week3_handoff.py
+@@ -0,0 +1,93 @@
++import tempfile
++import unittest
++from concurrent.futures import ThreadPoolExecutor
++from datetime import datetime, timedelta, timezone
++from pathlib import Path
++from unittest.mock import patch
++
++from lakehouse.db import LakehouseManager
++from lakehouse.sync import parse_event_payload
++from models.event import CommonEvent
++from tests import test_tier2_exact_jaccard as exact_tests
++from utils.redis_cache import RedisDeduplicator
++
++
++class TestTier2Polarity(unittest.TestCase):
++    setUp = exact_tests.TestTier2ExactJaccard.setUp
++    run_candidates = exact_tests.TestTier2ExactJaccard.run_candidates
++    payload = exact_tests.TestTier2ExactJaccard.payload
++    suffix = (' as investors review the latest financial results and management '
++              'commentary on global demand production margins and next year outlook')
++
++    def test_high_similarity_opposites_rejected(self):
++        pairs = [('Tesla revenue beats estimates', 'Tesla revenue misses estimates'),
++                 ('Federal Reserve raises interest rates', 'Federal Reserve cuts interest rates'),
++                 ('Tesla revenue beat estimates', 'Tesla revenue did not beat estimates'),
++                 ('Tesla shares rose after earnings', 'Tesla shares fell after earnings')]
++        for left, right in pairs:
++            with self.subTest(left=left):
++                left += self.suffix
++                right += self.suffix
++                self.assertGreaterEqual(self.dedup._exact_jaccard(
++                    self.dedup._create_shingles(left), self.dedup._create_shingles(right)), .75)
++                result, _ = self.run_candidates(left, {b'original': self.payload(right)})
++                self.assertEqual(result, (False, None))
++
++    def test_shared_negative_context_still_matches(self):
++        left = 'Oil surges as stocks slide' + self.suffix
++        right = 'Oil rallies as stocks slide' + self.suffix
++        result, _ = self.run_candidates(left, {b'original': self.payload(right)})
++        self.assertEqual(result, (True, 'original'))
++
++    def test_duplicate_candidate_points_to_original(self):
++        result, writer = self.run_candidates('example headline', {
++            b'duplicate': self.payload('example headline')})
++        self.assertEqual(result, (True, 'original'))
++        import json
++        self.assertEqual(json.loads(writer.set.call_args.args[1])['canonical_id'], 'original')
++
++
++class TestEventHandoff(unittest.TestCase):
++    def test_json_storage_roundtrip_and_pit(self):
++        published = datetime(2026, 9, 1, 14, tzinfo=timezone.utc)
++        ingested = published + timedelta(minutes=5)
++        event = CommonEvent(id='rewrite', source='GDELT', title='Tesla beats estimates',
++                            published_at=published, ingested_time=ingested,
++                            event_time=published - timedelta(minutes=1),
++                            content_full='Full article body', content_snippet='Summary',
++                            embedding=[1.0] + [0.0] * 383, semantic_score=.91,
++                            is_near_duplicate=True, canonical_cluster_id='original',
++                            tickers_mentioned=['TSLA'], metadata={'wire': 'test'})
++        parsed = parse_event_payload(event.to_json_bytes())
++        self.assertEqual(parsed.model_dump(), event.model_dump())
++        with tempfile.TemporaryDirectory() as tmp:
++            lake = LakehouseManager(str(Path(tmp) / 'lake.duckdb'))
++            try:
++                lake.insert_news_batch([parsed])
++                self.assertEqual(lake.query_news_as_of(published + timedelta(minutes=3),
++                                                      exclude_duplicates=False), [])
++                row = lake.conn.execute('SELECT event_time, content_full, embedding, '
++                                        'semantic_score, canonical_cluster_id FROM silver_financial_news').fetchone()
++                self.assertEqual(row[0], event.event_time)
++                self.assertEqual(row[1], event.content_full)
++                self.assertEqual(list(row[2]), event.embedding)
++                self.assertAlmostEqual(row[3], event.semantic_score, places=6)
++                self.assertEqual(row[4], 'original')
++            finally:
++                lake.close()
++
++    def test_event_results_remain_independent_between_threads(self):
++        dedup = RedisDeduplicator()
++        def semantic(event_id, title, tickers):
++            return [float(event_id)] * 384, False, None, 0.0
++        with patch.object(dedup, 'is_exact_duplicate', return_value=False), \
++             patch.object(dedup, 'check_near_duplicate', return_value=(False, None)), \
++             patch.object(dedup, '_check_semantic', side_effect=semantic):
++            with ThreadPoolExecutor(max_workers=4) as pool:
++                results = list(pool.map(lambda i: dedup.check_dedup_result(str(i), 'headline'), range(20)))
++        for i, result in enumerate(results):
++            self.assertEqual(result.embedding, [float(i)] * 384)
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/tests/test_worker_handoff.py b/tests/test_worker_handoff.py
+new file mode 100644
+index 0000000..bf4fd7f
+--- /dev/null
++++ b/tests/test_worker_handoff.py
+@@ -0,0 +1,78 @@
++import tempfile
++import unittest
++from datetime import datetime, timezone
++from pathlib import Path
++from types import SimpleNamespace
++from unittest.mock import MagicMock, patch
++
++from lakehouse.sync import parse_event_payload
++from utils.kafka_producer import RedpandaProducer
++from utils.redis_cache import DedupResult
++from workers import rss_worker, gdelt_worker
++
++
++class TestWorkerHandoff(unittest.TestCase):
++    def setUp(self):
++        self.tmp = tempfile.TemporaryDirectory()
++        with patch.object(RedpandaProducer, '_init_producer'):
++            self.producer = RedpandaProducer(outbox_path=str(Path(self.tmp.name) / 'outbox.sqlite3'))
++        self.producer._is_confluent = True
++        self.producer._producer = MagicMock()
++        self.sent = []
++        def acknowledge(**kwargs):
++            self.sent.append(parse_event_payload(kwargs['value']))
++            kwargs['on_delivery'](None, None)
++        self.producer._producer.produce.side_effect = acknowledge
++        self.dedup = MagicMock()
++        self.dedup.check_dedup_result.return_value = DedupResult(
++            is_near=True, canonical_id='original', embedding=[1.0] + [0.0] * 383,
++            semantic_score=.91)
++
++    def tearDown(self):
++        self.tmp.cleanup()
++
++    def rss_fixture(self):
++        entry = SimpleNamespace(title='Tesla beats earnings estimates', link='https://example.com/news',
++                                summary='Tesla earnings', published_parsed=datetime.now(timezone.utc).timetuple())
++        return SimpleNamespace(bozo=False, entries=[entry])
++
++    def assert_handoff(self, stats):
++        self.assertEqual(stats['queued'], 1)
++        self.assertEqual(stats['published'], 1)
++        self.assertEqual(stats['pending_delivery'], 0)
++        self.assertNotIn('_delivery_start', stats)
++        self.assertEqual(self.sent[0].embedding, [1.0] + [0.0] * 383)
++        self.assertEqual(self.sent[0].semantic_score, .91)
++        self.assertEqual(self.sent[0].canonical_cluster_id, 'original')
++        self.assertTrue(self.dedup.check_dedup_result.call_args.kwargs['reserve_for_delivery'])
++        self.dedup.confirm_staged.assert_called_once()
++
++    def test_rss_worker_serializes_public_fields_and_reports_acknowledgements(self):
++        with patch.object(rss_worker, 'MACRO_FEEDS', [{'name': 'test', 'url': 'https://example.com/rss'}]), \
++             patch.object(rss_worker.feedparser, 'parse', return_value=self.rss_fixture()):
++            stats = rss_worker.run_rss_fetch_cycle(self.producer, self.dedup)
++        self.assert_handoff(stats)
++
++    def test_gdelt_worker_serializes_public_fields_and_reports_acknowledgements(self):
++        response = MagicMock(status_code=200, text='{"articles": []}')
++        response.json.return_value = {'articles': [{'title': 'Tesla beats earnings estimates',
++                                                   'url': 'https://example.com/news',
++                                                   'seendate': '20260901T140000Z'}]}
++        with patch.object(gdelt_worker.requests, 'get', return_value=response):
++            stats = gdelt_worker.run_gdelt_fetch_cycle(self.producer, self.dedup)
++        self.assert_handoff(stats)
++
++    def test_local_staging_failure_releases_dedup_reservation(self):
++        with patch.object(rss_worker, 'MACRO_FEEDS', [{'name': 'test', 'url': 'https://example.com/rss'}]), \
++             patch.object(rss_worker.feedparser, 'parse', return_value=self.rss_fixture()), \
++             patch.object(self.producer.outbox, 'enqueue', side_effect=OSError('Disk full')):
++            stats = rss_worker.run_rss_fetch_cycle(self.producer, self.dedup)
++        self.assertEqual(stats['published'], 0)
++        self.assertEqual(stats['queued'], 0)
++        self.assertEqual(stats['errors'], 1)
++        self.dedup.release_unstaged.assert_called_once()
++        self.dedup.confirm_staged.assert_not_called()
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/utils/kafka_producer.py b/utils/kafka_producer.py
+index a4c0907..69b123b 100644
+--- a/utils/kafka_producer.py
++++ b/utils/kafka_producer.py
+@@ -1,7 +1,10 @@
+ import logging
++import threading
++from collections import Counter
+ from typing import Optional, Literal
+ from models.event import CommonEvent
+-from config import KAFKA_BOOTSTRAP_SERVERS
++from config import KAFKA_BOOTSTRAP_SERVERS, OUTBOX_PATH
++from utils.outbox import DeliveryOutbox
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -25,11 +28,16 @@ class RedpandaProducer:
+     def __init__(
+         self,
+         bootstrap_servers: str = KAFKA_BOOTSTRAP_SERVERS,
+-        profile: Literal["fast", "critical"] = "fast"
++        profile: Literal["fast", "critical"] = "fast",
++        outbox_path: Optional[str] = None
+     ):
+         self.bootstrap_servers = bootstrap_servers
+         self.profile = profile
+         self._producer = None
++        self.outbox = DeliveryOutbox(outbox_path or OUTBOX_PATH)
++        self._inflight = set()
++        self._delivery_counts = Counter()
++        self._state_lock = threading.RLock()
+ 
+         # Build configuration based on profile
+         base_config = {
+@@ -67,6 +75,8 @@ class RedpandaProducer:
+             # Fallback to kafka-python if confluent-kafka is missing
+             try:
+                 from kafka import KafkaProducer
++                if self.profile == 'critical':
++                    raise RuntimeError('SEC critical profile requires confluent-kafka idempotence support')
+                 acks_val = -1 if conf.get("acks") == "all" else 1
+                 self._producer = KafkaProducer(
+                     bootstrap_servers=self.bootstrap_servers,
+@@ -80,28 +90,66 @@ class RedpandaProducer:
+ 
+     def produce_event(self, topic: str, event: CommonEvent) -> bool:
+         """
+-        Asynchronously produces a CommonEvent to the specified Redpanda topic.
+-        Key is event.id for deterministic partition hashing.
++        Persist the wire payload before asynchronously queueing it. True means
++        durably staged, not acknowledged. Broker failures remain in the outbox.
+         """
+-        payload = event.to_json_bytes()
+-        key = event.id.encode("utf-8")
++        try:
++            payload = self.outbox.enqueue(topic, event.id, event.to_json_bytes())
++        except Exception:
++            logger.exception('Unable to persist outgoing event %s', event.id)
++            return False
++        self._queue_pending(topic, event.id, payload)
++        return True
+ 
++    def _finish_delivery(self, topic, event_id, error=None):
++        with self._state_lock:
++            if error is None:
++                self._delivery_counts[topic] += 1
++                try:
++                    self.outbox.acknowledge(topic, event_id)
++                except Exception:
++                    logger.exception('Acknowledged message remains in outbox: %s', event_id)
++            else:
++                logger.error('Delivery failed; event %s remains in outbox: %s', event_id, error)
++            self._inflight.discard((topic, event_id))
++
++    def _queue_pending(self, topic, event_id, payload):
++        with self._state_lock:
++            if (topic, event_id) in self._inflight:
++                return
++            self._inflight.add((topic, event_id))
++        key = event_id.encode('utf-8')
+         try:
+             if self._is_confluent:
+                 self._producer.produce(
+                     topic=topic,
+                     key=key,
+                     value=payload,
+-                    on_delivery=delivery_report
++                    on_delivery=lambda err, msg: self._finish_delivery(topic, event_id, err)
+                 )
+                 # Serve delivery report callbacks periodically
+                 self._producer.poll(0)
+             else:
+-                self._producer.send(topic=topic, key=key, value=payload)
+-            return True
++                future = self._producer.send(topic=topic, key=key, value=payload)
++                future.add_callback(lambda _: self._finish_delivery(topic, event_id))
++                future.add_errback(lambda err: self._finish_delivery(topic, event_id, err))
+         except Exception as e:
+-            logger.error(f"Error producing event {event.id} to {topic}: {e}")
+-            return False
++            self._finish_delivery(topic, event_id, e)
++
++    def retry_pending(self, topic: str, limit: int = 100):
++        """Called each fetch cycle, including after process restart."""
++        for pending_topic, event_id, payload in self.outbox.pending(topic, limit):
++            self._queue_pending(pending_topic, event_id, payload)
++
++    def delivered_count(self, topic: str) -> int:
++        with self._state_lock:
++            return self._delivery_counts[topic]
++
++    def finish_cycle(self, topic: str, stats: dict) -> dict:
++        self.flush(timeout=5.0)
++        stats['published'] = self.delivered_count(topic) - stats.pop('_delivery_start')
++        stats['pending_delivery'] = self.outbox.count(topic)
++        return stats
+ 
+     def flush(self, timeout: float = 10.0):
+         """Flush remaining buffered messages."""
+@@ -109,4 +157,4 @@ class RedpandaProducer:
+             if self._is_confluent:
+                 self._producer.flush(timeout=timeout)
+             else:
+-                self._producer.flush()
++                self._producer.flush(timeout=timeout)
+diff --git a/utils/outbox.py b/utils/outbox.py
+new file mode 100644
+index 0000000..2b434b1
+--- /dev/null
++++ b/utils/outbox.py
+@@ -0,0 +1,48 @@
++"""Persist outgoing messages until Kafka acknowledges them (at-least-once)."""
++import sqlite3
++from contextlib import contextmanager
++from pathlib import Path
++
++
++class DeliveryOutbox:
++    def __init__(self, path):
++        self.path = Path(path)
++        self.path.parent.mkdir(parents=True, exist_ok=True)
++        with self.connect() as conn:
++            conn.execute('PRAGMA journal_mode=WAL')
++            conn.execute('CREATE TABLE IF NOT EXISTS pending ('
++                         'topic TEXT NOT NULL, event_id TEXT NOT NULL, payload BLOB NOT NULL, '
++                         'PRIMARY KEY(topic, event_id))')
++
++    @contextmanager
++    def connect(self):
++        conn = sqlite3.connect(str(self.path), timeout=10)
++        try:
++            with conn:
++                yield conn
++        finally:
++            conn.close()
++
++    def enqueue(self, topic, event_id, payload):
++        # Preserve the first wire payload and its original ingestion timestamp.
++        with self.connect() as conn:
++            conn.execute('INSERT OR IGNORE INTO pending VALUES (?, ?, ?)',
++                         (topic, event_id, payload))
++            return conn.execute('SELECT payload FROM pending WHERE topic=? AND event_id=?',
++                                (topic, event_id)).fetchone()[0]
++
++    def pending(self, topic=None, limit=100):
++        with self.connect() as conn:
++            if topic is None:
++                return conn.execute('SELECT topic, event_id, payload FROM pending ORDER BY rowid LIMIT ?',
++                                    (limit,)).fetchall()
++            return conn.execute('SELECT topic, event_id, payload FROM pending WHERE topic=? ORDER BY rowid LIMIT ?',
++                                (topic, limit)).fetchall()
++
++    def acknowledge(self, topic, event_id):
++        with self.connect() as conn:
++            conn.execute('DELETE FROM pending WHERE topic=? AND event_id=?', (topic, event_id))
++
++    def count(self, topic):
++        with self.connect() as conn:
++            return conn.execute('SELECT COUNT(*) FROM pending WHERE topic=?', (topic,)).fetchone()[0]
+diff --git a/utils/redis_cache.py b/utils/redis_cache.py
+index 9738406..e2cb168 100644
+--- a/utils/redis_cache.py
++++ b/utils/redis_cache.py
+@@ -1,12 +1,14 @@
++import json
+ import logging
+ import re
+ import threading
++from dataclasses import dataclass
+ from typing import Optional, Tuple, Set, List
+ import redis
+-import numpy as np
+ from datasketch import MinHash
+ from config import REDIS_HOST, REDIS_PORT, REDIS_DB, REDIS_TTL_SECONDS, REDIS_LSH_TTL_SECONDS, REDIS_SEMANTIC_TTL_SECONDS
+-from utils.polarity import POLARITY_KEYWORDS, base_form
++from config import DEDUP_RESERVATION_SECONDS
++from utils.polarity import base_form, polarity_profile, has_conflict
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -15,6 +17,15 @@ _semantic_dedup: Optional["SemanticDeduplicator"] = None
+ _SEMANTIC_INIT_LOCK = threading.Lock()
+ 
+ 
++@dataclass(frozen=True)
++class DedupResult:
++    is_exact: bool = False
++    is_near: bool = False
++    canonical_id: Optional[str] = None
++    embedding: Optional[List[float]] = None
++    semantic_score: Optional[float] = None
++
++
+ class RedisDeduplicator:
+     """
+     Two-Tier Deduplication & Clustering Engine:
+@@ -25,9 +36,9 @@ class RedisDeduplicator:
+     LSH Math Tuning (High-Recall Filter + Precision Gate):
+       - num_perm (m) = 128, num_bands (b) = 32, rows_per_band (r) = 4.
+       - Theoretical S-curve inflection point: (1/b)^(1/r) = (1/32)^(1/4) ≈ 0.420.
+-      - Candidate retrieval probability at s=0.75: 1 - (1 - 0.75^4)^32 ≈ 99.999% (zero recall regression).
++      - Theoretical candidate retrieval probability at s=0.75: 1 - (1 - 0.75^4)^32 ≈ 99.999%.
+       - Step 1 (LSH) acts as a high-recall candidate net.
+-      - Step 2 (Exact Verification) strictly enforces m.jaccard >= 0.75, discarding sub-threshold noise.
++      - Step 2 verifies exact shingle-set Jaccard >= 0.75.
+     """
+     def __init__(
+         self,
+@@ -44,8 +55,13 @@ class RedisDeduplicator:
+         self.lsh_ttl = lsh_ttl_seconds
+         self.num_perm = num_perm
+         self.num_bands = num_bands
+-        self.rows_per_band = num_perm // num_bands
+         self.jaccard_threshold = jaccard_threshold
++        if num_perm <= 0 or num_bands <= 0 or num_perm % num_bands:
++            raise ValueError("num_perm must be positive and divisible by num_bands")
++        if not 0 < jaccard_threshold <= 1:
++            raise ValueError("jaccard_threshold must be in (0, 1]")
++        self.rows_per_band = num_perm // num_bands
++        self._legacy_state = threading.local()
+ 
+         self.client = redis.Redis(
+             host=host,
+@@ -66,7 +82,8 @@ class RedisDeduplicator:
+     #  TIER 1: EXACT MATCH DEDUPLICATION
+     # ─────────────────────────────────────────────────────────────────────────
+ 
+-    def is_exact_duplicate(self, event_id: str, source: Optional[str] = None) -> bool:
++    def is_exact_duplicate(self, event_id: str, source: Optional[str] = None,
++                           reserve_for_delivery: bool = False) -> bool:
+         """
+         Atomically checks if event_id exists via SET NX EX.
+         Returns True if duplicate (already seen), False if newly set.
+@@ -74,7 +91,8 @@ class RedisDeduplicator:
+         prefix = f"dedup:exact:{source.lower()}:" if source else "dedup:exact:"
+         key = f"{prefix}{event_id}".encode("utf-8")
+         try:
+-            was_set = self.client.set(key, b"1", nx=True, ex=self.exact_ttl)
++            ttl = DEDUP_RESERVATION_SECONDS if reserve_for_delivery else self.exact_ttl
++            was_set = self.client.set(key, b"pending" if reserve_for_delivery else b"1", nx=True, ex=ttl)
+             return not bool(was_set)
+         except Exception as e:
+             logger.error(f"Redis exact match error for key {key}: {e}. Fail-open.")
+@@ -84,10 +102,12 @@ class RedisDeduplicator:
+     #  TIER 2: MINHASH LSH NEAR-DUPLICATE CLUSTERING
+     # ─────────────────────────────────────────────────────────────────────────
+ 
+-    def _create_minhash(self, text: str) -> MinHash:
++    @staticmethod
++    def _create_shingles(text: str) -> Set[str]:
+         """
+         Normalizes text into word unigrams + bigrams and adds weighted polarity anchors
+-        to guarantee high recall for rewrites while preventing opposite market sentiment collisions.
++        for both LSH retrieval and exact verification. Polarity anchors affect similarity;
++        they are not a substitute for an explicit polarity guard.
+         """
+         clean_text = re.sub(r"[^\w\s]", " ", text.lower()).strip()
+         tokens = clean_text.split()
+@@ -105,15 +125,27 @@ class RedisDeduplicator:
+                 shingles.add(f"__POLAR_ANCHOR_1__{base}")
+                 shingles.add(f"__POLAR_ANCHOR_2__{base}")
+ 
++        return shingles
++
++    @staticmethod
++    def _exact_jaccard(left: Set[str], right: Set[str]) -> float:
++        """Empty headlines provide no evidence for a duplicate match."""
++        union = left | right
++        return len(left & right) / len(union) if union else 0.0
++
++    def _minhash_shingles(self, shingles: Set[str]) -> MinHash:
+         m = MinHash(num_perm=self.num_perm)
+         for s in shingles:
+             m.update(s.encode("utf-8"))
+         return m
+ 
++    def _create_minhash(self, text: str) -> MinHash:
++        return self._minhash_shingles(self._create_shingles(text))
++
+     def check_near_duplicate(self, event_id: str, title: str, source: str = "RSS") -> Tuple[bool, Optional[str]]:
+         """
+         Checks if the headline is a near-duplicate of any active headline
+-        within the 120-minute sliding window.
++        within the configured LSH window (24 hours by default).
+ 
+         Returns:
+             (is_near_duplicate: bool, canonical_cluster_id: Optional[str])
+@@ -123,8 +155,10 @@ class RedisDeduplicator:
+             return False, None
+ 
+         try:
+-            m = self._create_minhash(title)
+-            sig_bytes = m.hashvalues.tobytes()
++            shingles = self._create_shingles(title)
++            if not shingles:
++                return False, None
++            m = self._minhash_shingles(shingles)
+ 
+             # Query all LSH bands via Redis pipeline
+             band_keys = []
+@@ -133,7 +167,7 @@ class RedisDeduplicator:
+                 start = b * self.rows_per_band
+                 end = start + self.rows_per_band
+                 band_hash = m.hashvalues[start:end].tobytes()
+-                bkey = f"lsh:{source.lower()}:b:{b}:".encode("utf-8") + band_hash
++                bkey = f"lsh:news:v2:b:{b}:".encode("utf-8") + band_hash
+                 band_keys.append(bkey)
+                 pipeline.smembers(bkey)
+ 
+@@ -141,54 +175,61 @@ class RedisDeduplicator:
+             event_id_bytes = event_id.encode("utf-8")
+             candidates = {cand for c_set in candidate_sets for cand in c_set if cand != event_id_bytes}
+ 
+-            # Verification Step: retrieve saved MinHash signatures for candidates
++            # Shared news namespace allows RSS/GDELT syndication matching.
++            # V2 stores ordered text for polarity and the original cluster ID.
++            payload_prefix = b"lsh:news:v2:event:"
++            new_profile = polarity_profile(title)
++            best_match_id = None
++            highest_jaccard = 0.0
++            # Verify every retrieved candidate, in bounded Redis request batches.
++            # Sorting also gives deterministic tie-breaking for equal scores.
+             if candidates:
+-                cand_list = list(candidates)[:15]  # Evaluate up to 15 candidates
+-                sig_pipe = self.client.pipeline()
+-                for cand_id in cand_list:
+-                    sig_pipe.get(b"lsh:sig:" + cand_id)
+-                saved_sigs = sig_pipe.execute()
+-
+-                best_match_id = None
+-                highest_jaccard = 0.0
+-
+-                for cand_id, saved_sig in zip(cand_list, saved_sigs):
+-                    if saved_sig and len(saved_sig) == len(sig_bytes):
+-                        cand_hashvalues = np.frombuffer(saved_sig, dtype=m.hashvalues.dtype)
+-                        cand_m = MinHash(
+-                            num_perm=self.num_perm,
+-                            hashvalues=cand_hashvalues,
+-                            scheme=m.scheme
+-                        )
+-                        score = m.jaccard(cand_m)
++                cand_list = sorted(candidates)
++                for start in range(0, len(cand_list), 256):
++                    batch = cand_list[start:start + 256]
++                    read_pipe = self.client.pipeline()
++                    for cand_id in batch:
++                        read_pipe.get(payload_prefix + cand_id)
++                    for cand_id, saved in zip(batch, read_pipe.execute()):
++                        if saved is None:
++                            continue  # Expired entry or pre-upgrade signature only.
++                        try:
++                            decoded = json.loads(saved)
++                            if (not isinstance(decoded, dict)
++                                    or not isinstance(decoded.get('title'), str)
++                                    or not isinstance(decoded.get('canonical_id'), str)
++                                    or not decoded['canonical_id']
++                                    or not isinstance(decoded.get('shingles'), list)
++                                    or not all(isinstance(s, str) for s in decoded['shingles'])):
++                                raise ValueError("Expected a complete V2 news record")
++                            candidate_shingles = set(decoded['shingles'])
++                        except (ValueError, TypeError, UnicodeError):
++                            logger.warning("Skipping invalid LSH shingle payload for %r", cand_id)
++                            continue
++                        score = self._exact_jaccard(shingles, candidate_shingles)
++                        if has_conflict(new_profile, polarity_profile(decoded['title'])):
++                            continue
+                         if score >= self.jaccard_threshold and score > highest_jaccard:
+                             highest_jaccard = score
+-                            best_match_id = cand_id.decode("utf-8")
++                            best_match_id = decoded['canonical_id']
+ 
+-                if best_match_id:
+-                    logger.info(
+-                        f"Detected near-duplicate: '{title[:40]}...' matches canonical '{best_match_id}' "
+-                        f"(Jaccard={highest_jaccard:.2f})"
+-                    )
+-                    # Record this near-duplicate into buckets with sliding TTL
+-                    write_pipe = self.client.pipeline()
+-                    event_id_bytes = event_id.encode("utf-8")
+-                    write_pipe.set(b"lsh:sig:" + event_id_bytes, sig_bytes, ex=self.lsh_ttl)
+-                    for bkey in band_keys:
+-                        write_pipe.sadd(bkey, event_id_bytes)
+-                        write_pipe.expire(bkey, self.lsh_ttl)
+-                    write_pipe.execute()
+-                    return True, best_match_id
+-
+-            # Novel story (canonical event): record into buckets with sliding TTL
++            # Store the same shingles used for retrieval; signatures alone are
++            # insufficient for exact verification. Payload expiry bounds validity
++            # even when shared bucket TTLs are refreshed by newer events.
+             write_pipe = self.client.pipeline()
+             event_id_bytes = event_id.encode("utf-8")
+-            write_pipe.set(b"lsh:sig:" + event_id_bytes, sig_bytes, ex=self.lsh_ttl)
++            record = {'title': title, 'shingles': sorted(shingles),
++                      'canonical_id': best_match_id or event_id}
++            write_pipe.set(payload_prefix + event_id_bytes, json.dumps(record), ex=self.lsh_ttl)
+             for bkey in band_keys:
+                 write_pipe.sadd(bkey, event_id_bytes)
+                 write_pipe.expire(bkey, self.lsh_ttl)
+             write_pipe.execute()
+ 
++            if best_match_id is not None:
++                logger.info("Near-duplicate %s matches %s (exact Jaccard=%.4f)",
++                            event_id, best_match_id, highest_jaccard)
++                return True, best_match_id
+             return False, None
+ 
+         except Exception as e:
+@@ -215,32 +256,55 @@ class RedisDeduplicator:
+            gated by ticker overlap and polarity-class conflict.
+ 
+         Side effects:
+-            Sets self._last_embedding (np.ndarray or None) after each call.
+-            Sets self._last_semantic_score (float or None) after each call.
+-            Workers can read these to persist in DuckDB.
++            Legacy embedding/score accessors are thread-local. New workers
++            use check_dedup_result() and serialize its public fields directly.
+         """
+-        self._last_embedding = None
+-        self._last_semantic_score = None
++        result = self.check_dedup_result(event_id, title, source, tickers)
++        self._legacy_state.result = result
++        return result.is_exact, result.is_near, result.canonical_id
++
++    @property
++    def _last_embedding(self):
++        return getattr(self._legacy_state, 'result', DedupResult()).embedding
+ 
+-        if self.is_exact_duplicate(event_id, source=source):
+-            return True, False, None
++    @property
++    def _last_semantic_score(self):
++        return getattr(self._legacy_state, 'result', DedupResult()).semantic_score
++
++    def check_dedup_result(self, event_id: str, title: str, source: str = 'RSS',
++                           tickers: Optional[List[str]] = None,
++                           reserve_for_delivery: bool = False) -> DedupResult:
++        """Return event-specific data directly; no shared worker handoff state."""
++
++        if self.is_exact_duplicate(event_id, source=source, reserve_for_delivery=reserve_for_delivery):
++            return DedupResult(is_exact=True)
+ 
+         is_near_dup, canonical_id = self.check_near_duplicate(event_id, title, source=source)
+         if is_near_dup:
+-            return False, True, canonical_id
++            return DedupResult(is_near=True, canonical_id=canonical_id)
+ 
+         # Tier 3: Semantic Embedding Dedup (skip for SEC filings)
+         if source.upper() != "SEC" and title:
+             try:
+                 embedding, is_sem_dup, sem_canonical, sem_score = self._check_semantic(event_id, title, tickers)
+-                self._last_embedding = embedding
+-                self._last_semantic_score = sem_score if is_sem_dup else None
++                vector = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
+                 if is_sem_dup:
+-                    return False, True, sem_canonical
++                    # Semantic matching may target a lexical duplicate. Resolve
++                    # its original cluster before storing this new LSH record.
++                    saved = self.client.get(b'lsh:news:v2:event:' + sem_canonical.encode('utf-8'))
++                    if saved:
++                        sem_canonical = json.loads(saved)['canonical_id']
++                    record = {'title': title, 'shingles': sorted(self._create_shingles(title)),
++                              'canonical_id': sem_canonical}
++                    self.client.set(b'lsh:news:v2:event:' + event_id.encode('utf-8'),
++                                    json.dumps(record), ex=self.lsh_ttl)
++                    return DedupResult(is_near=True, canonical_id=sem_canonical,
++                                       embedding=vector, semantic_score=sem_score)
++                return DedupResult(embedding=vector)
+             except Exception as e:
+                 logger.error(f"Tier 3 semantic dedup error for {event_id}: {e}. Fail-open.")
+ 
+-        return False, False, None
++        return DedupResult()
+ 
+     def _check_semantic(self, event_id: str, title: str, tickers: Optional[List[str]] = None):
+         """
+@@ -283,4 +347,24 @@ class RedisDeduplicator:
+         try:
+             return self.client.ttl(key)
+         except Exception:
+-            return -1
+\ No newline at end of file
++            return -1
++
++    def release_unstaged(self, event_id: str, source: str):
++        """Allow re-fetch after local outbox persistence fails, before delivery."""
++        key = f'dedup:exact:{source.lower()}:{event_id}'.encode('utf-8')
++        self.client.delete(key)
++        if source.upper() != 'SEC':
++            self.client.delete(b'lsh:news:v2:event:' + event_id.encode('utf-8'))
++            self.client.delete(b'emb:vec:' + event_id.encode('utf-8'),
++                               b'emb:pol:' + event_id.encode('utf-8'),
++                               b'emb:tick:' + event_id.encode('utf-8'))
++            self.client.zrem(b'emb:window:zset', event_id.encode('utf-8'))
++
++    def confirm_staged(self, event_id: str, source: str):
++        """Promote a short reservation once its outgoing payload is durable."""
++        try:
++            self.client.set(f'dedup:exact:{source.lower()}:{event_id}'.encode('utf-8'),
++                            b'1', ex=self.exact_ttl)
++        except redis.RedisError:
++            # Delivery recovery remains independent of Redis availability.
++            logger.exception('Could not finalize dedup marker for %s', event_id)
+diff --git a/workers/gdelt_worker.py b/workers/gdelt_worker.py
+index 595290d..315e5ce 100644
+--- a/workers/gdelt_worker.py
++++ b/workers/gdelt_worker.py
+@@ -36,7 +36,9 @@ def parse_gdelt_timestamp(seendate_str: str) -> datetime:
+ 
+ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) -> dict:
+     """Queries GDELT DOC 2.0 API, deduplicates, and publishes to Redpanda."""
+-    stats = {"fetched": 0, "duplicates": 0, "published": 0, "errors": 0}
++    stats = {"fetched": 0, "duplicates": 0, "published": 0, "queued": 0, "errors": 0}
++    stats["_delivery_start"] = producer.delivered_count(TOPIC_GDELT)
++    producer.retry_pending(TOPIC_GDELT)
+ 
+     params = {
+         "query": MACRO_QUERY,
+@@ -64,14 +66,14 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator)
+             if r.status_code != 200:
+                 logger.warning(f"GDELT API returned status {r.status_code}: {r.text[:200]}")
+                 stats["errors"] += 1
+-                return stats
++                return producer.finish_cycle(TOPIC_GDELT, stats)
+             resp = r
+             break
+         except Exception as e:
+             if attempt == max_retries:
+                 logger.error(f"Error querying GDELT API: {e}")
+                 stats["errors"] += 1
+-                return stats
++                return producer.finish_cycle(TOPIC_GDELT, stats)
+             time.sleep(3.0)
+ 
+     if resp is None or not (resp_text := resp.text.strip()).startswith(("{", "[")):
+@@ -98,10 +100,10 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator)
+             tickers = extract_financial_entities(title)
+ 
+             # Check Two-Tier Redis deduplication & near-duplicate clustering
+-            is_exact, is_near, canon_id = dedup.check_dedup(
+-                event_id, title=title, source="GDELT", tickers=tickers
++            result = dedup.check_dedup_result(
++                event_id, title=title, source="GDELT", tickers=tickers, reserve_for_delivery=True
+             )
+-            if is_exact:
++            if result.is_exact:
+                 stats["duplicates"] += 1
+                 continue
+ 
+@@ -119,8 +121,10 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator)
+                 url=url,
+                 published_at=pub_time,
+                 tickers_mentioned=tickers,
+-                is_near_duplicate=is_near,
+-                canonical_cluster_id=canon_id,
++                is_near_duplicate=result.is_near,
++                canonical_cluster_id=result.canonical_id,
++                embedding=result.embedding,
++                semantic_score=result.semantic_score,
+                 metadata={
+                     "domain": domain,
+                     "language": art.get("language"),
+@@ -130,21 +134,19 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator)
+                 }
+             )
+ 
+-            # Attach embedding vector for DuckDB persistence (set by Tier 3)
+-            event._embedding = getattr(dedup, '_last_embedding', None)
+-            event._semantic_score = getattr(dedup, '_last_semantic_score', None)
+ 
+             if producer.produce_event(TOPIC_GDELT, event):
+-                stats["published"] += 1
++                dedup.confirm_staged(event_id, event.source)
++                stats["queued"] += 1
+             else:
++                dedup.release_unstaged(event_id, event.source)
+                 stats["errors"] += 1
+ 
+     except Exception as e:
+         logger.error(f"Error processing GDELT response: {e}")
+         stats["errors"] += 1
+ 
+-    producer.flush(timeout=5.0)
+-    return stats
++    return producer.finish_cycle(TOPIC_GDELT, stats)
+ 
+ 
+ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator, stats: dict) -> dict:
+@@ -165,7 +167,7 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
+         if resp.status_code != 200:
+             logger.error(f"Failed to fetch GDELT lastupdate.txt: HTTP {resp.status_code}")
+             stats["errors"] += 1
+-            return stats
++            return producer.finish_cycle(TOPIC_GDELT, stats)
+ 
+         # Lines format: <size> <md5> <url>
+         lines = resp.text.strip().split("\n")
+@@ -179,7 +181,7 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
+         if not gkg_url:
+             logger.error("Could not locate GKG file in GDELT lastupdate.txt")
+             stats["errors"] += 1
+-            return stats
++            return producer.finish_cycle(TOPIC_GDELT, stats)
+ 
+         logger.info(f"Downloading GDELT Realtime GKG batch: {gkg_url}...")
+         zip_resp = requests.get(gkg_url, timeout=30.0)
+@@ -217,10 +219,10 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
+                 tickers = extract_financial_entities(f"{title} {themes}")
+ 
+                 # Check Two-Tier Redis deduplication & near-duplicate clustering
+-                is_exact, is_near, canon_id = dedup.check_dedup(
+-                    event_id, title=title, source="GDELT", tickers=tickers
++                result = dedup.check_dedup_result(
++                    event_id, title=title, source="GDELT", tickers=tickers, reserve_for_delivery=True
+                 )
+-                if is_exact:
++                if result.is_exact:
+                     stats["duplicates"] += 1
+                     continue
+ 
+@@ -238,8 +240,10 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
+                     url=url,
+                     published_at=pub_time,
+                     tickers_mentioned=tickers,
+-                    is_near_duplicate=is_near,
+-                    canonical_cluster_id=canon_id,
++                    is_near_duplicate=result.is_near,
++                    canonical_cluster_id=result.canonical_id,
++                    embedding=result.embedding,
++                    semantic_score=result.semantic_score,
+                     metadata={
+                         "domain": domain,
+                         "themes": themes[:250],
+@@ -247,26 +251,24 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
+                     }
+                 )
+ 
+-                # Attach embedding vector for DuckDB persistence (set by Tier 3)
+-                event._embedding = getattr(dedup, '_last_embedding', None)
+-                event._semantic_score = getattr(dedup, '_last_semantic_score', None)
+ 
+                 if producer.produce_event(TOPIC_GDELT, event):
+-                    stats["published"] += 1
++                    dedup.confirm_staged(event_id, event.source)
++                    stats["queued"] += 1
+                 else:
++                    dedup.release_unstaged(event_id, event.source)
+                     stats["errors"] += 1
+ 
+-                if stats["published"] >= max_batch:
++                if stats["queued"] >= max_batch:
+                     break
+ 
+-        logger.info(f"GDELT GKG stream batch published: {stats['published']} events to {TOPIC_GDELT}.")
++        logger.info(f"GDELT GKG stream batch queued: {stats['queued']} events to {TOPIC_GDELT}.")
+ 
+     except Exception as e:
+         logger.error(f"Error in GDELT raw stream cycle: {e}")
+         stats["errors"] += 1
+ 
+-    producer.flush(timeout=5.0)
+-    return stats
++    return producer.finish_cycle(TOPIC_GDELT, stats)
+ 
+ 
+ def main():
+diff --git a/workers/rss_worker.py b/workers/rss_worker.py
+index d9332f7..9da1b26 100644
+--- a/workers/rss_worker.py
++++ b/workers/rss_worker.py
+@@ -77,7 +77,9 @@ def parse_published_time(entry) -> datetime:
+ 
+ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) -> dict:
+     """Fetches all feeds, deduplicates, and publishes new items to Redpanda."""
+-    stats = {"fetched": 0, "duplicates": 0, "published": 0, "errors": 0}
++    stats = {"fetched": 0, "duplicates": 0, "published": 0, "queued": 0, "errors": 0}
++    stats["_delivery_start"] = producer.delivered_count(TOPIC_RSS)
++    producer.retry_pending(TOPIC_RSS)
+ 
+     for feed_info in MACRO_FEEDS:
+         feed_name = feed_info["name"]
+@@ -112,10 +114,10 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
+                 tickers = extract_financial_entities(f"{title} {clean_snippet}")
+ 
+                 # Check Two-Tier Redis deduplication & near-duplicate clustering
+-                is_exact, is_near, canon_id = dedup.check_dedup(
+-                    event_id, title=title, source="RSS", tickers=tickers
++                result = dedup.check_dedup_result(
++                    event_id, title=title, source="RSS", tickers=tickers, reserve_for_delivery=True
+                 )
+-                if is_exact:
++                if result.is_exact:
+                     stats["duplicates"] += 1
+                     continue
+ 
+@@ -129,8 +131,10 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
+                     url=link,
+                     published_at=pub_time,
+                     tickers_mentioned=tickers,
+-                    is_near_duplicate=is_near,
+-                    canonical_cluster_id=canon_id,
++                    is_near_duplicate=result.is_near,
++                    canonical_cluster_id=result.canonical_id,
++                    embedding=result.embedding,
++                    semantic_score=result.semantic_score,
+                     metadata={
+                         "feed_name": feed_name,
+                         "feed_url": feed_url,
+@@ -138,21 +142,19 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
+                     }
+                 )
+ 
+-                # Attach embedding vector for DuckDB persistence (set by Tier 3)
+-                event._embedding = getattr(dedup, '_last_embedding', None)
+-                event._semantic_score = getattr(dedup, '_last_semantic_score', None)
+ 
+                 if producer.produce_event(TOPIC_RSS, event):
+-                    stats["published"] += 1
++                    dedup.confirm_staged(event_id, event.source)
++                    stats["queued"] += 1
+                 else:
++                    dedup.release_unstaged(event_id, event.source)
+                     stats["errors"] += 1
+ 
+         except Exception as e:
+             logger.error(f"Error fetching RSS feed {feed_name}: {e}")
+             stats["errors"] += 1
+ 
+-    producer.flush(timeout=5.0)
+-    return stats
++    return producer.finish_cycle(TOPIC_RSS, stats)
+ 
+ 
+ def main():
+diff --git a/workers/sec_worker.py b/workers/sec_worker.py
+index b8b6d4b..54a7e18 100644
+--- a/workers/sec_worker.py
++++ b/workers/sec_worker.py
+@@ -91,7 +91,9 @@ def run_sec_fetch_cycle(
+     dedup: RedisDeduplicator
+ ) -> dict:
+     """Fetches SEC filings for monitored forms (8-K, 10-Q, 10-K), deduplicates, and publishes with acks=all."""
+-    stats = {"fetched": 0, "filtered": 0, "duplicates": 0, "published": 0, "errors": 0}
++    stats = {"fetched": 0, "filtered": 0, "duplicates": 0, "published": 0, "queued": 0, "errors": 0}
++    stats["_delivery_start"] = producer.delivered_count(TOPIC_SEC)
++    producer.retry_pending(TOPIC_SEC)
+ 
+     # Query SEC for each critical form type
+     target_form_queries = ["8-K", "10-Q", "10-K"]
+@@ -129,7 +131,7 @@ def run_sec_fetch_cycle(
+                     continue
+ 
+                 # Atomic check & set in Redis
+-                if dedup.is_duplicate_or_set(event_id, source="SEC"):
++                if dedup.is_exact_duplicate(event_id, source="SEC", reserve_for_delivery=True):
+                     stats["duplicates"] += 1
+                     continue
+ 
+@@ -157,16 +159,17 @@ def run_sec_fetch_cycle(
+                 )
+ 
+                 if producer.produce_event(TOPIC_SEC, event):
+-                    stats["published"] += 1
++                    dedup.confirm_staged(event_id, event.source)
++                    stats["queued"] += 1
+                 else:
++                    dedup.release_unstaged(event_id, event.source)
+                     stats["errors"] += 1
+ 
+         except Exception as e:
+             logger.error(f"Error executing SEC fetch cycle for form {form_query}: {e}")
+             stats["errors"] += 1
+ 
+-    producer.flush(timeout=5.0)
+-    return stats
++    return producer.finish_cycle(TOPIC_SEC, stats)
+ 
+ 
+ def main():

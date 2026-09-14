@@ -1,0 +1,78 @@
+import tempfile
+import unittest
+from datetime import datetime, timezone
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
+from lakehouse.sync import parse_event_payload
+from utils.kafka_producer import RedpandaProducer
+from utils.redis_cache import DedupResult
+from workers import rss_worker, gdelt_worker
+
+
+class TestWorkerHandoff(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        with patch.object(RedpandaProducer, '_init_producer'):
+            self.producer = RedpandaProducer(outbox_path=str(Path(self.tmp.name) / 'outbox.sqlite3'))
+        self.producer._is_confluent = True
+        self.producer._producer = MagicMock()
+        self.sent = []
+        def acknowledge(**kwargs):
+            self.sent.append(parse_event_payload(kwargs['value']))
+            kwargs['on_delivery'](None, None)
+        self.producer._producer.produce.side_effect = acknowledge
+        self.dedup = MagicMock()
+        self.dedup.check_dedup_result.return_value = DedupResult(
+            is_near=True, canonical_id='original', embedding=[1.0] + [0.0] * 383,
+            semantic_score=.91)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def rss_fixture(self):
+        entry = SimpleNamespace(title='Tesla beats earnings estimates', link='https://example.com/news',
+                                summary='Tesla earnings', published_parsed=datetime.now(timezone.utc).timetuple())
+        return SimpleNamespace(bozo=False, entries=[entry])
+
+    def assert_handoff(self, stats):
+        self.assertEqual(stats['queued'], 1)
+        self.assertEqual(stats['published'], 1)
+        self.assertEqual(stats['pending_delivery'], 0)
+        self.assertNotIn('_delivery_start', stats)
+        self.assertEqual(self.sent[0].embedding, [1.0] + [0.0] * 383)
+        self.assertEqual(self.sent[0].semantic_score, .91)
+        self.assertEqual(self.sent[0].canonical_cluster_id, 'original')
+        self.assertTrue(self.dedup.check_dedup_result.call_args.kwargs['reserve_for_delivery'])
+        self.dedup.confirm_staged.assert_called_once()
+
+    def test_rss_worker_serializes_public_fields_and_reports_acknowledgements(self):
+        with patch.object(rss_worker, 'MACRO_FEEDS', [{'name': 'test', 'url': 'https://example.com/rss'}]), \
+             patch.object(rss_worker.feedparser, 'parse', return_value=self.rss_fixture()):
+            stats = rss_worker.run_rss_fetch_cycle(self.producer, self.dedup)
+        self.assert_handoff(stats)
+
+    def test_gdelt_worker_serializes_public_fields_and_reports_acknowledgements(self):
+        response = MagicMock(status_code=200, text='{"articles": []}')
+        response.json.return_value = {'articles': [{'title': 'Tesla beats earnings estimates',
+                                                   'url': 'https://example.com/news',
+                                                   'seendate': '20260901T140000Z'}]}
+        with patch.object(gdelt_worker.requests, 'get', return_value=response):
+            stats = gdelt_worker.run_gdelt_fetch_cycle(self.producer, self.dedup)
+        self.assert_handoff(stats)
+
+    def test_local_staging_failure_releases_dedup_reservation(self):
+        with patch.object(rss_worker, 'MACRO_FEEDS', [{'name': 'test', 'url': 'https://example.com/rss'}]), \
+             patch.object(rss_worker.feedparser, 'parse', return_value=self.rss_fixture()), \
+             patch.object(self.producer.outbox, 'enqueue', side_effect=OSError('Disk full')):
+            stats = rss_worker.run_rss_fetch_cycle(self.producer, self.dedup)
+        self.assertEqual(stats['published'], 0)
+        self.assertEqual(stats['queued'], 0)
+        self.assertEqual(stats['errors'], 1)
+        self.dedup.release_unstaged.assert_called_once()
+        self.dedup.confirm_staged.assert_not_called()
+
+
+if __name__ == '__main__':
+    unittest.main()

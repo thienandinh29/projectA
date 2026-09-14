@@ -6,3 +6,6 @@ __pycache__/
 *.pyc
 .env
 !.env.example
+data/delivery-outbox.sqlite3*
+data/week3-test-results.txt
+data/week3-focused-results.txt

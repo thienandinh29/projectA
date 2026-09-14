@@ -69,6 +69,8 @@ services:
     container_name: worker-rss
     command: python -m workers.rss_worker
     restart: unless-stopped
+    volumes:
+      - ingestion-data:/app/data
     depends_on:
       redpanda:
         condition: service_healthy
@@ -85,6 +87,8 @@ services:
     container_name: worker-gdelt
     command: python -m workers.gdelt_worker
     restart: unless-stopped
+    volumes:
+      - ingestion-data:/app/data
     depends_on:
       redpanda:
         condition: service_healthy
@@ -101,6 +105,8 @@ services:
     container_name: worker-sec
     command: python -m workers.sec_worker
     restart: unless-stopped
+    volumes:
+      - ingestion-data:/app/data
     depends_on:
       redpanda:
         condition: service_healthy
@@ -115,4 +121,6 @@ volumes:
   redpanda-data:
     driver: local
   redis-data:
+    driver: local
+  ingestion-data:
     driver: local

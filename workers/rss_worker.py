@@ -77,7 +77,9 @@ def parse_published_time(entry) -> datetime:
 
 def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) -> dict:
     """Fetches all feeds, deduplicates, and publishes new items to Redpanda."""
-    stats = {"fetched": 0, "duplicates": 0, "published": 0, "errors": 0}
+    stats = {"fetched": 0, "duplicates": 0, "published": 0, "queued": 0, "errors": 0}
+    stats["_delivery_start"] = producer.delivered_count(TOPIC_RSS)
+    producer.retry_pending(TOPIC_RSS)
 
     for feed_info in MACRO_FEEDS:
         feed_name = feed_info["name"]
@@ -112,10 +114,10 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
                 tickers = extract_financial_entities(f"{title} {clean_snippet}")
 
                 # Check Two-Tier Redis deduplication & near-duplicate clustering
-                is_exact, is_near, canon_id = dedup.check_dedup(
-                    event_id, title=title, source="RSS", tickers=tickers
+                result = dedup.check_dedup_result(
+                    event_id, title=title, source="RSS", tickers=tickers, reserve_for_delivery=True
                 )
-                if is_exact:
+                if result.is_exact:
                     stats["duplicates"] += 1
                     continue
 
@@ -129,8 +131,10 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
                     url=link,
                     published_at=pub_time,
                     tickers_mentioned=tickers,
-                    is_near_duplicate=is_near,
-                    canonical_cluster_id=canon_id,
+                    is_near_duplicate=result.is_near,
+                    canonical_cluster_id=result.canonical_id,
+                    embedding=result.embedding,
+                    semantic_score=result.semantic_score,
                     metadata={
                         "feed_name": feed_name,
                         "feed_url": feed_url,
@@ -138,21 +142,19 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
                     }
                 )
 
-                # Attach embedding vector for DuckDB persistence (set by Tier 3)
-                event._embedding = getattr(dedup, '_last_embedding', None)
-                event._semantic_score = getattr(dedup, '_last_semantic_score', None)
 
                 if producer.produce_event(TOPIC_RSS, event):
-                    stats["published"] += 1
+                    dedup.confirm_staged(event_id, event.source)
+                    stats["queued"] += 1
                 else:
+                    dedup.release_unstaged(event_id, event.source)
                     stats["errors"] += 1
 
         except Exception as e:
             logger.error(f"Error fetching RSS feed {feed_name}: {e}")
             stats["errors"] += 1
 
-    producer.flush(timeout=5.0)
-    return stats
+    return producer.finish_cycle(TOPIC_RSS, stats)
 
 
 def main():

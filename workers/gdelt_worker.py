@@ -36,7 +36,9 @@ def parse_gdelt_timestamp(seendate_str: str) -> datetime:
 
 def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) -> dict:
     """Queries GDELT DOC 2.0 API, deduplicates, and publishes to Redpanda."""
-    stats = {"fetched": 0, "duplicates": 0, "published": 0, "errors": 0}
+    stats = {"fetched": 0, "duplicates": 0, "published": 0, "queued": 0, "errors": 0}
+    stats["_delivery_start"] = producer.delivered_count(TOPIC_GDELT)
+    producer.retry_pending(TOPIC_GDELT)
 
     params = {
         "query": MACRO_QUERY,
@@ -64,14 +66,14 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
             if r.status_code != 200:
                 logger.warning(f"GDELT API returned status {r.status_code}: {r.text[:200]}")
                 stats["errors"] += 1
-                return stats
+                return producer.finish_cycle(TOPIC_GDELT, stats)
             resp = r
             break
         except Exception as e:
             if attempt == max_retries:
                 logger.error(f"Error querying GDELT API: {e}")
                 stats["errors"] += 1
-                return stats
+                return producer.finish_cycle(TOPIC_GDELT, stats)
             time.sleep(3.0)
 
     if resp is None or not (resp_text := resp.text.strip()).startswith(("{", "[")):
@@ -98,10 +100,10 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
             tickers = extract_financial_entities(title)
 
             # Check Two-Tier Redis deduplication & near-duplicate clustering
-            is_exact, is_near, canon_id = dedup.check_dedup(
-                event_id, title=title, source="GDELT", tickers=tickers
+            result = dedup.check_dedup_result(
+                event_id, title=title, source="GDELT", tickers=tickers, reserve_for_delivery=True
             )
-            if is_exact:
+            if result.is_exact:
                 stats["duplicates"] += 1
                 continue
 
@@ -119,8 +121,10 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
                 url=url,
                 published_at=pub_time,
                 tickers_mentioned=tickers,
-                is_near_duplicate=is_near,
-                canonical_cluster_id=canon_id,
+                is_near_duplicate=result.is_near,
+                canonical_cluster_id=result.canonical_id,
+                embedding=result.embedding,
+                semantic_score=result.semantic_score,
                 metadata={
                     "domain": domain,
                     "language": art.get("language"),
@@ -130,21 +134,19 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
                 }
             )
 
-            # Attach embedding vector for DuckDB persistence (set by Tier 3)
-            event._embedding = getattr(dedup, '_last_embedding', None)
-            event._semantic_score = getattr(dedup, '_last_semantic_score', None)
 
             if producer.produce_event(TOPIC_GDELT, event):
-                stats["published"] += 1
+                dedup.confirm_staged(event_id, event.source)
+                stats["queued"] += 1
             else:
+                dedup.release_unstaged(event_id, event.source)
                 stats["errors"] += 1
 
     except Exception as e:
         logger.error(f"Error processing GDELT response: {e}")
         stats["errors"] += 1
 
-    producer.flush(timeout=5.0)
-    return stats
+    return producer.finish_cycle(TOPIC_GDELT, stats)
 
 
 def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator, stats: dict) -> dict:
@@ -165,7 +167,7 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
         if resp.status_code != 200:
             logger.error(f"Failed to fetch GDELT lastupdate.txt: HTTP {resp.status_code}")
             stats["errors"] += 1
-            return stats
+            return producer.finish_cycle(TOPIC_GDELT, stats)
 
         # Lines format: <size> <md5> <url>
         lines = resp.text.strip().split("\n")
@@ -179,7 +181,7 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
         if not gkg_url:
             logger.error("Could not locate GKG file in GDELT lastupdate.txt")
             stats["errors"] += 1
-            return stats
+            return producer.finish_cycle(TOPIC_GDELT, stats)
 
         logger.info(f"Downloading GDELT Realtime GKG batch: {gkg_url}...")
         zip_resp = requests.get(gkg_url, timeout=30.0)
@@ -217,10 +219,10 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
                 tickers = extract_financial_entities(f"{title} {themes}")
 
                 # Check Two-Tier Redis deduplication & near-duplicate clustering
-                is_exact, is_near, canon_id = dedup.check_dedup(
-                    event_id, title=title, source="GDELT", tickers=tickers
+                result = dedup.check_dedup_result(
+                    event_id, title=title, source="GDELT", tickers=tickers, reserve_for_delivery=True
                 )
-                if is_exact:
+                if result.is_exact:
                     stats["duplicates"] += 1
                     continue
 
@@ -238,8 +240,10 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
                     url=url,
                     published_at=pub_time,
                     tickers_mentioned=tickers,
-                    is_near_duplicate=is_near,
-                    canonical_cluster_id=canon_id,
+                    is_near_duplicate=result.is_near,
+                    canonical_cluster_id=result.canonical_id,
+                    embedding=result.embedding,
+                    semantic_score=result.semantic_score,
                     metadata={
                         "domain": domain,
                         "themes": themes[:250],
@@ -247,26 +251,24 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
                     }
                 )
 
-                # Attach embedding vector for DuckDB persistence (set by Tier 3)
-                event._embedding = getattr(dedup, '_last_embedding', None)
-                event._semantic_score = getattr(dedup, '_last_semantic_score', None)
 
                 if producer.produce_event(TOPIC_GDELT, event):
-                    stats["published"] += 1
+                    dedup.confirm_staged(event_id, event.source)
+                    stats["queued"] += 1
                 else:
+                    dedup.release_unstaged(event_id, event.source)
                     stats["errors"] += 1
 
-                if stats["published"] >= max_batch:
+                if stats["queued"] >= max_batch:
                     break
 
-        logger.info(f"GDELT GKG stream batch published: {stats['published']} events to {TOPIC_GDELT}.")
+        logger.info(f"GDELT GKG stream batch queued: {stats['queued']} events to {TOPIC_GDELT}.")
 
     except Exception as e:
         logger.error(f"Error in GDELT raw stream cycle: {e}")
         stats["errors"] += 1
 
-    producer.flush(timeout=5.0)
-    return stats
+    return producer.finish_cycle(TOPIC_GDELT, stats)
 
 
 def main():

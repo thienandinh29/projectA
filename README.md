@@ -138,6 +138,79 @@ To run workers as background Docker containers alongside Redpanda and Redis:
 docker compose --profile workers up -d --build
 ```
 
+## Tier 2 exact-Jaccard verification
+
+MinHash LSH (128 permutations, 32 bands of 4) retrieves candidates. Acceptance
+uses exact `|A ∩ B| / |A ∪ B| >= 0.75` on the same normalized unigram/bigram
+sets, including existing polarity anchors, that produced the signatures.
+MinHash's estimated Jaccard no longer decides whether an article is merged.
+
+V2 records are stored under `lsh:news:v2:event:<id>` and contain the ordered
+headline, shingles, and original canonical ID. RSS/GDELT share V2 LSH buckets.
+Records have the configured LSH TTL (24 hours by default); missing, expired,
+or malformed records cannot authorize a match. Old V1 records and signature-only
+buckets are left untouched and ignored. Coverage rebuilds as new events arrive.
+Restart all workers together; mixed versions use different candidate windows.
+
+Candidates must also pass the shared polarity guard, handling antonyms,
+inflections, and short negation windows. Duplicate records preserve the original
+canonical ID, including when Tier 3 targets a V2 lexical duplicate. This remains
+a keyword heuristic: unknown verbs and subject-specific conflicts are limitations.
+Concurrent LSH lookup/insertion is not a distributed atomic clustering operation.
+
+All retrieved candidates are checked in sorted ID order, with Redis reads
+batched in groups of 256. The highest exact score wins, with lexical ID order
+breaking ties. This removes the arbitrary 15-candidate cutoff, but does not
+bound total work in a crowded bucket. Shingle payloads and full verification
+need memory/latency measurement before production throughput claims.
+
+LSH retrieval remains probabilistic. Tier 3 can still accept an event rejected
+by Tier 2's lexical gate. Previously measured Tier 3 figures below predate this
+Tier 2 change and are not new benchmarks.
+
+Run all regressions:
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+The acceptance-gate tests mock candidate retrieval. `test_tier2_live.py` tests
+actual Redis retrieval with unique prefixed keys and cleans up only its own keys.
+Legacy Redis tests flush their designated test databases (14/15), so reserve
+those databases for testing. These checks do not measure production throughput.
+
+## Event handoff and delivery recovery
+
+Workers use explicit event-specific dedup results and serialize public
+`embedding` and `semantic_score` fields. Sync validates the complete CommonEvent
+model, preserving `event_time` and `content_full` as well.
+
+Workers first reserve exact IDs for `DEDUP_RESERVATION_SECONDS` (default 60).
+Once a message is persisted in the SQLite outbox, its Redis marker is promoted
+to the normal seven-day TTL. Local staging failures release the marker and
+fuzzy payloads. A crash before staging leaves a short reservation rather than
+a seven-day suppression. Set the reservation TTL above normal per-event
+processing time; expiry can allow concurrent reprocessing.
+
+`produce_event()` returns whether a message is durably staged. Delivery callbacks
+remove acknowledged outbox records; queue or broker failures retain them.
+Workers retry up to 100 pending records for their topic at each fetch cycle,
+including after restart. Original wire payloads and ingestion times are preserved.
+Statistics separate `queued`, acknowledged `published` during the cycle, and
+`pending_delivery`. Published can include recovered messages from earlier cycles.
+
+Delivery is at-least-once: a crash after broker acceptance but before local
+acknowledgement can resend an event. Multiple producers recovering a shared
+outbox can also resend it; downstream replay-safe storage remains week 4 work.
+Docker workers persist the outbox in the `ingestion-data` volume. Host workers
+use `data/delivery-outbox.sqlite3`; `OUTBOX_PATH` can override it. Host and Docker
+outboxes are separate unless configured to share storage. Removing the volume
+loses pending messages. SEC's critical profile requires confluent-kafka rather
+than silently falling back without its idempotence guarantee.
+
+Recovery tests use a real temporary SQLite outbox and mocked Kafka callbacks;
+they do not claim a live broker outage test.
+
 ## Tier 3 Semantic Dedup — Measured Status (calibrated 2026-09)
 
 All numbers below are measured, not asserted: `scripts/calibrate_tier3.py`

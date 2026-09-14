@@ -33,7 +33,7 @@ class CommonEvent(BaseModel):
 
     # Deduplication & Clustering Tracking
     is_near_duplicate: bool = Field(default=False, description="Flag indicating if this event is a semantic/LSH near-duplicate")
-    canonical_cluster_id: Optional[str] = Field(default=None, description="ID of the first canonical event in this 120-min cluster")
+    canonical_cluster_id: Optional[str] = Field(default=None, description="ID of the original event in this deduplication cluster")
     embedding: Optional[List[float]] = Field(default=None, description="Dense 384-dim vector embedding from all-MiniLM-L6-v2")
     semantic_score: Optional[float] = Field(default=None, description="Cosine similarity score if semantic near-duplicate")
 

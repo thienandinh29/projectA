@@ -91,7 +91,9 @@ def run_sec_fetch_cycle(
     dedup: RedisDeduplicator
 ) -> dict:
     """Fetches SEC filings for monitored forms (8-K, 10-Q, 10-K), deduplicates, and publishes with acks=all."""
-    stats = {"fetched": 0, "filtered": 0, "duplicates": 0, "published": 0, "errors": 0}
+    stats = {"fetched": 0, "filtered": 0, "duplicates": 0, "published": 0, "queued": 0, "errors": 0}
+    stats["_delivery_start"] = producer.delivered_count(TOPIC_SEC)
+    producer.retry_pending(TOPIC_SEC)
 
     # Query SEC for each critical form type
     target_form_queries = ["8-K", "10-Q", "10-K"]
@@ -129,7 +131,7 @@ def run_sec_fetch_cycle(
                     continue
 
                 # Atomic check & set in Redis
-                if dedup.is_duplicate_or_set(event_id, source="SEC"):
+                if dedup.is_exact_duplicate(event_id, source="SEC", reserve_for_delivery=True):
                     stats["duplicates"] += 1
                     continue
 
@@ -157,16 +159,17 @@ def run_sec_fetch_cycle(
                 )
 
                 if producer.produce_event(TOPIC_SEC, event):
-                    stats["published"] += 1
+                    dedup.confirm_staged(event_id, event.source)
+                    stats["queued"] += 1
                 else:
+                    dedup.release_unstaged(event_id, event.source)
                     stats["errors"] += 1
 
         except Exception as e:
             logger.error(f"Error executing SEC fetch cycle for form {form_query}: {e}")
             stats["errors"] += 1
 
-    producer.flush(timeout=5.0)
-    return stats
+    return producer.finish_cycle(TOPIC_SEC, stats)
 
 
 def main():

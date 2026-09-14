@@ -1,8 +1,7 @@
-import json
 import logging
 import argparse
-from datetime import datetime, timezone
-from confluent_kafka import Consumer, TopicPartition, KafkaError
+from datetime import datetime
+from confluent_kafka import Consumer, KafkaError
 from config import KAFKA_BOOTSTRAP_SERVERS, TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC
 from models.event import CommonEvent
 from lakehouse.db import LakehouseManager
@@ -12,6 +11,11 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] [LakehouseSync] %(message)s"
 )
 logger = logging.getLogger("LakehouseSync")
+
+
+def parse_event_payload(raw: bytes) -> CommonEvent:
+    """Validate the complete wire model without reconstructing a subset."""
+    return CommonEvent.model_validate_json(raw)
 
 
 def sync_redpanda_to_lakehouse(limit_per_topic: int = 500):
@@ -52,31 +56,8 @@ def sync_redpanda_to_lakehouse(limit_per_topic: int = 500):
 
                 empty_polls = 0
                 try:
-                    payload = json.loads(msg.value().decode("utf-8"))
-                    # Parse timestamp
-                    pub_time_str = payload.get("published_at")
-                    pub_time = datetime.fromisoformat(pub_time_str) if pub_time_str else datetime.now(timezone.utc)
-                    ingested_time_str = payload.get("ingested_time")
-                    ingested_time = datetime.fromisoformat(ingested_time_str) if ingested_time_str else datetime.now(timezone.utc)
-
-                    event = CommonEvent(
-                        id=payload["id"],
-                        source=payload["source"],
-                        title=payload["title"],
-                        content_snippet=payload.get("content_snippet", ""),
-                        url=payload.get("url"),
-                        published_at=pub_time,
-                        ingested_time=ingested_time,
-                        tickers_mentioned=payload.get("tickers_mentioned", []),
-                        is_near_duplicate=payload.get("is_near_duplicate", False),
-                        canonical_cluster_id=payload.get("canonical_cluster_id"),
-                        embedding=payload.get("embedding"),
-                        semantic_score=payload.get("semantic_score"),
-                        metadata=payload.get("metadata", {}),
-                        schema_version=payload.get("schema_version", "1.0")
-                    )
-
-                    if payload["source"] == "SEC":
+                    event = parse_event_payload(msg.value())
+                    if event.source == "SEC":
                         sec_batch.append(event)
                     else:
                         news_batch.append(event)
@@ -93,7 +74,7 @@ def sync_redpanda_to_lakehouse(limit_per_topic: int = 500):
                     logger.info(f"Computing embeddings for {len(unembedded)} news events...")
                     vectors = embedder.embed_batch([e.title for e in unembedded])
                     for e, vec in zip(unembedded, vectors):
-                        e._embedding = vec
+                        e.embedding = vec.tolist()
 
                 count = lakehouse.insert_news_batch(news_batch)
                 total_synced["news"] += count
