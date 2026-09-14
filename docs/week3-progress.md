@@ -6,9 +6,9 @@ This is the week 3 slice of Phase 0 (roadmap weeks 1–5).
 |---|---|---|
 | Exact Tier 2 Jaccard verification | Implemented | Shared shingles; exact set intersection/union; boundary regressions |
 | Explicit Tier 2 polarity protection | Implemented | Shared antonym/negation guard; long-headline regressions |
-| RSS/GDELT syndication clustering | Implemented | Shared V2 buckets; live Redis cross-source tests |
+| RSS/GDELT cross-source clustering behavior | Implemented for synthetic fixtures | Shared V2 buckets; real-feed syndication provenance remains unvalidated |
 | Original canonical IDs | Implemented for sequential V2 processing | Duplicate records retain root IDs; semantic targets resolve V2 cluster IDs |
-| Deterministic candidate verification | Implemented | All candidates checked in sorted batches of 256 |
+| Deterministic candidate verification | Implemented | All candidates checked in sorted batches of 256; live regression with only qualifying match after candidate 256 |
 | Complete event handoff | Implemented | Public embeddings/scores; complete Pydantic wire parsing; SQLite-independent DuckDB roundtrip and PiT tests |
 | Recoverable Kafka delivery failures | Implemented | Durable SQLite outbox; topic-specific retries; acknowledgement-only deletion |
 | Distinguish queued and published | Implemented | Published counts actual callbacks; pending count exposed |
@@ -32,24 +32,26 @@ Compose configuration validation passed. Docker printed a warning that it
 could not read the user's credential config, but Compose validation exited
 successfully. Containers were not rebuilt or restarted during this change.
 
-## Remaining Phase 0 work for weeks 4–5
+## Next storage milestone implementation
 
-1. Replace the bounded replay sync with a continuous micro-batch writer.
-2. Use a stable Kafka consumer group and commit offsets after DB transactions.
-3. Populate Bronze with raw messages and topic/partition/offset provenance.
-4. Make Silver replay-safe without changing original ingestion history;
-   define how revised content is versioned rather than blindly replaced.
-5. Persist malformed events and parsing errors for review and recovery.
-6. Package the writer with persistent storage; define supported reader access.
-7. Validate live broker failures, writer restart, replay, delayed events,
-   and end-to-end PiT queries. Measure lag, throughput, latency, and memory.
+The continuous writer, transaction/offset boundary, raw Bronze evidence,
+immutable Silver, rejections and field-level audits are implemented and verified.
+The writer is packaged in Compose with persistent storage and enforces ownership
+before Kafka construction. See [storage progress](storage-progress.md) for the
+complete behavior, migration checks and real broker crash/rebalance tests.
+
+These changes close the storage implementation slice. Remaining Phase 0
+readiness requires captured RSS/GDELT pair provenance, concurrent canonical
+assignment, sustained feed-rate/resource measurement and explicit throughput/
+latency targets. The 500-message / 2-second batching defaults remain provisional.
 
 ## Limits to carry forward
 
 - Keyword polarity guards cannot prove universal semantic safety.
 - Concurrent Redis LSH lookup/insertion can create multiple canonical IDs;
   atomic distributed clustering is separate hardening work.
-- All-candidate checks need benchmarks for crowded buckets and memory use.
+- All-candidate checks have a timing/payload-byte baseline; crowded-bucket
+  readiness and full resident-memory measurement remain open.
 - V2 is a new candidate window: restart workers together; coverage repopulates.
 - Outbox delivery is at-least-once; acknowledgements can be lost across crashes,
   and multiple producers can resend shared pending records.

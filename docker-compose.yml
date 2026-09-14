@@ -117,6 +117,25 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
 
+  # Exactly one process per shared DB; acquire ownership before Kafka.
+  lakehouse-writer:
+    profiles: ["workers"]
+    build: .
+    container_name: lakehouse-writer
+    command: python -m lakehouse.sync
+    restart: unless-stopped
+    volumes:
+      - ingestion-data:/app/data
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:29092
+      - LAKEHOUSE_DB_PATH=/app/data/lakehouse.duckdb
+      - LAKEHOUSE_GROUP_ID=lakehouse-writer-v1
+      - LAKEHOUSE_BATCH_SIZE=500
+      - LAKEHOUSE_BATCH_SECONDS=2
+
 volumes:
   redpanda-data:
     driver: local

@@ -1,0 +1,98 @@
+{
+  "measured_at": "2026-09-14T08:08:42.174237+00:00",
+  "hardware": {
+    "os": "Windows-10-10.0.22621-SP0",
+    "python": "3.11.5",
+    "cpu": "Intel64 Family 6 Model 186 Stepping 3, GenuineIntel",
+    "logical_cpus": 12
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "db": 15
+  },
+  "samples_per_size": 30,
+  "warmups": 2,
+  "fixture": "Synthetic repeated headlines; actual LSH signatures; final exact match wins.",
+  "limitations": "Instrumented single-thread Tier 2 only; timers add overhead. No live feed-rate target or Tier 3. Payload bytes exclude Redis allocator/bucket overhead.",
+  "results": [
+    {
+      "candidates": 0,
+      "record_payload_bytes": 0,
+      "p50_ms": 2.496350003639236,
+      "p95_ms": 4.281355015700681,
+      "phase_mean_ms": {
+        "retrieval_ms": 1.0023800015915185,
+        "record_fetch_ms": 0.0,
+        "decode_ms": 0.0,
+        "jaccard_ms": 0.0,
+        "polarity_ms": 0.0
+      }
+    },
+    {
+      "candidates": 15,
+      "record_payload_bytes": 6987,
+      "p50_ms": 3.983900009188801,
+      "p95_ms": 5.330224990029819,
+      "phase_mean_ms": {
+        "retrieval_ms": 1.1905099963769317,
+        "record_fetch_ms": 0.7344266574364156,
+        "decode_ms": 0.10745999752543867,
+        "jaccard_ms": 0.03843667800538242,
+        "polarity_ms": 0.14939331449568272
+      }
+    },
+    {
+      "candidates": 256,
+      "record_payload_bytes": 119689,
+      "p50_ms": 13.320900005055591,
+      "p95_ms": 14.73783999099396,
+      "phase_mean_ms": {
+        "retrieval_ms": 3.9754733365649977,
+        "record_fetch_ms": 2.6036600019627563,
+        "decode_ms": 1.3276434581105907,
+        "jaccard_ms": 0.44316332787275314,
+        "polarity_ms": 2.1694365403770157
+      }
+    },
+    {
+      "candidates": 272,
+      "record_payload_bytes": 127177,
+      "p50_ms": 15.112649969523773,
+      "p95_ms": 16.612079995684326,
+      "phase_mean_ms": {
+        "retrieval_ms": 4.46226333345597,
+        "record_fetch_ms": 3.6382833359918245,
+        "decode_ms": 1.4450932930534084,
+        "jaccard_ms": 0.5949299898929894,
+        "polarity_ms": 2.409883299454426
+      }
+    },
+    {
+      "candidates": 1000,
+      "record_payload_bytes": 467881,
+      "p50_ms": 44.72614999394864,
+      "p95_ms": 236.29840000066835,
+      "phase_mean_ms": {
+        "retrieval_ms": 14.344743322969103,
+        "record_fetch_ms": 33.305530001719795,
+        "decode_ms": 5.458980010977636,
+        "jaccard_ms": 1.800326636293903,
+        "polarity_ms": 8.91091664476941
+      }
+    },
+    {
+      "candidates": 5000,
+      "record_payload_bytes": 2343880,
+      "p50_ms": 224.92025000974536,
+      "p95_ms": 269.93507001607213,
+      "phase_mean_ms": {
+        "retrieval_ms": 76.04281332460232,
+        "record_fetch_ms": 56.529926660005,
+        "decode_ms": 27.87078885594383,
+        "jaccard_ms": 9.17142741382122,
+        "polarity_ms": 45.65401019256873
+      }
+    }
+  ]
+}

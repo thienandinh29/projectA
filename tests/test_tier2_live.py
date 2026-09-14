@@ -57,6 +57,15 @@ class TestTier2Live(unittest.TestCase):
         self.assertEqual(record['canonical_id'], 'original')
         self.assertGreater(self.raw.ttl(self.scoped.prefix + b'lsh:news:v2:event:third'), 0)
 
+    def test_only_qualifying_candidate_after_first_256_is_checked(self):
+        from scripts.tier2_fixtures import QUERY, seed_candidates
+        # Synthetic bucket collision regression, not captured feed provenance.
+        seed_candidates(self.scoped,272,terminal_only=True)
+        metrics={}
+        self.assertEqual(self.dedup.check_near_duplicate('probe',QUERY,'GDELT',metrics=metrics),
+                         (True,'original'))
+        self.assertEqual(metrics['candidate_count'],272)
+
     def test_long_opposite_and_negated_headlines_remain_distinct(self):
         title = ('Tesla quarterly revenue beats Wall Street estimates as investors review '
                  'the latest financial results and management commentary on global demand '

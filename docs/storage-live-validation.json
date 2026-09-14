@@ -1,0 +1,54 @@
+{
+  "broker": "localhost:9092",
+  "fixture": "Synthetic mixed RSS/GDELT/SEC; two partitions per topic",
+  "messages": 8,
+  "phases": [
+    {
+      "mode": "before-db",
+      "exit_code": 61,
+      "counts": {}
+    },
+    {
+      "mode": "normal",
+      "exit_code": 0,
+      "counts": {
+        "bronze_inserted": 8,
+        "silver_inserted": 3,
+        "replayed": 0,
+        "rejected": 1,
+        "conflicts": 2,
+        "enrichment": 1,
+        "redelivered": 4
+      }
+    },
+    {
+      "mode": "after-db",
+      "exit_code": 62,
+      "counts": {}
+    },
+    {
+      "mode": "normal",
+      "exit_code": 0,
+      "counts": {
+        "bronze_inserted": 0,
+        "silver_inserted": 0,
+        "replayed": 8,
+        "rejected": 0,
+        "conflicts": 0,
+        "enrichment": 0,
+        "redelivered": 0
+      }
+    }
+  ],
+  "final_table_counts": [
+    8,
+    8,
+    2,
+    1
+  ],
+  "restart_pit": {
+    "hidden_at": "14:03 UTC",
+    "visible_at": "14:06 UTC",
+    "first_titles_preserved": true
+  }
+}

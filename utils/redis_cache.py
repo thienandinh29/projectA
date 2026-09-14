@@ -2,6 +2,7 @@ import json
 import logging
 import re
 import threading
+from time import perf_counter
 from dataclasses import dataclass
 from typing import Optional, Tuple, Set, List
 import redis
@@ -142,7 +143,7 @@ class RedisDeduplicator:
     def _create_minhash(self, text: str) -> MinHash:
         return self._minhash_shingles(self._create_shingles(text))
 
-    def check_near_duplicate(self, event_id: str, title: str, source: str = "RSS") -> Tuple[bool, Optional[str]]:
+    def check_near_duplicate(self, event_id: str, title: str, source: str = "RSS", metrics: Optional[dict] = None) -> Tuple[bool, Optional[str]]:
         """
         Checks if the headline is a near-duplicate of any active headline
         within the configured LSH window (24 hours by default).
@@ -155,6 +156,8 @@ class RedisDeduplicator:
             return False, None
 
         try:
+            if metrics is not None:
+                metrics.update(dict.fromkeys(('retrieval_ms', 'record_fetch_ms', 'decode_ms', 'jaccard_ms', 'polarity_ms'), 0.0))
             shingles = self._create_shingles(title)
             if not shingles:
                 return False, None
@@ -171,9 +174,13 @@ class RedisDeduplicator:
                 band_keys.append(bkey)
                 pipeline.smembers(bkey)
 
+            started = perf_counter() if metrics is not None else 0
             candidate_sets = pipeline.execute()
             event_id_bytes = event_id.encode("utf-8")
             candidates = {cand for c_set in candidate_sets for cand in c_set if cand != event_id_bytes}
+            if metrics is not None:
+                metrics['candidate_count'] = len(candidates)
+                metrics['retrieval_ms'] += (perf_counter() - started) * 1000
 
             # Shared news namespace allows RSS/GDELT syndication matching.
             # V2 stores ordered text for polarity and the original cluster ID.
@@ -190,10 +197,15 @@ class RedisDeduplicator:
                     read_pipe = self.client.pipeline()
                     for cand_id in batch:
                         read_pipe.get(payload_prefix + cand_id)
-                    for cand_id, saved in zip(batch, read_pipe.execute()):
+                    started = perf_counter() if metrics is not None else 0
+                    saved_records = read_pipe.execute()
+                    if metrics is not None:
+                        metrics['record_fetch_ms'] += (perf_counter() - started) * 1000
+                    for cand_id, saved in zip(batch, saved_records):
                         if saved is None:
                             continue  # Expired entry or pre-upgrade signature only.
                         try:
+                            started = perf_counter() if metrics is not None else 0
                             decoded = json.loads(saved)
                             if (not isinstance(decoded, dict)
                                     or not isinstance(decoded.get('title'), str)
@@ -203,11 +215,20 @@ class RedisDeduplicator:
                                     or not all(isinstance(s, str) for s in decoded['shingles'])):
                                 raise ValueError("Expected a complete V2 news record")
                             candidate_shingles = set(decoded['shingles'])
+                            if metrics is not None:
+                                metrics['decode_ms'] += (perf_counter() - started) * 1000
                         except (ValueError, TypeError, UnicodeError):
                             logger.warning("Skipping invalid LSH shingle payload for %r", cand_id)
                             continue
+                        started = perf_counter() if metrics is not None else 0
                         score = self._exact_jaccard(shingles, candidate_shingles)
-                        if has_conflict(new_profile, polarity_profile(decoded['title'])):
+                        if metrics is not None:
+                            metrics['jaccard_ms'] += (perf_counter() - started) * 1000
+                        started = perf_counter() if metrics is not None else 0
+                        conflict = has_conflict(new_profile, polarity_profile(decoded['title']))
+                        if metrics is not None:
+                            metrics['polarity_ms'] += (perf_counter() - started) * 1000
+                        if conflict:
                             continue
                         if score >= self.jaccard_threshold and score > highest_jaccard:
                             highest_jaccard = score

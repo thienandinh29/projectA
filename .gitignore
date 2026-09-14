@@ -9,3 +9,5 @@ __pycache__/
 data/delivery-outbox.sqlite3*
 data/week3-test-results.txt
 data/week3-focused-results.txt
+*.duckdb.before-v*.bak
+data/storage-validation/

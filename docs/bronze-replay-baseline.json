@@ -1,0 +1,33 @@
+{
+  "measured_at": "2026-09-14T08:58:44.342557+00:00",
+  "duckdb": "1.5.5",
+  "seed_rows": 100000,
+  "seed_layout": "disk-backed Bronze rows across four partitions; small JSON payloads",
+  "replay": {
+    "samples": 30,
+    "mean_ms": 13.503816661735376,
+    "p50_ms": 13.76475000870414,
+    "p95_ms": 15.646594995632762
+  },
+  "new_message_batch_size_one": {
+    "samples": 30,
+    "mean_ms": 35.68157999931524,
+    "p50_ms": 31.99209997546859,
+    "p95_ms": 61.613459986983784
+  },
+  "database_bytes_before_new_messages": 1847296,
+  "database_bytes_after_new_messages": 4468736,
+  "explain_analyze": {
+    "scan_type": "Sequential Scan",
+    "plan_excerpt": [
+      "\u2502           0 rows          \u2502",
+      "\u2502   Type: Sequential Scan   \u2502"
+    ]
+  },
+  "limitations": [
+    "Replay timing measures one-message write_message_batch calls, not sustained feed throughput.",
+    "The seed uses small payloads and does not represent resident ART/index memory.",
+    "DuckDB reports a sequential scan for the composite-key lookup; the primary key still enforces uniqueness.",
+    "Run with --rows 1000000 for the million-row comparison before setting production targets."
+  ]
+}

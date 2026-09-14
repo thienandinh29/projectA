@@ -1,0 +1,10 @@
+.git
+.env
+.venv
+.zcode
+.agents
+.codex
+data
+**/__pycache__
+**/*.pyc
+changes.txt

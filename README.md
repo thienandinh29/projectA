@@ -162,7 +162,8 @@ All retrieved candidates are checked in sorted ID order, with Redis reads
 batched in groups of 256. The highest exact score wins, with lexical ID order
 breaking ties. This removes the arbitrary 15-candidate cutoff, but does not
 bound total work in a crowded bucket. Shingle payloads and full verification
-need memory/latency measurement before production throughput claims.
+have a pre-storage timing/payload-byte baseline in `docs/tier2-baseline.json`;
+full resident-memory measurement and production throughput targets remain open.
 
 LSH retrieval remains probabilistic. Tier 3 can still accept an event rejected
 by Tier 2's lexical gate. Previously measured Tier 3 figures below predate this
@@ -201,7 +202,8 @@ Statistics separate `queued`, acknowledged `published` during the cycle, and
 
 Delivery is at-least-once: a crash after broker acceptance but before local
 acknowledgement can resend an event. Multiple producers recovering a shared
-outbox can also resend it; downstream replay-safe storage remains week 4 work.
+outbox can also resend it; the transactional writer now audits these redeliveries
+without replacing the first stored Silver version.
 Docker workers persist the outbox in the `ingestion-data` volume. Host workers
 use `data/delivery-outbox.sqlite3`; `OUTBOX_PATH` can override it. Host and Docker
 outboxes are separate unless configured to share storage. Removing the volume
@@ -210,6 +212,36 @@ than silently falling back without its idempotence guarantee.
 
 Recovery tests use a real temporary SQLite outbox and mocked Kafka callbacks;
 they do not claim a live broker outage test.
+
+## Continuous Bronze/Silver storage
+
+Run `python -m lakehouse.sync` for the continuous writer, or add `--once` for
+one total batch (not a historical per-topic replay). The stable default group
+is `lakehouse-writer-v1`; commits follow atomic DuckDB transactions. The
+configurable 500-message / 2-second defaults are provisional and untuned.
+
+The writer acquires DuckDB ownership before joining Kafka; a second process
+using the same file fails startup. Separate-process readers require stopping
+that writer. Docker uses the shared `ingestion-data` volume; host data is
+separate by default. Existing databases are backed up and migrated at startup.
+
+Bronze replay detection uses the primary-key constraint atomically with
+`ON CONFLICT DO NOTHING RETURNING`; it does not perform a separate pre-read.
+The 100k/1m replay baselines and their `EXPLAIN ANALYZE` plans are recorded in
+`docs/bronze-replay-baseline.json` and `docs/bronze-replay-baseline-1m.json`.
+
+Bronze retains raw bytes and topic/partition/offset for every consumed message,
+including invalid payloads. Outcomes audit rejections, conflicts, enrichment
+and provenance. Invalid transport envelopes are quarantined with raw bytes and
+excluded from offset commits; valid payload rejections remain normal Bronze
+outcomes. Silver preserves the first stored version. SEC identity and
+filing-text differences under the same accession are always conflicts;
+supplementary ticker/model annotations may be audited as enrichment.
+
+See [storage behavior, verification and readiness limits](docs/storage-progress.md)
+for field rules, deployment commands, migration evidence and live crash tests.
+The captured-feed provenance and sustained-load targets remain open before
+calling the entire data system ready for NLP.
 
 ## Tier 3 Semantic Dedup — Measured Status (calibrated 2026-09)
 

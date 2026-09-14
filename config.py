@@ -13,6 +13,11 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 REDIS_DB = int(os.getenv("REDIS_DB", 0))
 OUTBOX_PATH = os.getenv("OUTBOX_PATH", str(Path(__file__).resolve().parent / "data" / "delivery-outbox.sqlite3"))
 DEDUP_RESERVATION_SECONDS = int(os.getenv("DEDUP_RESERVATION_SECONDS", "60"))
+LAKEHOUSE_DB_PATH = os.getenv('LAKEHOUSE_DB_PATH', str(Path(__file__).resolve().parent / 'data' / 'lakehouse.duckdb'))
+LAKEHOUSE_GROUP_ID = os.getenv('LAKEHOUSE_GROUP_ID', 'lakehouse-writer-v1')
+# Provisional batching defaults; tune against observed arrival rates.
+LAKEHOUSE_BATCH_SIZE = int(os.getenv('LAKEHOUSE_BATCH_SIZE', '500'))
+LAKEHOUSE_BATCH_SECONDS = float(os.getenv('LAKEHOUSE_BATCH_SECONDS', '2'))
 REDIS_TTL_SECONDS = int(os.getenv("REDIS_TTL_SECONDS", 604800))      # 7 days for exact match
 REDIS_LSH_TTL_SECONDS = int(os.getenv("REDIS_LSH_TTL_SECONDS", 86400))  # 24 hours for LSH near-duplicate window
 REDIS_SEMANTIC_TTL_SECONDS = int(os.getenv("REDIS_SEMANTIC_TTL_SECONDS", 7200))  # 120 minutes for semantic embedding window
