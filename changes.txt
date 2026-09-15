@@ -1,5 +1,5 @@
 diff --git a/README.md b/README.md
-index d485338..b63585a 100644
+index d485338..0276b5d 100644
 --- a/README.md
 +++ b/README.md
 @@ -156,7 +156,9 @@ Candidates must also pass the shared polarity guard, handling antonyms,
@@ -27,7 +27,7 @@ index d485338..b63585a 100644
  filing-text differences under the same accession are always conflicts;
  supplementary ticker/model annotations may be audited as enrichment.
 
-@@ -243,6 +248,17 @@ for field rules, deployment commands, migration evidence and live crash tests.
+@@ -243,6 +248,22 @@ for field rules, deployment commands, migration evidence and live crash tests.
  The captured-feed provenance and sustained-load targets remain open before
  calling the entire data system ready for NLP.
 
@@ -41,6 +41,11 @@ index d485338..b63585a 100644
 +carry `nlp_eligible=false`, and are counted separately by the readiness audit.
 +Invalid source timestamps use ingestion time safely and are marked
 +`published_time_provenance=ingestion_fallback` rather than appearing source-verified.
++
++Capture real cross-source provenance with
++`python -m scripts.capture_syndication_fixture`. The report records live source
++URLs, timestamps, the best candidates and whether a pair actually passed the
++production 0.75 exact-Jaccard and polarity gates.
 +
  ## Tier 3 Semantic Dedup — Measured Status (calibrated 2026-09)
 
@@ -260,6 +265,32 @@ index 0000000..1316599
 +    "Review the fixed headline sentiment sample and record human labels."
 +  ]
 +}
+diff --git a/docs/real-syndication-validation.json b/docs/real-syndication-validation.json
+new file mode 100644
+index 0000000..7729f97
+--- /dev/null
++++ b/docs/real-syndication-validation.json
+@@ -0,0 +1,20 @@
++{
++  "captured_at": "2026-09-15T01:12:02.952591+00:00",
++  "method": "Live HTTP responses from configured RSS feeds and GDELT DOC API; production unigram/bigram shingles, polarity guard and exact Jaccard.",
++  "threshold": 0.75,
++  "rss_items": 90,
++  "gdelt_items": 0,
++  "source_errors": [
++    {
++      "source": "Investing.com Economy",
++      "error": "HTTPSConnectionPool(host='www.investing.com', port=443): Max retries exceeded with url: /rss/news_14.rss (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))"
++    },
++    {
++      "source": "GDELT DOC API",
++      "error": "429 Client Error: Too Many Requests for url: https://api.gdeltproject.org/api/v2/doc/doc?query=%28inflation+OR+%22interest+rate%22+OR+%22central+bank%22+OR+%22Federal+Reserve%22+OR+%22ECB%22%29&mode=ArtList&format=json&maxrecords=250&sort=datedesc"
++    }
++  ],
++  "status": "no_qualifying_pair",
++  "qualifying_pair": null,
++  "top_candidates": []
++}
 diff --git a/docs/storage-migration-validation.json b/docs/storage-migration-validation.json
 index cc0ff9d..9d7c207 100644
 --- a/docs/storage-migration-validation.json
@@ -274,7 +305,7 @@ index cc0ff9d..9d7c207 100644
    "legacy_sec_without_wire_snapshot": 106
  }
 diff --git a/docs/storage-progress.md b/docs/storage-progress.md
-index 35747be..16b676c 100644
+index 35747be..292a5b4 100644
 --- a/docs/storage-progress.md
 +++ b/docs/storage-progress.md
 @@ -67,12 +67,14 @@ their offsets uncommitted. Graceful shutdown flushes pending owned records.
@@ -315,7 +346,7 @@ index 35747be..16b676c 100644
 
  Legacy Silver timestamps/content are retained. The pre-existing initialization
  behavior still stamps NULL embedding-model labels with the original pipeline's
-@@ -182,20 +184,33 @@ the crowded-bucket performance gap.
+@@ -182,20 +184,36 @@ the crowded-bucket performance gap.
 
  The Bronze replay benchmark uses a temporary disk-backed DuckDB database seeded
  with 100,000 rows. It records 30 replay and 30 new-message samples plus an
@@ -354,6 +385,9 @@ index 35747be..16b676c 100644
 +New worker payloads label title and publication-time provenance. GDELT GKG URL
 +slugs remain auditable discovery records but carry `nlp_eligible=false`; the
 +readiness report excludes them from its headline-prototype count.
++`python -m scripts.capture_syndication_fixture` creates the still-required real
++RSS/GDELT provenance report. A run with no qualifying pair remains negative
++evidence and does not close the gate.
 diff --git a/docs/tier2-baseline.json b/docs/tier2-baseline.json
 index 4bb120e..d2c62d2 100644
 --- a/docs/tier2-baseline.json
@@ -375,7 +409,7 @@ index 4bb120e..d2c62d2 100644
 \ No newline at end of file
 +}
 diff --git a/docs/week3-progress.md b/docs/week3-progress.md
-index 9e55746..4cb598f 100644
+index 9e55746..b6cd483 100644
 --- a/docs/week3-progress.md
 +++ b/docs/week3-progress.md
 @@ -7,7 +7,7 @@ This is the week 3 slice of Phase 0 (roadmap weeks 1–5).
@@ -413,6 +447,18 @@ index 9e55746..4cb598f 100644
  - All-candidate checks have a timing/payload-byte baseline; crowded-bucket
    readiness and full resident-memory measurement remain open.
  - V2 is a new candidate window: restart workers together; coverage repopulates.
+@@ -60,3 +66,11 @@ latency targets. The 500-message / 2-second batching defaults remain provisional
+ - Docker and host outboxes use separate storage by default.
+
+ FinBERT belongs to Phase 0.5 after the storage and validation checks above.
++
++## Real provenance capture attempt
++
++`python -m scripts.capture_syndication_fixture` fetched 90 live RSS entries on
++2026-09-15. GDELT DOC returned HTTP 429 and the Investing.com RSS endpoint failed
++TLS, so the report contains no qualifying pair and the real RSS/GDELT gate remains
++open. See `docs/real-syndication-validation.json`; rerunning replaces the evidence
++with the latest observed result without weakening the 0.75 production threshold.
 diff --git a/lakehouse/db.py b/lakehouse/db.py
 index 770e916..810aaec 100644
 --- a/lakehouse/db.py
@@ -770,6 +816,107 @@ index 371ab08..e67bb18 100644
          ],
      }
      args.output.parent.mkdir(parents=True, exist_ok=True)
+diff --git a/scripts/capture_syndication_fixture.py b/scripts/capture_syndication_fixture.py
+new file mode 100644
+index 0000000..7a1a939
+--- /dev/null
++++ b/scripts/capture_syndication_fixture.py
+@@ -0,0 +1,95 @@
++"""Capture a real RSS/GDELT pair using the production Tier 2 acceptance rules."""
++import argparse
++import json
++from datetime import datetime, timezone
++from pathlib import Path
++
++import feedparser
++import requests
++
++from utils.polarity import has_conflict, polarity_profile
++from utils.redis_cache import RedisDeduplicator
++from workers.gdelt_worker import GDELT_DOC_API, MACRO_QUERY
++from workers.rss_worker import MACRO_FEEDS
++
++
++def rank_pairs(rss_items, gdelt_items):
++    ranked = []
++    for rss in rss_items:
++        left = RedisDeduplicator._create_shingles(rss['title'])
++        for gdelt in gdelt_items:
++            right = RedisDeduplicator._create_shingles(gdelt['title'])
++            score = RedisDeduplicator._exact_jaccard(left, right)
++            if has_conflict(polarity_profile(rss['title']), polarity_profile(gdelt['title'])):
++                continue
++            ranked.append({'exact_jaccard': score, 'rss': rss, 'gdelt': gdelt})
++    return sorted(ranked, key=lambda row: (-row['exact_jaccard'],
++                                           row['rss']['title'], row['gdelt']['title']))
++
++
++def capture(timeout=20, threshold=.75):
++    headers = {'User-Agent': 'FinancialIngestionPipeline/1.0 research@example.com'}
++    rss_items = []
++    source_errors = []
++    for feed in MACRO_FEEDS:
++        try:
++            response = requests.get(feed['url'], headers=headers, timeout=timeout)
++            response.raise_for_status()
++            parsed = feedparser.parse(response.content)
++            for entry in parsed.entries:
++                title = getattr(entry, 'title', '').strip()
++                if title:
++                    rss_items.append({
++                        'feed_name': feed['name'], 'feed_url': feed['url'],
++                        'title': title, 'article_url': getattr(entry, 'link', ''),
++                        'published_raw': getattr(entry, 'published', None),
++                    })
++        except Exception as exc:
++            source_errors.append({'source': feed['name'], 'error': str(exc)})
++
++    gdelt_items = []
++    try:
++        response = requests.get(GDELT_DOC_API, params={
++            'query': MACRO_QUERY, 'mode': 'ArtList', 'format': 'json',
++            'maxrecords': '250', 'sort': 'datedesc'}, headers=headers, timeout=timeout)
++        response.raise_for_status()
++        for article in response.json().get('articles', []):
++            title = str(article.get('title') or '').strip()
++            if title:
++                gdelt_items.append({
++                    'title': title, 'article_url': article.get('url'),
++                    'seen_date_raw': article.get('seendate'),
++                    'domain': article.get('domain'), 'language': article.get('language'),
++                })
++    except Exception as exc:
++        source_errors.append({'source': 'GDELT DOC API', 'error': str(exc)})
++
++    ranked = rank_pairs(rss_items, gdelt_items)
++    qualifying = [pair for pair in ranked if pair['exact_jaccard'] >= threshold]
++    return {
++        'captured_at': datetime.now(timezone.utc).isoformat(),
++        'method': 'Live HTTP responses from configured RSS feeds and GDELT DOC API; '
++                  'production unigram/bigram shingles, polarity guard and exact Jaccard.',
++        'threshold': threshold, 'rss_items': len(rss_items),
++        'gdelt_items': len(gdelt_items), 'source_errors': source_errors,
++        'status': 'qualifying_pair_captured' if qualifying else 'no_qualifying_pair',
++        'qualifying_pair': qualifying[0] if qualifying else None,
++        'top_candidates': ranked[:10],
++    }
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--output', type=Path,
++                        default=Path('docs/real-syndication-validation.json'))
++    parser.add_argument('--timeout', type=float, default=20)
++    parser.add_argument('--threshold', type=float, default=.75)
++    args = parser.parse_args()
++    report = capture(timeout=args.timeout, threshold=args.threshold)
++    args.output.parent.mkdir(parents=True, exist_ok=True)
++    args.output.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
++    print(json.dumps(report, indent=2))
++
++
++if __name__ == '__main__':
++    main()
 diff --git a/scripts/export_nlp_label_sample.py b/scripts/export_nlp_label_sample.py
 new file mode 100644
 index 0000000..8fe35ba
@@ -978,6 +1125,33 @@ index db71a34..67ad68f 100644
      def test_legacy_backup_and_transactional_migration(self):
          with tempfile.TemporaryDirectory() as tmp:
              path=Path(tmp)/'legacy.duckdb'
+diff --git a/tests/test_syndication_capture.py b/tests/test_syndication_capture.py
+new file mode 100644
+index 0000000..1a4a3f2
+--- /dev/null
++++ b/tests/test_syndication_capture.py
+@@ -0,0 +1,21 @@
++import unittest
++
++from scripts.capture_syndication_fixture import rank_pairs
++
++
++class TestSyndicationCapture(unittest.TestCase):
++    def test_ranking_uses_exact_score_and_polarity_guard(self):
++        rss = [{'title':'Federal Reserve raises interest rates by 25 basis points to curb inflation'}]
++        gdelt = [
++            {'title':'Unrelated market report'},
++            {'title':'Federal Reserve raises interest rates by 25 basis points to battle inflation'},
++            {'title':'Federal Reserve cuts interest rates by 25 basis points to curb inflation'},
++        ]
++        ranked = rank_pairs(rss, gdelt)
++        self.assertEqual(ranked[0]['gdelt']['title'], gdelt[1]['title'])
++        self.assertGreaterEqual(ranked[0]['exact_jaccard'], .75)
++        self.assertNotIn(gdelt[2]['title'], [row['gdelt']['title'] for row in ranked])
++
++
++if __name__ == '__main__':
++    unittest.main()
 diff --git a/tests/test_tier2_exact_jaccard.py b/tests/test_tier2_exact_jaccard.py
 index 40bb555..64631d6 100644
 --- a/tests/test_tier2_exact_jaccard.py
@@ -1277,6 +1451,7 @@ index 315e5ce..beb2bd4 100644
 +                        "nlp_eligible": False,
                      }
                  )
+
 diff --git a/workers/rss_worker.py b/workers/rss_worker.py
 index 9da1b26..0225d58 100644
 --- a/workers/rss_worker.py

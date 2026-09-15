@@ -259,6 +259,11 @@ carry `nlp_eligible=false`, and are counted separately by the readiness audit.
 Invalid source timestamps use ingestion time safely and are marked
 `published_time_provenance=ingestion_fallback` rather than appearing source-verified.
 
+Capture real cross-source provenance with
+`python -m scripts.capture_syndication_fixture`. The report records live source
+URLs, timestamps, the best candidates and whether a pair actually passed the
+production 0.75 exact-Jaccard and polarity gates.
+
 ## Tier 3 Semantic Dedup — Measured Status (calibrated 2026-09)
 
 All numbers below are measured, not asserted: `scripts/calibrate_tier3.py`

@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-09-15T01:12:02.952591+00:00",
+  "method": "Live HTTP responses from configured RSS feeds and GDELT DOC API; production unigram/bigram shingles, polarity guard and exact Jaccard.",
+  "threshold": 0.75,
+  "rss_items": 90,
+  "gdelt_items": 0,
+  "source_errors": [
+    {
+      "source": "Investing.com Economy",
+      "error": "HTTPSConnectionPool(host='www.investing.com', port=443): Max retries exceeded with url: /rss/news_14.rss (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))"
+    },
+    {
+      "source": "GDELT DOC API",
+      "error": "429 Client Error: Too Many Requests for url: https://api.gdeltproject.org/api/v2/doc/doc?query=%28inflation+OR+%22interest+rate%22+OR+%22central+bank%22+OR+%22Federal+Reserve%22+OR+%22ECB%22%29&mode=ArtList&format=json&maxrecords=250&sort=datedesc"
+    }
+  ],
+  "status": "no_qualifying_pair",
+  "qualifying_pair": null,
+  "top_candidates": []
+}

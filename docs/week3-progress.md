@@ -66,3 +66,11 @@ gates, and `scripts.export_nlp_label_sample` produces the fixed human-label shee
 - Docker and host outboxes use separate storage by default.
 
 FinBERT belongs to Phase 0.5 after the storage and validation checks above.
+
+## Real provenance capture attempt
+
+`python -m scripts.capture_syndication_fixture` fetched 90 live RSS entries on
+2026-09-15. GDELT DOC returned HTTP 429 and the Investing.com RSS endpoint failed
+TLS, so the report contains no qualifying pair and the real RSS/GDELT gate remains
+open. See `docs/real-syndication-validation.json`; rerunning replaces the evidence
+with the latest observed result without weakening the 0.75 production threshold.

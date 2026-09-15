@@ -214,3 +214,6 @@ gates. Generate the review sheet with
 New worker payloads label title and publication-time provenance. GDELT GKG URL
 slugs remain auditable discovery records but carry `nlp_eligible=false`; the
 readiness report excludes them from its headline-prototype count.
+`python -m scripts.capture_syndication_fixture` creates the still-required real
+RSS/GDELT provenance report. A run with no qualifying pair remains negative
+evidence and does not close the gate.
