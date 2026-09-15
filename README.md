@@ -156,7 +156,9 @@ Candidates must also pass the shared polarity guard, handling antonyms,
 inflections, and short negation windows. Duplicate records preserve the original
 canonical ID, including when Tier 3 targets a V2 lexical duplicate. This remains
 a keyword heuristic: unknown verbs and subject-specific conflicts are limitations.
-Concurrent LSH lookup/insertion is not a distributed atomic clustering operation.
+RSS/GDELT V2 lookup and insertion share a Redis lease, so concurrent workers make
+one canonical assignment at a time. The lease serializes Tier 2 globally and can
+add queueing latency during bursts; Redis outages retain fail-open ingestion.
 
 All retrieved candidates are checked in sorted ID order, with Redis reads
 batched in groups of 256. The highest exact score wins, with lexical ID order

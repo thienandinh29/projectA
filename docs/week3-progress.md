@@ -7,7 +7,7 @@ This is the week 3 slice of Phase 0 (roadmap weeks 1–5).
 | Exact Tier 2 Jaccard verification | Implemented | Shared shingles; exact set intersection/union; boundary regressions |
 | Explicit Tier 2 polarity protection | Implemented | Shared antonym/negation guard; long-headline regressions |
 | RSS/GDELT cross-source clustering behavior | Implemented for synthetic fixtures | Shared V2 buckets; real-feed syndication provenance remains unvalidated |
-| Original canonical IDs | Implemented for sequential V2 processing | Duplicate records retain root IDs; semantic targets resolve V2 cluster IDs |
+| Original canonical IDs | Implemented for concurrent V2 processing | Redis assignment lease serializes lookup/insertion; duplicates retain root IDs |
 | Deterministic candidate verification | Implemented | All candidates checked in sorted batches of 256; live regression with only qualifying match after candidate 256 |
 | Complete event handoff | Implemented | Public embeddings/scores; complete Pydantic wire parsing; SQLite-independent DuckDB roundtrip and PiT tests |
 | Recoverable Kafka delivery failures | Implemented | Durable SQLite outbox; topic-specific retries; acknowledgement-only deletion |
@@ -41,8 +41,8 @@ before Kafka construction. See [storage progress](storage-progress.md) for the
 complete behavior, migration checks and real broker crash/rebalance tests.
 
 These changes close the storage implementation slice. Remaining Phase 0
-readiness requires captured RSS/GDELT pair provenance, concurrent canonical
-assignment, sustained feed-rate/resource measurement and explicit throughput/
+readiness requires captured RSS/GDELT pair provenance, sustained feed-rate/resource
+measurement and explicit throughput/
 latency targets. The 500-message / 2-second batching defaults remain provisional.
 
 Transport-coordinate corruption is now a durable stop condition: the batch and
@@ -54,8 +54,8 @@ gates, and `scripts.export_nlp_label_sample` produces the fixed human-label shee
 ## Limits to carry forward
 
 - Keyword polarity guards cannot prove universal semantic safety.
-- Concurrent Redis LSH lookup/insertion can create multiple canonical IDs;
-  atomic distributed clustering is separate hardening work.
+- The global Redis assignment lease prevents concurrent V2 root creation but can
+  add queueing latency during bursts; its load impact remains to be measured.
 - All-candidate checks have a timing/payload-byte baseline; crowded-bucket
   readiness and full resident-memory measurement remain open.
 - V2 is a new candidate window: restart workers together; coverage repopulates.

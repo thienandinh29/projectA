@@ -14,7 +14,7 @@
   "samples_per_size": 30,
   "warmups": 2,
   "fixture": "Synthetic repeated headlines; actual LSH signatures; final exact match wins.",
-  "limitations": "Instrumented single-thread Tier 2 only; timers add overhead. No live feed-rate target or Tier 3. Payload bytes exclude Redis allocator/bucket overhead.",
+  "limitations": "Instrumented single-thread Tier 2 only; timers add overhead. This baseline predates the global assignment lease, so lock wait and contention are unmeasured. No live feed-rate target or Tier 3. Payload bytes exclude Redis allocator/bucket overhead.",
   "results": [
     {
       "candidates": 0,

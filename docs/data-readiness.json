@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-15T00:53:09.652917+00:00",
+  "generated_at": "2026-09-15T01:03:01.374956+00:00",
   "database": "data\\lakehouse.duckdb",
   "thresholds": {
     "freshness_hours": 48,
@@ -18,7 +18,7 @@
     "first_ingested": "2026-09-08T07:15:43.118988+07:00",
     "last_ingested": "2026-09-08T09:53:12.023299+07:00",
     "collection_span_hours": 2.6246956419444447,
-    "latest_record_age_hours": 165.99934156055556
+    "latest_record_age_hours": 166.1637087936111
   },
   "quality": {
     "blank_titles": 0,
@@ -48,7 +48,6 @@
   "automated_continuous_data_ready": false,
   "manual_gates_remaining": [
     "Verify at least one captured real RSS/GDELT syndication pair.",
-    "Verify concurrent canonical assignment under multiple feed workers.",
     "Review the fixed headline sentiment sample and record human labels."
   ]
 }

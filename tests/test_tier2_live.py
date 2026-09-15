@@ -1,7 +1,9 @@
 """Live Redis tests use unique prefixed keys and never flush a database."""
 import json
+import threading
 import unittest
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import redis
 from utils.redis_cache import RedisDeduplicator
@@ -65,6 +67,21 @@ class TestTier2Live(unittest.TestCase):
         self.assertEqual(self.dedup.check_near_duplicate('probe',QUERY,'GDELT',metrics=metrics),
                          (True,'original'))
         self.assertEqual(metrics['candidate_count'],272)
+
+    def test_concurrent_rewrites_choose_one_original_canonical(self):
+        barrier = threading.Barrier(2)
+        title = 'Federal Reserve lowers interest rates after inflation cools sharply'
+
+        def assign(event_id):
+            barrier.wait()
+            return event_id, self.dedup.check_near_duplicate(event_id, title, 'RSS')
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = dict(pool.map(assign, ('wire-a', 'wire-b')))
+        originals = [event_id for event_id, result in results.items() if result == (False, None)]
+        self.assertEqual(len(originals), 1)
+        duplicate_id = next(event_id for event_id in results if event_id != originals[0])
+        self.assertEqual(results[duplicate_id], (True, originals[0]))
 
     def test_long_opposite_and_negated_headlines_remain_distinct(self):
         title = ('Tesla quarterly revenue beats Wall Street estimates as investors review '

@@ -196,8 +196,8 @@ The diagnostic SELECT plans report a sequential scan; they do not describe the
 measured atomic INSERT path. The timings are a baseline rather than production
 throughput evidence.
 
-Remaining readiness work: capture genuine feed-pair provenance, make concurrent
-canonical assignment atomic, observe sustained real feed rates and resource use,
+Remaining readiness work: capture genuine feed-pair provenance, observe sustained
+real feed rates and resource use,
 set throughput/latency targets and tune configurable batches against those rates.
 Multi-writer DuckDB, source suppression audits, historical annotations and a
 reader service are outside this milestone. Start FinBERT/NLP after the data
@@ -208,6 +208,6 @@ Run `python -m scripts.audit_data_readiness --output docs/data-readiness.json`
 against the database used by the writer. The automated gates require current
 schema, complete Bronze outcomes, all three sources, no unresolved transport
 fault, a fresh record, a 24-hour collection span and valid canonical references.
-Real syndication provenance, concurrent canonical assignment and human sentiment
-labels remain explicit manual gates. Generate the review sheet with
+Real syndication provenance and human sentiment labels remain explicit manual
+gates. Generate the review sheet with
 `python -m scripts.export_nlp_label_sample`.

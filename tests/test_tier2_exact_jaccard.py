@@ -1,5 +1,7 @@
 """Tier 2 precision-gate tests, independent of Redis and embedding downloads."""
 import json
+import threading
+import time
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -90,6 +92,37 @@ class TestTier2ExactJaccard(unittest.TestCase):
         self.assertEqual(self.dedup._exact_jaccard(set(), set()), 0.0)
         self.assertTrue((self.dedup._create_minhash('Tesla BEATS, estimates!').hashvalues ==
                          self.dedup._minhash_shingles(shingles).hashvalues).all())
+
+    def test_assignment_decisions_are_serialized(self):
+        gate = threading.Lock()
+        active = 0
+        maximum = 0
+
+        class Lease:
+            def acquire(self):
+                gate.acquire()
+                return True
+            def release(self):
+                gate.release()
+
+        self.dedup.client.lock.return_value = Lease()
+
+        def decision(*args, **kwargs):
+            nonlocal active, maximum
+            active += 1
+            maximum = max(maximum, active)
+            time.sleep(.02)
+            active -= 1
+            return False, None
+
+        with patch.object(self.dedup, '_check_near_duplicate_serial', side_effect=decision):
+            threads = [threading.Thread(target=self.dedup.check_near_duplicate,
+                                        args=(f'id-{i}', 'same headline')) for i in range(2)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+        self.assertEqual(maximum, 1)
 
 
 if __name__ == '__main__':

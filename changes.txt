@@ -1,8 +1,19 @@
 diff --git a/README.md b/README.md
-index d485338..36fb92e 100644
+index d485338..f89c0af 100644
 --- a/README.md
 +++ b/README.md
-@@ -233,8 +233,11 @@ The 100k/1m replay baselines and their `EXPLAIN ANALYZE` plans are recorded in
+@@ -156,7 +156,9 @@ Candidates must also pass the shared polarity guard, handling antonyms,
+ inflections, and short negation windows. Duplicate records preserve the original
+ canonical ID, including when Tier 3 targets a V2 lexical duplicate. This remains
+ a keyword heuristic: unknown verbs and subject-specific conflicts are limitations.
+-Concurrent LSH lookup/insertion is not a distributed atomic clustering operation.
++RSS/GDELT V2 lookup and insertion share a Redis lease, so concurrent workers make
++one canonical assignment at a time. The lease serializes Tier 2 globally and can
++add queueing latency during bursts; Redis outages retain fail-open ingestion.
+
+ All retrieved candidates are checked in sorted ID order, with Redis reads
+ batched in groups of 256. The highest exact score wins, with lexical ID order
+@@ -233,8 +235,11 @@ The 100k/1m replay baselines and their `EXPLAIN ANALYZE` plans are recorded in
  Bronze retains raw bytes and topic/partition/offset for every consumed message,
  including invalid payloads. Outcomes audit rejections, conflicts, enrichment
  and provenance. Invalid transport envelopes are quarantined with raw bytes and
@@ -16,7 +27,7 @@ index d485338..36fb92e 100644
  filing-text differences under the same accession are always conflicts;
  supplementary ticker/model annotations may be audited as enrichment.
 
-@@ -243,6 +246,11 @@ for field rules, deployment commands, migration evidence and live crash tests.
+@@ -243,6 +248,11 @@ for field rules, deployment commands, migration evidence and live crash tests.
  The captured-feed provenance and sustained-load targets remain open before
  calling the entire data system ready for NLP.
 
@@ -183,12 +194,12 @@ index 9f359a0..9c414ed 100644
  }
 diff --git a/docs/data-readiness.json b/docs/data-readiness.json
 new file mode 100644
-index 0000000..32459d5
+index 0000000..b3efc72
 --- /dev/null
 +++ b/docs/data-readiness.json
-@@ -0,0 +1,54 @@
+@@ -0,0 +1,53 @@
 +{
-+  "generated_at": "2026-09-15T00:53:09.652917+00:00",
++  "generated_at": "2026-09-15T01:03:01.374956+00:00",
 +  "database": "data\\lakehouse.duckdb",
 +  "thresholds": {
 +    "freshness_hours": 48,
@@ -207,7 +218,7 @@ index 0000000..32459d5
 +    "first_ingested": "2026-09-08T07:15:43.118988+07:00",
 +    "last_ingested": "2026-09-08T09:53:12.023299+07:00",
 +    "collection_span_hours": 2.6246956419444447,
-+    "latest_record_age_hours": 165.99934156055556
++    "latest_record_age_hours": 166.1637087936111
 +  },
 +  "quality": {
 +    "blank_titles": 0,
@@ -237,7 +248,6 @@ index 0000000..32459d5
 +  "automated_continuous_data_ready": false,
 +  "manual_gates_remaining": [
 +    "Verify at least one captured real RSS/GDELT syndication pair.",
-+    "Verify concurrent canonical assignment under multiple feed workers.",
 +    "Review the fixed headline sentiment sample and record human labels."
 +  ]
 +}
@@ -255,7 +265,7 @@ index cc0ff9d..9d7c207 100644
    "legacy_sec_without_wire_snapshot": 106
  }
 diff --git a/docs/storage-progress.md b/docs/storage-progress.md
-index 35747be..5080c12 100644
+index 35747be..6249307 100644
 --- a/docs/storage-progress.md
 +++ b/docs/storage-progress.md
 @@ -67,12 +67,14 @@ their offsets uncommitted. Graceful shutdown flushes pending owned records.
@@ -296,7 +306,7 @@ index 35747be..5080c12 100644
 
  Legacy Silver timestamps/content are retained. The pre-existing initialization
  behavior still stamps NULL embedding-model labels with the original pipeline's
-@@ -182,15 +184,17 @@ the crowded-bucket performance gap.
+@@ -182,20 +184,30 @@ the crowded-bucket performance gap.
 
  The Bronze replay benchmark uses a temporary disk-backed DuckDB database seeded
  with 100,000 rows. It records 30 replay and 30 new-message samples plus an
@@ -315,9 +325,12 @@ index 35747be..5080c12 100644
 +measured atomic INSERT path. The timings are a baseline rather than production
 +throughput evidence.
 
- Remaining readiness work: capture genuine feed-pair provenance, make concurrent
- canonical assignment atomic, observe sustained real feed rates and resource use,
-@@ -199,3 +203,11 @@ Multi-writer DuckDB, source suppression audits, historical annotations and a
+-Remaining readiness work: capture genuine feed-pair provenance, make concurrent
+-canonical assignment atomic, observe sustained real feed rates and resource use,
++Remaining readiness work: capture genuine feed-pair provenance, observe sustained
++real feed rates and resource use,
+ set throughput/latency targets and tune configurable batches against those rates.
+ Multi-writer DuckDB, source suppression audits, historical annotations and a
  reader service are outside this milestone. Start FinBERT/NLP after the data
  readiness checks establish reliable historical input; the storage tests alone
  do not declare the whole collection system complete.
@@ -326,15 +339,50 @@ index 35747be..5080c12 100644
 +against the database used by the writer. The automated gates require current
 +schema, complete Bronze outcomes, all three sources, no unresolved transport
 +fault, a fresh record, a 24-hour collection span and valid canonical references.
-+Real syndication provenance, concurrent canonical assignment and human sentiment
-+labels remain explicit manual gates. Generate the review sheet with
++Real syndication provenance and human sentiment labels remain explicit manual
++gates. Generate the review sheet with
 +`python -m scripts.export_nlp_label_sample`.
+diff --git a/docs/tier2-baseline.json b/docs/tier2-baseline.json
+index 4bb120e..d2c62d2 100644
+--- a/docs/tier2-baseline.json
++++ b/docs/tier2-baseline.json
+@@ -14,7 +14,7 @@
+   "samples_per_size": 30,
+   "warmups": 2,
+   "fixture": "Synthetic repeated headlines; actual LSH signatures; final exact match wins.",
+-  "limitations": "Instrumented single-thread Tier 2 only; timers add overhead. No live feed-rate target or Tier 3. Payload bytes exclude Redis allocator/bucket overhead.",
++  "limitations": "Instrumented single-thread Tier 2 only; timers add overhead. This baseline predates the global assignment lease, so lock wait and contention are unmeasured. No live feed-rate target or Tier 3. Payload bytes exclude Redis allocator/bucket overhead.",
+   "results": [
+     {
+       "candidates": 0,
+@@ -95,4 +95,4 @@
+       }
+     }
+   ]
+-}
+\ No newline at end of file
++}
 diff --git a/docs/week3-progress.md b/docs/week3-progress.md
-index 9e55746..3e74af1 100644
+index 9e55746..4cb598f 100644
 --- a/docs/week3-progress.md
 +++ b/docs/week3-progress.md
-@@ -45,6 +45,12 @@ readiness requires captured RSS/GDELT pair provenance, concurrent canonical
- assignment, sustained feed-rate/resource measurement and explicit throughput/
+@@ -7,7 +7,7 @@ This is the week 3 slice of Phase 0 (roadmap weeks 1–5).
+ | Exact Tier 2 Jaccard verification | Implemented | Shared shingles; exact set intersection/union; boundary regressions |
+ | Explicit Tier 2 polarity protection | Implemented | Shared antonym/negation guard; long-headline regressions |
+ | RSS/GDELT cross-source clustering behavior | Implemented for synthetic fixtures | Shared V2 buckets; real-feed syndication provenance remains unvalidated |
+-| Original canonical IDs | Implemented for sequential V2 processing | Duplicate records retain root IDs; semantic targets resolve V2 cluster IDs |
++| Original canonical IDs | Implemented for concurrent V2 processing | Redis assignment lease serializes lookup/insertion; duplicates retain root IDs |
+ | Deterministic candidate verification | Implemented | All candidates checked in sorted batches of 256; live regression with only qualifying match after candidate 256 |
+ | Complete event handoff | Implemented | Public embeddings/scores; complete Pydantic wire parsing; SQLite-independent DuckDB roundtrip and PiT tests |
+ | Recoverable Kafka delivery failures | Implemented | Durable SQLite outbox; topic-specific retries; acknowledgement-only deletion |
+@@ -41,15 +41,21 @@ before Kafka construction. See [storage progress](storage-progress.md) for the
+ complete behavior, migration checks and real broker crash/rebalance tests.
+
+ These changes close the storage implementation slice. Remaining Phase 0
+-readiness requires captured RSS/GDELT pair provenance, concurrent canonical
+-assignment, sustained feed-rate/resource measurement and explicit throughput/
++readiness requires captured RSS/GDELT pair provenance, sustained feed-rate/resource
++measurement and explicit throughput/
  latency targets. The 500-message / 2-second batching defaults remain provisional.
 
 +Transport-coordinate corruption is now a durable stop condition: the batch and
@@ -346,6 +394,13 @@ index 9e55746..3e74af1 100644
  ## Limits to carry forward
 
  - Keyword polarity guards cannot prove universal semantic safety.
+-- Concurrent Redis LSH lookup/insertion can create multiple canonical IDs;
+-  atomic distributed clustering is separate hardening work.
++- The global Redis assignment lease prevents concurrent V2 root creation but can
++  add queueing latency during bursts; its load impact remains to be measured.
+ - All-candidate checks have a timing/payload-byte baseline; crowded-bucket
+   readiness and full resident-memory measurement remain open.
+ - V2 is a new candidate window: restart workers together; coverage repopulates.
 diff --git a/lakehouse/db.py b/lakehouse/db.py
 index 770e916..810aaec 100644
 --- a/lakehouse/db.py
@@ -530,10 +585,10 @@ index 2614176..22020c2 100644
      signal.signal(signal.SIGTERM,lambda *_:stop.set())
 diff --git a/scripts/audit_data_readiness.py b/scripts/audit_data_readiness.py
 new file mode 100644
-index 0000000..900f460
+index 0000000..7086d85
 --- /dev/null
 +++ b/scripts/audit_data_readiness.py
-@@ -0,0 +1,138 @@
+@@ -0,0 +1,137 @@
 +"""Measure whether a DuckDB collection is ready for continuous NLP use."""
 +import argparse
 +import json
@@ -646,7 +701,6 @@ index 0000000..900f460
 +            'automated_continuous_data_ready': automated_continuous_ready,
 +            'manual_gates_remaining': [
 +                'Verify at least one captured real RSS/GDELT syndication pair.',
-+                'Verify concurrent canonical assignment under multiple feed workers.',
 +                'Review the fixed headline sentiment sample and record human labels.',
 +            ],
 +        }
@@ -895,6 +949,92 @@ index db71a34..67ad68f 100644
      def test_legacy_backup_and_transactional_migration(self):
          with tempfile.TemporaryDirectory() as tmp:
              path=Path(tmp)/'legacy.duckdb'
+diff --git a/tests/test_tier2_exact_jaccard.py b/tests/test_tier2_exact_jaccard.py
+index 40bb555..64631d6 100644
+--- a/tests/test_tier2_exact_jaccard.py
++++ b/tests/test_tier2_exact_jaccard.py
+@@ -1,5 +1,7 @@
+ """Tier 2 precision-gate tests, independent of Redis and embedding downloads."""
+ import json
++import threading
++import time
+ import unittest
+ from unittest.mock import MagicMock, patch
+
+@@ -91,6 +93,37 @@ class TestTier2ExactJaccard(unittest.TestCase):
+         self.assertTrue((self.dedup._create_minhash('Tesla BEATS, estimates!').hashvalues ==
+                          self.dedup._minhash_shingles(shingles).hashvalues).all())
+
++    def test_assignment_decisions_are_serialized(self):
++        gate = threading.Lock()
++        active = 0
++        maximum = 0
++
++        class Lease:
++            def acquire(self):
++                gate.acquire()
++                return True
++            def release(self):
++                gate.release()
++
++        self.dedup.client.lock.return_value = Lease()
++
++        def decision(*args, **kwargs):
++            nonlocal active, maximum
++            active += 1
++            maximum = max(maximum, active)
++            time.sleep(.02)
++            active -= 1
++            return False, None
++
++        with patch.object(self.dedup, '_check_near_duplicate_serial', side_effect=decision):
++            threads = [threading.Thread(target=self.dedup.check_near_duplicate,
++                                        args=(f'id-{i}', 'same headline')) for i in range(2)]
++            for thread in threads:
++                thread.start()
++            for thread in threads:
++                thread.join()
++        self.assertEqual(maximum, 1)
++
+
+ if __name__ == '__main__':
+     unittest.main()
+diff --git a/tests/test_tier2_live.py b/tests/test_tier2_live.py
+index 458f3fc..cb4bf03 100644
+--- a/tests/test_tier2_live.py
++++ b/tests/test_tier2_live.py
+@@ -1,7 +1,9 @@
+ """Live Redis tests use unique prefixed keys and never flush a database."""
+ import json
++import threading
+ import unittest
+ import uuid
++from concurrent.futures import ThreadPoolExecutor
+
+ import redis
+ from utils.redis_cache import RedisDeduplicator
+@@ -66,6 +68,21 @@ class TestTier2Live(unittest.TestCase):
+                          (True,'original'))
+         self.assertEqual(metrics['candidate_count'],272)
+
++    def test_concurrent_rewrites_choose_one_original_canonical(self):
++        barrier = threading.Barrier(2)
++        title = 'Federal Reserve lowers interest rates after inflation cools sharply'
++
++        def assign(event_id):
++            barrier.wait()
++            return event_id, self.dedup.check_near_duplicate(event_id, title, 'RSS')
++
++        with ThreadPoolExecutor(max_workers=2) as pool:
++            results = dict(pool.map(assign, ('wire-a', 'wire-b')))
++        originals = [event_id for event_id, result in results.items() if result == (False, None)]
++        self.assertEqual(len(originals), 1)
++        duplicate_id = next(event_id for event_id in results if event_id != originals[0])
++        self.assertEqual(results[duplicate_id], (True, originals[0]))
++
+     def test_long_opposite_and_negated_headlines_remain_distinct(self):
+         title = ('Tesla quarterly revenue beats Wall Street estimates as investors review '
+                  'the latest financial results and management commentary on global demand '
 diff --git a/tests/test_writer.py b/tests/test_writer.py
 index f35c3e5..b61b4fb 100644
 --- a/tests/test_writer.py
@@ -971,3 +1111,46 @@ index f35c3e5..b61b4fb 100644
      def test_database_failure_does_not_commit_offsets(self):
          self.writer.buffer = [envelope(event())]
          with patch.object(self.writer.lakehouse,'insert_news_batch',side_effect=RuntimeError('DB failure')):
+diff --git a/utils/redis_cache.py b/utils/redis_cache.py
+index d8b1ed0..00e2419 100644
+--- a/utils/redis_cache.py
++++ b/utils/redis_cache.py
+@@ -144,6 +144,38 @@ class RedisDeduplicator:
+         return self._minhash_shingles(self._create_shingles(text))
+
+     def check_near_duplicate(self, event_id: str, title: str, source: str = "RSS", metrics: Optional[dict] = None) -> Tuple[bool, Optional[str]]:
++        """Serialize the V2 lookup/insert decision across all feed workers.
++
++        The 30-second lease is far above the measured sub-second candidate pass.
++        A crashed holder eventually releases the key through expiry. Redis
++        outages retain the existing fail-open ingestion behavior.
++        """
++        if source.upper() == "SEC" or not title or not self._create_shingles(title):
++            return False, None
++        lock = None
++        acquired = False
++        started = perf_counter() if metrics is not None else 0
++        try:
++            lock = self.client.lock(b'lsh:news:v2:assignment-lock', timeout=30,
++                                    blocking_timeout=None, sleep=.01)
++            acquired = bool(lock.acquire())
++            if metrics is not None:
++                metrics['lock_wait_ms'] = (perf_counter() - started) * 1000
++            if not acquired:
++                raise TimeoutError('Tier 2 assignment lock was not acquired')
++            return self._check_near_duplicate_serial(event_id, title, source, metrics)
++        except Exception as exc:
++            logger.error("LSH assignment lock error for %s: %s. Fail-open.", event_id, exc)
++            return False, None
++        finally:
++            if acquired:
++                try:
++                    lock.release()
++                except Exception as exc:
++                    # The lease bounds recovery even if an unlock response is lost.
++                    logger.warning("Could not release LSH assignment lock for %s: %s", event_id, exc)
++
++    def _check_near_duplicate_serial(self, event_id: str, title: str, source: str = "RSS", metrics: Optional[dict] = None) -> Tuple[bool, Optional[str]]:
+         """
+         Checks if the headline is a near-duplicate of any active headline
+         within the configured LSH window (24 hours by default).

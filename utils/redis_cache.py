@@ -144,6 +144,38 @@ class RedisDeduplicator:
         return self._minhash_shingles(self._create_shingles(text))
 
     def check_near_duplicate(self, event_id: str, title: str, source: str = "RSS", metrics: Optional[dict] = None) -> Tuple[bool, Optional[str]]:
+        """Serialize the V2 lookup/insert decision across all feed workers.
+
+        The 30-second lease is far above the measured sub-second candidate pass.
+        A crashed holder eventually releases the key through expiry. Redis
+        outages retain the existing fail-open ingestion behavior.
+        """
+        if source.upper() == "SEC" or not title or not self._create_shingles(title):
+            return False, None
+        lock = None
+        acquired = False
+        started = perf_counter() if metrics is not None else 0
+        try:
+            lock = self.client.lock(b'lsh:news:v2:assignment-lock', timeout=30,
+                                    blocking_timeout=None, sleep=.01)
+            acquired = bool(lock.acquire())
+            if metrics is not None:
+                metrics['lock_wait_ms'] = (perf_counter() - started) * 1000
+            if not acquired:
+                raise TimeoutError('Tier 2 assignment lock was not acquired')
+            return self._check_near_duplicate_serial(event_id, title, source, metrics)
+        except Exception as exc:
+            logger.error("LSH assignment lock error for %s: %s. Fail-open.", event_id, exc)
+            return False, None
+        finally:
+            if acquired:
+                try:
+                    lock.release()
+                except Exception as exc:
+                    # The lease bounds recovery even if an unlock response is lost.
+                    logger.warning("Could not release LSH assignment lock for %s: %s", event_id, exc)
+
+    def _check_near_duplicate_serial(self, event_id: str, title: str, source: str = "RSS", metrics: Optional[dict] = None) -> Tuple[bool, Optional[str]]:
         """
         Checks if the headline is a near-duplicate of any active headline
         within the configured LSH window (24 hours by default).

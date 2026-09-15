@@ -110,7 +110,6 @@ def build_report(db_path, now=None, freshness_hours=48, required_span_hours=24):
             'automated_continuous_data_ready': automated_continuous_ready,
             'manual_gates_remaining': [
                 'Verify at least one captured real RSS/GDELT syndication pair.',
-                'Verify concurrent canonical assignment under multiple feed workers.',
                 'Review the fixed headline sentiment sample and record human labels.',
             ],
         }
