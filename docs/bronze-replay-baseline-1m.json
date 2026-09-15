@@ -17,7 +17,7 @@
   },
   "database_bytes_before_new_messages": 9973760,
   "database_bytes_after_new_messages": 12333056,
-  "explain_analyze": {
+  "historical_pre_read_explain_analyze": {
     "scan_type": "Sequential Scan",
     "plan_excerpt": [
       "\u2502           0 rows          \u2502",
@@ -27,7 +27,7 @@
   "limitations": [
     "Replay timing measures one-message write_message_batch calls, not sustained feed throughput.",
     "The seed uses small payloads and does not represent resident ART/index memory.",
-    "DuckDB reports a sequential scan for the composite-key lookup; the primary key still enforces uniqueness.",
-    "Run with --rows 1000000 for the million-row comparison before setting production targets."
+    "The EXPLAIN plan describes the retired SELECT pre-read, not the measured atomic INSERT path.",
+    "Run at additional scales and under sustained load before setting production targets."
   ]
 }

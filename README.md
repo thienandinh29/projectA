@@ -233,8 +233,11 @@ The 100k/1m replay baselines and their `EXPLAIN ANALYZE` plans are recorded in
 Bronze retains raw bytes and topic/partition/offset for every consumed message,
 including invalid payloads. Outcomes audit rejections, conflicts, enrichment
 and provenance. Invalid transport envelopes are quarantined with raw bytes and
-excluded from offset commits; valid payload rejections remain normal Bronze
-outcomes. Silver preserves the first stored version. SEC identity and
+cause the writer to halt before offset commits. Unresolved faults block restart
+before Kafka consumer construction. List them with `python -m lakehouse.sync
+--list-transport-faults`; resolve one with `--resolve-transport-fault FAULT_ID
+--resolution-note "..."`. Valid payload rejections remain normal Bronze outcomes.
+Silver preserves the first stored version. SEC identity and
 filing-text differences under the same accession are always conflicts;
 supplementary ticker/model annotations may be audited as enrichment.
 
@@ -242,6 +245,11 @@ See [storage behavior, verification and readiness limits](docs/storage-progress.
 for field rules, deployment commands, migration evidence and live crash tests.
 The captured-feed provenance and sustained-load targets remain open before
 calling the entire data system ready for NLP.
+
+Measure the active database directly with `python -m scripts.audit_data_readiness`.
+The JSON report separates headline-prototype readiness from continuous-data
+readiness. Create the fixed, source-balanced human review sheet with
+`python -m scripts.export_nlp_label_sample`; labels remain blank until reviewed.
 
 ## Tier 3 Semantic Dedup — Measured Status (calibrated 2026-09)
 

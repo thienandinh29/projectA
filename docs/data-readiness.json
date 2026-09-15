@@ -1,0 +1,54 @@
+{
+  "generated_at": "2026-09-15T00:53:09.652917+00:00",
+  "database": "data\\lakehouse.duckdb",
+  "thresholds": {
+    "freshness_hours": 48,
+    "required_span_hours": 24
+  },
+  "collection": {
+    "news_rows": 276,
+    "sec_rows": 106,
+    "bronze_rows": 0,
+    "outcome_rows": 0,
+    "by_source": {
+      "RSS": 226,
+      "GDELT": 50,
+      "SEC": 106
+    },
+    "first_ingested": "2026-09-08T07:15:43.118988+07:00",
+    "last_ingested": "2026-09-08T09:53:12.023299+07:00",
+    "collection_span_hours": 2.6246956419444447,
+    "latest_record_age_hours": 165.99934156055556
+  },
+  "quality": {
+    "blank_titles": 0,
+    "snippet_rows": 103,
+    "full_text_rows": 0,
+    "metadata_only_gdelt_snippets": 50,
+    "event_time_rows": 0,
+    "near_duplicate_rows": 0,
+    "broken_canonical_references": 0,
+    "published_after_ingested_rows": 0
+  },
+  "storage": {
+    "schema_version": 0,
+    "unresolved_transport_faults": null
+  },
+  "gates": {
+    "headline_nlp_prototype": true,
+    "current_storage_schema": false,
+    "bronze_outcome_audit": false,
+    "all_sources_present": true,
+    "fresh_collection": false,
+    "sustained_collection_window": false,
+    "no_unresolved_transport_faults": false,
+    "canonical_references_valid": true
+  },
+  "ready_for_headline_nlp_prototype": true,
+  "automated_continuous_data_ready": false,
+  "manual_gates_remaining": [
+    "Verify at least one captured real RSS/GDELT syndication pair.",
+    "Verify concurrent canonical assignment under multiple feed workers.",
+    "Review the fixed headline sentiment sample and record human labels."
+  ]
+}

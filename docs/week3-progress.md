@@ -45,6 +45,12 @@ readiness requires captured RSS/GDELT pair provenance, concurrent canonical
 assignment, sustained feed-rate/resource measurement and explicit throughput/
 latency targets. The 500-message / 2-second batching defaults remain provisional.
 
+Transport-coordinate corruption is now a durable stop condition: the batch and
+fault evidence are persisted, no Kafka offsets are committed, and unresolved
+faults block consumer construction after restart. Resolution requires an audited
+operator note. `scripts.audit_data_readiness` now reports the measurable Phase 0
+gates, and `scripts.export_nlp_label_sample` produces the fixed human-label sheet.
+
 ## Limits to carry forward
 
 - Keyword polarity guards cannot prove universal semantic safety.

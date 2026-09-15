@@ -1,0 +1,66 @@
+"""Export a deterministic, source-balanced headline sample for human review."""
+import argparse
+import csv
+import hashlib
+import re
+from pathlib import Path
+
+import duckdb
+
+
+def quality_flag(title, source, snippet):
+    words = re.findall(r"[A-Za-z]+", title or '')
+    if len(words) < 4 or re.search(r'\b[0-9a-f]{12,}\b', title or '', re.I):
+        return 'inspect_identifier_like_title'
+    if source == 'GDELT' and (snippet or '').startswith(('Source:', 'Domain:')):
+        return 'metadata_only_snippet'
+    return ''
+
+
+def export_sample(db_path, output, total=100, seed='week3-nlp-v1'):
+    conn = duckdb.connect(str(Path(db_path).resolve()), read_only=True)
+    try:
+        rows = conn.execute('''SELECT id,source,title,published_time,ingested_time,content_snippet
+            FROM silver_financial_news WHERE NOT is_near_duplicate
+            AND COALESCE(TRIM(title),'')<>'' ''').fetchall()
+    finally:
+        conn.close()
+    sources = sorted({row[1] for row in rows})
+    selected = []
+    quota = max(1, total // max(1, len(sources)))
+    for source in sources:
+        candidates = [row for row in rows if row[1] == source]
+        candidates.sort(key=lambda row: hashlib.sha256(
+            f'{seed}:{row[0]}'.encode('utf-8')).hexdigest())
+        selected.extend(candidates[:quota])
+    if len(selected) < total:
+        remaining = [row for row in rows if row not in selected]
+        remaining.sort(key=lambda row: hashlib.sha256(
+            f'{seed}:remainder:{row[0]}'.encode('utf-8')).hexdigest())
+        selected.extend(remaining[:total - len(selected)])
+    selected = selected[:total]
+    output = Path(output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open('w', encoding='utf-8-sig', newline='') as handle:
+        writer = csv.writer(handle)
+        writer.writerow(['sample_id','event_id','source','title','published_time','ingested_time',
+                         'quality_flag','sentiment_label','confidence_1_to_5','reviewer_notes'])
+        for index, (event_id, source, title, published, ingested, snippet) in enumerate(selected, 1):
+            writer.writerow([index,event_id,source,title,published,ingested,
+                             quality_flag(title, source, snippet),'','',''])
+    return len(selected)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--db-path', default='data/lakehouse.duckdb')
+    parser.add_argument('--output', default='data/nlp-headline-evaluation.csv')
+    parser.add_argument('--total', type=int, default=100)
+    parser.add_argument('--seed', default='week3-nlp-v1')
+    args = parser.parse_args()
+    count = export_sample(args.db_path, args.output, args.total, args.seed)
+    print(f'Exported {count} rows to {args.output}')
+
+
+if __name__ == '__main__':
+    main()

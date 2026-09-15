@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 from confluent_kafka import TopicPartition
 from lakehouse.db import LakehouseManager
-from lakehouse.sync import LakehouseWriter
+from lakehouse.sync import LakehouseWriter, TransportFaultHalt
 from tests.test_storage import SOURCES, envelope, event
 
 
@@ -70,12 +70,59 @@ class TestWriter(unittest.TestCase):
         self.assertEqual(self.consumer.commits,[[('rss',0,5),('rss',1,10)]])
         self.assertFalse(self.configuration['enable.auto.commit'])
         self.assertFalse(self.configuration['enable.auto.offset.store'])
-    def test_transport_fault_is_excluded_from_kafka_commit(self):
+    def test_transport_fault_is_durable_and_halts_before_kafka_commit(self):
         self.writer.buffer = [envelope(event(eid='valid'), 7),
             envelope(event(eid='invalid'), -1)]
+        with self.assertLogs('lakehouse.sync', level='ERROR') as logs:
+            with self.assertRaisesRegex(TransportFaultHalt, 'offsets were not committed'):
+                self.writer.flush_batch()
+        self.assertEqual(self.consumer.commits, [])
+        self.assertEqual(len(self.writer.buffer), 2)
+        self.assertEqual(self.scalar('silver_financial_news'), 1)
+        self.assertEqual(self.scalar('lakehouse_transport_faults'), 1)
+        self.assertIn('transport_fault_halt', ''.join(logs.output))
+
+    def test_unresolved_fault_blocks_restart_before_consumer_construction(self):
+        self.writer.buffer = [envelope(event(), -1)]
+        with self.assertRaises(TransportFaultHalt):
+            self.writer.flush_batch()
+        fault_id = self.writer.lakehouse.list_transport_faults()[0]['fault_id']
+        self.writer.lakehouse.close()
+        created = []
+        with self.assertRaisesRegex(TransportFaultHalt, 'block startup'):
+            LakehouseWriter(db_path=self.path, topic_sources=SOURCES,
+                consumer_factory=lambda config: created.append(config))
+        self.assertEqual(created, [])
+        manager = LakehouseManager(self.path)
+        manager.resolve_transport_fault(fault_id, 'Synthetic invalid coordinate removed')
+        self.assertEqual(manager.unresolved_transport_fault_count(), 0)
+        manager.close()
+        replacement = LakehouseWriter(db_path=self.path, topic_sources=SOURCES,
+            consumer_factory=lambda config: self.consumer, report_lag=False)
+        replacement.lakehouse.close()
+
+    def test_transport_fault_cli_lists_and_resolves_without_kafka(self):
+        self.writer.lakehouse.write_message_batch([envelope(event(), -1)], SOURCES)
+        fault_id = self.writer.lakehouse.list_transport_faults()[0]['fault_id']
+        self.writer.lakehouse.close()
+        listed = subprocess.run([sys.executable, '-m', 'lakehouse.sync', '--db-path', self.path,
+            '--list-transport-faults'], capture_output=True, text=True, timeout=30)
+        self.assertEqual(listed.returncode, 0, listed.stderr)
+        self.assertIn(fault_id, listed.stdout)
+        self.assertNotIn('raw_bytes', listed.stdout)
+        resolved = subprocess.run([sys.executable, '-m', 'lakehouse.sync', '--db-path', self.path,
+            '--resolve-transport-fault', fault_id, '--resolution-note', 'Confirmed test input'],
+            capture_output=True, text=True, timeout=30)
+        self.assertEqual(resolved.returncode, 0, resolved.stderr)
+        manager = LakehouseManager(self.path)
+        self.assertEqual(manager.unresolved_transport_fault_count(), 0)
+        manager.close()
+
+    def test_unknown_topic_rejection_does_not_break_delay_reporting(self):
+        self.writer.buffer = [envelope(event(), topic='unknown')]
         result = self.writer.flush_batch()
-        self.assertEqual(result['transport_rejected'], 1)
-        self.assertEqual(self.consumer.commits, [[('rss', 0, 8)]])
+        self.assertEqual(result['rejected'], 1)
+        self.assertEqual(self.consumer.commits, [[('unknown', 0, 1)]])
     def test_database_failure_does_not_commit_offsets(self):
         self.writer.buffer = [envelope(event())]
         with patch.object(self.writer.lakehouse,'insert_news_batch',side_effect=RuntimeError('DB failure')):

@@ -108,15 +108,15 @@ def main():
         'new_message_batch_size_one': new_result,
         'database_bytes_before_new_messages': bytes_before,
         'database_bytes_after_new_messages': bytes_after,
-        'explain_analyze': {
+        'historical_pre_read_explain_analyze': {
             'scan_type': 'Sequential Scan' if 'Sequential Scan' in plan else 'not detected',
             'plan_excerpt': [line.strip() for line in plan.splitlines() if 'Scan' in line or 'rows' in line.lower()],
         },
         'limitations': [
             'Replay timing measures one-message write_message_batch calls, not sustained feed throughput.',
             'The seed uses small payloads and does not represent resident ART/index memory.',
-            'DuckDB reports a sequential scan for the composite-key lookup; the primary key still enforces uniqueness.',
-            'Run with --rows 1000000 for the million-row comparison before setting production targets.',
+            'The EXPLAIN plan describes the retired SELECT pre-read, not the measured atomic INSERT path.',
+            'Run at additional scales and under sustained load before setting production targets.',
         ],
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

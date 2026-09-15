@@ -151,6 +151,24 @@ class TestMessageStorage(unittest.TestCase):
         self.assertEqual(fault[3], b'not-json')
         self.assertEqual(self.lake.conn.execute('SELECT COUNT(*) FROM bronze_events_raw').fetchone()[0], 1)
 
+    def test_transport_fault_resolution_is_explicit_and_audited(self):
+        self.write([KafkaEnvelope('rss', -1, 0, b'bad')])
+        fault = self.lake.list_transport_faults()[0]
+        with self.assertRaisesRegex(ValueError, 'nonblank'):
+            self.lake.resolve_transport_fault(fault['fault_id'], ' ')
+        self.lake.resolve_transport_fault(fault['fault_id'], 'Confirmed synthetic test input')
+        self.assertEqual(self.lake.unresolved_transport_fault_count(), 0)
+        resolved = self.lake.list_transport_faults(unresolved_only=False)[0]
+        self.assertIsNotNone(resolved['resolved_at'])
+        self.assertEqual(resolved['resolution_note'], 'Confirmed synthetic test input')
+        self.write([KafkaEnvelope('rss', -1, 0, b'bad')])
+        reopened = self.lake.list_transport_faults()[0]
+        self.assertEqual(reopened['occurrence_count'], 2)
+        self.assertIsNone(reopened['resolved_at'])
+        self.assertEqual(self.lake.conn.execute(
+            'SELECT resolution_note FROM lakehouse_transport_fault_resolutions').fetchone()[0],
+            'Confirmed synthetic test input')
+
     def test_supplementary_and_ordering_changes_are_not_content_conflicts(self):
         a=event(tickers_mentioned=['TSLA','AAPL']).model_dump(mode='json')
         b={**a,'tickers_mentioned':['aapl','TSLA','TSLA'],'canonical_cluster_id':'news'}
@@ -166,6 +184,30 @@ class TestMessageStorage(unittest.TestCase):
 
 
 class TestMigration(unittest.TestCase):
+    def test_version_three_transport_faults_upgrade_to_audited_resolution(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'v3.duckdb'
+            lake = LakehouseManager(str(path))
+            lake.close()
+            conn = duckdb.connect(str(path))
+            conn.execute('DELETE FROM lakehouse_migrations; INSERT INTO lakehouse_migrations(version) VALUES (3)')
+            conn.execute('DROP TABLE lakehouse_transport_fault_resolutions')
+            conn.execute('ALTER TABLE lakehouse_transport_faults DROP COLUMN resolution_note')
+            conn.execute('ALTER TABLE lakehouse_transport_faults DROP COLUMN occurrence_count')
+            conn.execute('ALTER TABLE lakehouse_transport_faults DROP COLUMN last_seen_at')
+            conn.close()
+            upgraded = LakehouseManager(str(path))
+            try:
+                self.assertEqual(upgraded.conn.execute(
+                    'SELECT MAX(version) FROM lakehouse_migrations').fetchone()[0], 4)
+                columns = {row[1] for row in upgraded.conn.execute(
+                    "PRAGMA table_info('lakehouse_transport_faults')").fetchall()}
+                self.assertTrue({'last_seen_at','occurrence_count','resolution_note'} <= columns)
+                self.assertEqual(upgraded.conn.execute(
+                    "SELECT COUNT(*) FROM information_schema.tables WHERE table_name='lakehouse_transport_fault_resolutions'").fetchone()[0], 1)
+            finally:
+                upgraded.close()
+
     def test_legacy_backup_and_transactional_migration(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/'legacy.duckdb'

@@ -67,12 +67,14 @@ their offsets uncommitted. Graceful shutdown flushes pending owned records.
 
 Malformed payloads with valid Kafka coordinates are durable Bronze rejections.
 Malformed transport coordinates are written to `lakehouse_transport_faults` with
-their raw bytes and a deterministic fault ID, then excluded from the Kafka commit
-list. They cannot be treated as an ordinary rejection because there is no
-trustworthy position to acknowledge. The broker adapter should never produce
-these coordinates; this quarantine is a defensive boundary for corrupted or
-synthetic envelopes and prevents one bad envelope from rolling back good records
-in the same batch.
+their raw bytes and a deterministic fault ID. The batch transaction commits its
+inspectable evidence, then the writer emits an ERROR and halts before any Kafka
+offset is committed. An unresolved fault blocks restart before consumer creation.
+Operators use `--list-transport-faults` and resolve a fault with
+`--resolve-transport-fault FAULT_ID --resolution-note "..."`; the timestamp and
+note are appended to the resolution audit. A recurring resolved fault reopens,
+updates its last-seen time and increments its occurrence count. Valid records
+stored in the halted batch replay idempotently after recovery.
 
 Batch size **500** and interval **2 seconds** are provisional configurable
 defaults, not tuned throughput or latency targets. CLI overrides and
@@ -98,13 +100,13 @@ an external query service or exported snapshots are a future milestone.
 ## Migration and legacy data
 
 Versioned migration fails startup on any DDL failure and rolls back schema
-changes. Existing databases receive a standalone `.duckdb.before-v3-*.bak`
+changes. Existing databases receive a standalone `.duckdb.before-v4-*.bak`
 backup created through DuckDB before migration. A post-migration checkpoint
 persists DDL before Kafka begins, including on first startup. Versions newer
 than supported are rejected. `schema.sql` supplies the base tables; the
 versioned migration adds raw-byte transport fields, wire snapshots and audits.
-The current migration version is 3; it adds the transport-fault quarantine table
-while retaining the version-2 audit tables.
+The current migration version is 4; version 3 added the transport-fault quarantine
+table and version 4 adds its operator resolution note.
 
 Legacy Silver timestamps/content are retained. The pre-existing initialization
 behavior still stamps NULL embedding-model labels with the original pipeline's
@@ -182,15 +184,17 @@ the crowded-bucket performance gap.
 
 The Bronze replay benchmark uses a temporary disk-backed DuckDB database seeded
 with 100,000 rows. It records 30 replay and 30 new-message samples plus an
-`EXPLAIN ANALYZE` plan. On the current host, replay p50/p95 were 13.76/15.65 ms;
+`EXPLAIN ANALYZE` plan for the retired SELECT pre-read. On the current host,
+replay p50/p95 were 13.76/15.65 ms;
 new-message p50/p95 were 31.99/61.61 ms. The plan reported a sequential scan
 for the old composite-key pre-read. This is a baseline, not a production target.
 The million-row comparison is also recorded below. The atomic `ON CONFLICT ... RETURNING` path is now used
 for replay detection, so the old pre-read is no longer on the write path.
 The million-row run is in [the 1m baseline](bronze-replay-baseline-1m.json):
 replay p50/p95 were 9.12/11.05 ms and new-message p50/p95 were 31.99/57.81 ms.
-Both plans still report a sequential scan, so these results are a measured
-baseline rather than evidence that the scan is safe at every future scale.
+The diagnostic SELECT plans report a sequential scan; they do not describe the
+measured atomic INSERT path. The timings are a baseline rather than production
+throughput evidence.
 
 Remaining readiness work: capture genuine feed-pair provenance, make concurrent
 canonical assignment atomic, observe sustained real feed rates and resource use,
@@ -199,3 +203,11 @@ Multi-writer DuckDB, source suppression audits, historical annotations and a
 reader service are outside this milestone. Start FinBERT/NLP after the data
 readiness checks establish reliable historical input; the storage tests alone
 do not declare the whole collection system complete.
+
+Run `python -m scripts.audit_data_readiness --output docs/data-readiness.json`
+against the database used by the writer. The automated gates require current
+schema, complete Bronze outcomes, all three sources, no unresolved transport
+fault, a fresh record, a 24-hour collection span and valid canonical references.
+Real syndication provenance, concurrent canonical assignment and human sentiment
+labels remain explicit manual gates. Generate the review sheet with
+`python -m scripts.export_nlp_label_sample`.

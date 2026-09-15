@@ -21,7 +21,7 @@
       "backup_identical": true
     }
   },
-  "migration_version": 2,
+  "migration_version": 4,
   "legacy_news_without_wire_snapshot": 276,
   "legacy_sec_without_wire_snapshot": 106
 }

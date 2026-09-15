@@ -18,6 +18,10 @@ from lakehouse.records import KafkaEnvelope, validate_transport_identity, valida
 logger = logging.getLogger(__name__)
 
 
+class TransportFaultHalt(RuntimeError):
+    """Consumption cannot safely advance until an operator resolves a fault."""
+
+
 def parse_event_payload(raw):
     return validate_payload(raw)
 
@@ -40,6 +44,11 @@ class LakehouseWriter:
         self.lakehouse = manager if manager is not None else LakehouseManager(db_path or LAKEHOUSE_DB_PATH)
         self.consumer = None
         try:
+            unresolved = self.lakehouse.list_transport_faults()
+            if unresolved:
+                fault_ids = ','.join(fault['fault_id'] for fault in unresolved[:3])
+                raise TransportFaultHalt(
+                    f'{len(unresolved)} unresolved transport fault(s) block startup: {fault_ids}')
             self.consumer = (consumer_factory or Consumer)({
                 'bootstrap.servers':broker, 'group.id':group_id,
                 'auto.offset.reset':'earliest', 'enable.auto.commit':False,
@@ -60,6 +69,19 @@ class LakehouseWriter:
         messages = list(self.buffer)
         started = perf_counter()
         counts = self.lakehouse.write_message_batch(messages, self.topic_sources)
+        if counts['transport_rejected']:
+            self.counts.update(counts)
+            faults = self.lakehouse.list_transport_faults()
+            logger.error(json.dumps({
+                'event':'transport_fault_halt',
+                'transport_rejected_occurrences':counts['transport_rejected'],
+                'unresolved_unique_faults':len(faults),
+                'fault_ids':[fault['fault_id'] for fault in faults],
+                'action':'Resolve each fault explicitly before restarting the writer.'
+            }))
+            raise TransportFaultHalt(
+                f"Quarantined {counts['transport_rejected']} invalid transport envelope(s); "
+                'Kafka offsets were not committed')
         positions = {}
         for m in messages:
             try:
@@ -87,8 +109,11 @@ class LakehouseWriter:
         delays = []
         for m in messages:
             try:
+                validate_transport_identity(m)
+                if m.topic not in self.topic_sources:
+                    continue
                 event = validate_payload(m.payload, self.topic_sources[m.topic])
-                delays.append((datetime.now(timezone.utc)-event.ingested_time).total_seconds())
+                delays.append((datetime.now(timezone.utc) - event.ingested_time).total_seconds())
             except (ValueError, TypeError, UnicodeError, OverflowError):
                 pass
         logger.info(json.dumps({'event':'batch_committed', **counts,
@@ -146,8 +171,28 @@ def main():
     parser.add_argument('--group-id',default=LAKEHOUSE_GROUP_ID)
     parser.add_argument('--batch-size','--limit',type=int,default=LAKEHOUSE_BATCH_SIZE)
     parser.add_argument('--batch-seconds',type=float,default=LAKEHOUSE_BATCH_SECONDS)
+    parser.add_argument('--list-transport-faults',action='store_true',
+                        help='List unresolved transport faults without starting Kafka')
+    parser.add_argument('--resolve-transport-fault',metavar='FAULT_ID',
+                        help='Resolve one transport fault without starting Kafka')
+    parser.add_argument('--resolution-note',help='Required operator explanation for fault resolution')
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(name)s %(message)s')
+    if args.resolve_transport_fault and not args.resolution_note:
+        parser.error('--resolution-note is required with --resolve-transport-fault')
+    if args.resolution_note and not args.resolve_transport_fault:
+        parser.error('--resolution-note requires --resolve-transport-fault')
+    if args.list_transport_faults or args.resolve_transport_fault:
+        lakehouse = LakehouseManager(args.db_path)
+        try:
+            if args.resolve_transport_fault:
+                lakehouse.resolve_transport_fault(args.resolve_transport_fault, args.resolution_note)
+                print(json.dumps({'resolved':args.resolve_transport_fault}))
+            if args.list_transport_faults:
+                print(json.dumps(lakehouse.list_transport_faults(), default=str, indent=2))
+        finally:
+            lakehouse.close()
+        return
     stop = threading.Event()
     signal.signal(signal.SIGINT,lambda *_:stop.set())
     signal.signal(signal.SIGTERM,lambda *_:stop.set())

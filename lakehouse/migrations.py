@@ -1,7 +1,7 @@
 """Transactional migrations; backup existing files before changing schemas."""
 from datetime import datetime, timezone
 
-VERSION = 3
+VERSION = 4
 
 
 def migrate(conn, db_path, schema_path):
@@ -60,7 +60,18 @@ def migrate(conn, db_path, schema_path):
             kafka_headers JSON,
             reason VARCHAR NOT NULL,
             created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-            resolved_at TIMESTAMPTZ
+            last_seen_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            occurrence_count BIGINT DEFAULT 1,
+            resolved_at TIMESTAMPTZ,
+            resolution_note VARCHAR
+        )''')
+        conn.execute('ALTER TABLE lakehouse_transport_faults ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP')
+        conn.execute('ALTER TABLE lakehouse_transport_faults ADD COLUMN IF NOT EXISTS occurrence_count BIGINT DEFAULT 1')
+        conn.execute('ALTER TABLE lakehouse_transport_faults ADD COLUMN IF NOT EXISTS resolution_note VARCHAR')
+        conn.execute('''CREATE TABLE IF NOT EXISTS lakehouse_transport_fault_resolutions (
+            fault_id VARCHAR NOT NULL,
+            resolved_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            resolution_note VARCHAR NOT NULL
         )''')
         conn.execute('''CREATE VIEW IF NOT EXISTS lakehouse_rejections AS
             SELECT * FROM lakehouse_message_outcomes WHERE status='rejected' ''')

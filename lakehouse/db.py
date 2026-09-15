@@ -48,6 +48,39 @@ class LakehouseManager:
         if self.conn:
             self.conn.close()
 
+    def list_transport_faults(self, unresolved_only: bool = True) -> List[Dict[str, Any]]:
+        """Return transport faults without exposing captured payload bytes."""
+        where = 'WHERE resolved_at IS NULL' if unresolved_only else ''
+        cursor = self.conn.execute(f'''SELECT fault_id,kafka_topic,kafka_partition,kafka_offset,
+            reason,created_at,last_seen_at,occurrence_count,resolved_at,resolution_note
+            FROM lakehouse_transport_faults {where} ORDER BY created_at,fault_id''')
+        return [dict(zip([column[0] for column in cursor.description], row))
+                for row in cursor.fetchall()]
+
+    def unresolved_transport_fault_count(self) -> int:
+        return self.conn.execute(
+            'SELECT COUNT(*) FROM lakehouse_transport_faults WHERE resolved_at IS NULL').fetchone()[0]
+
+    def resolve_transport_fault(self, fault_id: str, resolution_note: str) -> None:
+        """Record an explicit operator decision before ingestion may resume."""
+        if not isinstance(resolution_note, str) or not resolution_note.strip():
+            raise ValueError('A nonblank resolution note is required')
+        note = resolution_note.strip()
+        self.conn.execute('BEGIN TRANSACTION')
+        try:
+            row = self.conn.execute('''UPDATE lakehouse_transport_faults
+                SET resolved_at=CURRENT_TIMESTAMP,resolution_note=?
+                WHERE fault_id=? AND resolved_at IS NULL RETURNING fault_id,resolved_at''',
+                [note, fault_id]).fetchone()
+            if row is None:
+                raise ValueError('Transport fault does not exist or is already resolved')
+            self.conn.execute('''INSERT INTO lakehouse_transport_fault_resolutions
+                (fault_id,resolved_at,resolution_note) VALUES (?,?,?)''', [row[0], row[1], note])
+            self.conn.execute('COMMIT')
+        except BaseException:
+            self.conn.execute('ROLLBACK')
+            raise
+
     # ─────────────────────────────────────────────────────────────────────────
     #  BATCH INSERTIONS (SILVER LAYER)
     # ─────────────────────────────────────────────────────────────────────────
@@ -221,9 +254,13 @@ class LakehouseManager:
                         'key': base64.b64encode(message.key or b'').decode('ascii'), 'headers': headers,
                     }, sort_keys=True).encode('utf-8')
                     fault_id = hashlib.sha256(fault_material).hexdigest()
-                    self.conn.execute('''INSERT OR IGNORE INTO lakehouse_transport_faults
+                    self.conn.execute('''INSERT INTO lakehouse_transport_faults
                         (fault_id,kafka_topic,kafka_partition,kafka_offset,raw_bytes,kafka_key,kafka_headers,reason)
-                        VALUES (?,?,?,?,?,?,?,?)''', [fault_id, str(message.topic),
+                        VALUES (?,?,?,?,?,?,?,?)
+                        ON CONFLICT(fault_id) DO UPDATE SET
+                            last_seen_at=now(),
+                            occurrence_count=lakehouse_transport_faults.occurrence_count+1,
+                            resolved_at=NULL,resolution_note=NULL''', [fault_id, str(message.topic),
                         message.partition if isinstance(message.partition, int) and not isinstance(message.partition, bool) else None,
                         message.offset if isinstance(message.offset, int) and not isinstance(message.offset, bool) else None,
                         message.payload, message.key, json.dumps(headers), str(exc)])
