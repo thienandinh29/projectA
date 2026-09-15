@@ -211,3 +211,6 @@ fault, a fresh record, a 24-hour collection span and valid canonical references.
 Real syndication provenance and human sentiment labels remain explicit manual
 gates. Generate the review sheet with
 `python -m scripts.export_nlp_label_sample`.
+New worker payloads label title and publication-time provenance. GDELT GKG URL
+slugs remain auditable discovery records but carry `nlp_eligible=false`; the
+readiness report excludes them from its headline-prototype count.

@@ -52,6 +52,8 @@ class TestWorkerHandoff(unittest.TestCase):
              patch.object(rss_worker.feedparser, 'parse', return_value=self.rss_fixture()):
             stats = rss_worker.run_rss_fetch_cycle(self.producer, self.dedup)
         self.assert_handoff(stats)
+        self.assertEqual(self.sent[0].metadata['title_provenance'], 'source_feed')
+        self.assertEqual(self.sent[0].metadata['published_time_provenance'], 'feed:published_parsed')
 
     def test_gdelt_worker_serializes_public_fields_and_reports_acknowledgements(self):
         response = MagicMock(status_code=200, text='{"articles": []}')
@@ -61,6 +63,15 @@ class TestWorkerHandoff(unittest.TestCase):
         with patch.object(gdelt_worker.requests, 'get', return_value=response):
             stats = gdelt_worker.run_gdelt_fetch_cycle(self.producer, self.dedup)
         self.assert_handoff(stats)
+        self.assertEqual(self.sent[0].metadata['title_provenance'], 'source_api')
+        self.assertEqual(self.sent[0].metadata['published_time_provenance'], 'source_api')
+
+    def test_invalid_source_times_are_labeled_as_ingestion_fallbacks(self):
+        entry = SimpleNamespace()
+        _, rss_provenance = rss_worker.parse_published_time_with_provenance(entry)
+        _, gdelt_provenance = gdelt_worker.parse_gdelt_timestamp_with_provenance('invalid')
+        self.assertEqual((rss_provenance, gdelt_provenance),
+                         ('ingestion_fallback', 'ingestion_fallback'))
 
     def test_local_staging_failure_releases_dedup_reservation(self):
         with patch.object(rss_worker, 'MACRO_FEEDS', [{'name': 'test', 'url': 'https://example.com/rss'}]), \

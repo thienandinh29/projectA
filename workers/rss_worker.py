@@ -65,14 +65,19 @@ def extract_tickers(text: str) -> list:
 
 def parse_published_time(entry) -> datetime:
     """Safely extracts UTC datetime from feed entry."""
+    return parse_published_time_with_provenance(entry)[0]
+
+
+def parse_published_time_with_provenance(entry):
+    """Return a safe timestamp plus whether it came from the source feed."""
     for field in ["published_parsed", "updated_parsed", "created_parsed"]:
         time_struct = getattr(entry, field, None)
         if time_struct:
             try:
-                return datetime(*time_struct[:6], tzinfo=timezone.utc)
+                return datetime(*time_struct[:6], tzinfo=timezone.utc), f'feed:{field}'
             except Exception:
                 pass
-    return datetime.now(timezone.utc)
+    return datetime.now(timezone.utc), 'ingestion_fallback'
 
 
 def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) -> dict:
@@ -121,7 +126,7 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
                     stats["duplicates"] += 1
                     continue
 
-                pub_time = parse_published_time(entry)
+                pub_time, pub_time_provenance = parse_published_time_with_provenance(entry)
 
                 event = CommonEvent(
                     id=event_id,
@@ -139,6 +144,8 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
                         "feed_name": feed_name,
                         "feed_url": feed_url,
                         "author": getattr(entry, "author", None),
+                        "title_provenance": "source_feed",
+                        "published_time_provenance": pub_time_provenance,
                     }
                 )
 

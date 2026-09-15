@@ -139,8 +139,10 @@ def run_sec_fetch_cycle(
 
                 try:
                     pub_time = datetime.fromisoformat(item["updated"]).astimezone(timezone.utc)
+                    pub_time_provenance = 'source_atom'
                 except Exception:
                     pub_time = datetime.now(timezone.utc)
+                    pub_time_provenance = 'ingestion_fallback'
 
                 event = CommonEvent(
                     id=event_id,
@@ -154,7 +156,9 @@ def run_sec_fetch_cycle(
                         "form_type": form_type,
                         "accession_number": accession_number,
                         "cik": item["cik"],
-                        "company_name": item["company_name"]
+                        "company_name": item["company_name"],
+                        "title_provenance": "constructed_from_filing_identity",
+                        "published_time_provenance": pub_time_provenance,
                     }
                 )
 

@@ -61,7 +61,8 @@ def build_report(db_path, now=None, freshness_hours=48, required_span_hours=24):
             'blank_titles': 0, 'snippet_rows': 0, 'full_text_rows': 0,
             'metadata_only_gdelt_snippets': 0, 'event_time_rows': 0,
             'near_duplicate_rows': 0, 'broken_canonical_references': 0,
-            'published_after_ingested_rows': 0,
+            'published_after_ingested_rows': 0, 'synthetic_gdelt_headlines': 0,
+            'publication_time_fallback_rows': 0, 'nlp_eligible_headline_rows': 0,
         }
         if news:
             row = conn.execute('''SELECT
@@ -74,12 +75,20 @@ def build_report(db_path, now=None, freshness_hours=48, required_span_hours=24):
                 COUNT(*) FILTER (WHERE is_near_duplicate),
                 COUNT(*) FILTER (WHERE canonical_cluster_id IS NOT NULL AND canonical_cluster_id NOT IN
                     (SELECT id FROM silver_financial_news)),
-                COUNT(*) FILTER (WHERE published_time>ingested_time)
+                COUNT(*) FILTER (WHERE published_time>ingested_time),
+                COUNT(*) FILTER (WHERE source='GDELT' AND
+                    (json_extract_string(metadata,'$.title_provenance')='url_slug'
+                     OR content_snippet LIKE 'Domain:%Themes:%')),
+                COUNT(*) FILTER (WHERE json_extract_string(metadata,'$.published_time_provenance')='ingestion_fallback'),
+                COUNT(*) FILTER (WHERE NOT is_near_duplicate AND NOT (source='GDELT' AND
+                    (json_extract_string(metadata,'$.title_provenance')='url_slug'
+                     OR content_snippet LIKE 'Domain:%Themes:%')))
                 FROM silver_financial_news''').fetchone()
             quality.update(dict(zip(quality, row)))
 
         gates = {
-            'headline_nlp_prototype': news >= 100 and quality['blank_titles'] == 0
+            'headline_nlp_prototype': quality['nlp_eligible_headline_rows'] >= 100
+                                      and quality['blank_titles'] == 0
                                       and quality['published_after_ingested_rows'] == 0,
             'current_storage_schema': schema_version == 4,
             'bronze_outcome_audit': bronze > 0 and outcomes == bronze,

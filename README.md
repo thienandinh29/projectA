@@ -253,6 +253,12 @@ The JSON report separates headline-prototype readiness from continuous-data
 readiness. Create the fixed, source-balanced human review sheet with
 `python -m scripts.export_nlp_label_sample`; labels remain blank until reviewed.
 
+Every new worker event records headline and publication-time provenance. RSS and
+GDELT API headlines are source text; GDELT GKG fallback headlines are URL slugs,
+carry `nlp_eligible=false`, and are counted separately by the readiness audit.
+Invalid source timestamps use ingestion time safely and are marked
+`published_time_provenance=ingestion_fallback` rather than appearing source-verified.
+
 ## Tier 3 Semantic Dedup — Measured Status (calibrated 2026-09)
 
 All numbers below are measured, not asserted: `scripts/calibrate_tier3.py`

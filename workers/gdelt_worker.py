@@ -28,10 +28,16 @@ MACRO_QUERY = '(inflation OR "interest rate" OR "central bank" OR "Federal Reser
 
 def parse_gdelt_timestamp(seendate_str: str) -> datetime:
     """Parses GDELT timestamp format YYYYMMDDTHHMMSSZ into UTC datetime."""
+    return parse_gdelt_timestamp_with_provenance(seendate_str)[0]
+
+
+def parse_gdelt_timestamp_with_provenance(seendate_str: str):
+    """Return a safe timestamp plus whether GDELT supplied a valid value."""
     try:
-        return datetime.strptime(seendate_str, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+        return (datetime.strptime(seendate_str, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc),
+                'source_api')
     except Exception:
-        return datetime.now(timezone.utc)
+        return datetime.now(timezone.utc), 'ingestion_fallback'
 
 
 def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) -> dict:
@@ -108,7 +114,7 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
                 continue
 
             seendate = art.get("seendate", "")
-            pub_time = parse_gdelt_timestamp(seendate)
+            pub_time, pub_time_provenance = parse_gdelt_timestamp_with_provenance(seendate)
             domain = art.get("domain", "")
             socialimage = art.get("socialimage", "")
             tone = art.get("tone", None)
@@ -130,7 +136,9 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
                     "language": art.get("language"),
                     "sourcecountry": art.get("sourcecountry"),
                     "socialimage": socialimage,
-                    "tone": tone
+                    "tone": tone,
+                    "title_provenance": "source_api",
+                    "published_time_provenance": pub_time_provenance,
                 }
             )
 
@@ -229,8 +237,10 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
                 # Parse timestamp YYYYMMDDHHMMSS
                 try:
                     pub_time = datetime.strptime(date_str, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
+                    pub_time_provenance = 'source_gkg'
                 except Exception:
                     pub_time = datetime.now(timezone.utc)
+                    pub_time_provenance = 'ingestion_fallback'
 
                 event = CommonEvent(
                     id=event_id,
@@ -247,7 +257,10 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
                     metadata={
                         "domain": domain,
                         "themes": themes[:250],
-                        "gkg_batch": fname
+                        "gkg_batch": fname,
+                        "title_provenance": "url_slug",
+                        "published_time_provenance": pub_time_provenance,
+                        "nlp_eligible": False,
                     }
                 )
 

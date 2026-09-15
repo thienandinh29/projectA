@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-15T01:03:01.374956+00:00",
+  "generated_at": "2026-09-15T01:08:23.850374+00:00",
   "database": "data\\lakehouse.duckdb",
   "thresholds": {
     "freshness_hours": 48,
@@ -18,7 +18,7 @@
     "first_ingested": "2026-09-08T07:15:43.118988+07:00",
     "last_ingested": "2026-09-08T09:53:12.023299+07:00",
     "collection_span_hours": 2.6246956419444447,
-    "latest_record_age_hours": 166.1637087936111
+    "latest_record_age_hours": 166.25328529861113
   },
   "quality": {
     "blank_titles": 0,
@@ -28,7 +28,10 @@
     "event_time_rows": 0,
     "near_duplicate_rows": 0,
     "broken_canonical_references": 0,
-    "published_after_ingested_rows": 0
+    "published_after_ingested_rows": 0,
+    "synthetic_gdelt_headlines": 50,
+    "publication_time_fallback_rows": 0,
+    "nlp_eligible_headline_rows": 226
   },
   "storage": {
     "schema_version": 0,

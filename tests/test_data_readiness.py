@@ -25,6 +25,7 @@ class TestDataReadiness(unittest.TestCase):
             self.assertEqual(report['storage']['schema_version'], 4)
             self.assertEqual(report['collection']['bronze_rows'], 2)
             self.assertEqual(report['collection']['outcome_rows'], 2)
+            self.assertEqual(report['quality']['nlp_eligible_headline_rows'], 1)
             self.assertTrue(report['gates']['bronze_outcome_audit'])
             self.assertFalse(report['gates']['sustained_collection_window'])
             self.assertFalse(report['automated_continuous_data_ready'])

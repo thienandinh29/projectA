@@ -2,16 +2,19 @@
 import argparse
 import csv
 import hashlib
+import json
 import re
 from pathlib import Path
 
 import duckdb
 
 
-def quality_flag(title, source, snippet):
+def quality_flag(title, source, snippet, metadata):
     words = re.findall(r"[A-Za-z]+", title or '')
     if len(words) < 4 or re.search(r'\b[0-9a-f]{12,}\b', title or '', re.I):
         return 'inspect_identifier_like_title'
+    if metadata.get('title_provenance') == 'url_slug':
+        return 'synthetic_url_slug'
     if source == 'GDELT' and (snippet or '').startswith(('Source:', 'Domain:')):
         return 'metadata_only_snippet'
     return ''
@@ -20,7 +23,7 @@ def quality_flag(title, source, snippet):
 def export_sample(db_path, output, total=100, seed='week3-nlp-v1'):
     conn = duckdb.connect(str(Path(db_path).resolve()), read_only=True)
     try:
-        rows = conn.execute('''SELECT id,source,title,published_time,ingested_time,content_snippet
+        rows = conn.execute('''SELECT id,source,title,published_time,ingested_time,content_snippet,metadata
             FROM silver_financial_news WHERE NOT is_near_duplicate
             AND COALESCE(TRIM(title),'')<>'' ''').fetchall()
     finally:
@@ -44,10 +47,14 @@ def export_sample(db_path, output, total=100, seed='week3-nlp-v1'):
     with output.open('w', encoding='utf-8-sig', newline='') as handle:
         writer = csv.writer(handle)
         writer.writerow(['sample_id','event_id','source','title','published_time','ingested_time',
-                         'quality_flag','sentiment_label','confidence_1_to_5','reviewer_notes'])
-        for index, (event_id, source, title, published, ingested, snippet) in enumerate(selected, 1):
+                         'title_provenance','published_time_provenance','quality_flag',
+                         'sentiment_label','confidence_1_to_5','reviewer_notes'])
+        for index, (event_id, source, title, published, ingested, snippet, raw_metadata) in enumerate(selected, 1):
+            metadata = json.loads(raw_metadata or '{}')
             writer.writerow([index,event_id,source,title,published,ingested,
-                             quality_flag(title, source, snippet),'','',''])
+                             metadata.get('title_provenance','legacy_unknown'),
+                             metadata.get('published_time_provenance','legacy_unknown'),
+                             quality_flag(title, source, snippet, metadata),'','',''])
     return len(selected)
 
 
