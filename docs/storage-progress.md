@@ -1,5 +1,9 @@
 # Continuous data storage milestone
 
+Research update: schema v5 adds pre-dedup source versions and sealed research
+availability. Legacy `query_*_as_of` reconstructs worker observation time only;
+it does not prove lakehouse/model availability. See [research-protocol.md](research-protocol.md).
+
 The next data milestone implements one continuous transactional writer for RSS,
 GDELT and SEC. This completes the storage implementation slice, rather than all
 Phase 0 readiness or NLP work. Existing feed workers remain responsible for
@@ -105,13 +109,12 @@ backup created through DuckDB before migration. A post-migration checkpoint
 persists DDL before Kafka begins, including on first startup. Versions newer
 than supported are rejected. `schema.sql` supplies the base tables; the
 versioned migration adds raw-byte transport fields, wire snapshots and audits.
-The current migration version is 4; version 3 added the transport-fault quarantine
-table and version 4 adds its operator resolution note.
+The current migration version is 5; version 3 added transport-fault quarantine,
+version 4 added operator resolution notes, and version 5 adds research observations.
 
-Legacy Silver timestamps/content are retained. The pre-existing initialization
-behavior still stamps NULL embedding-model labels with the original pipeline's
-sole MiniLM model; this is a documented exception to untouched legacy columns,
-not regenerated vectors. Missing legacy wire snapshots or raw Kafka bytes
+Legacy Silver timestamps/content are retained. Version 5 no longer fills unknown
+embedding-model provenance during initialization. Previously stamped values are
+not undone or treated as evidence of checkpoint revision. Missing legacy wire snapshots or raw Kafka bytes
 cannot be reconstructed. Legacy Bronze records have `legacy_unprocessed`
 outcomes and `legacy_bytes_unavailable` provenance. Comparisons against legacy
 Silver use persisted projections, with reduced provenance/precision evidence.

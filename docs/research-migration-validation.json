@@ -1,0 +1,27 @@
+{
+  "source": "data/lakehouse.duckdb",
+  "source_unchanged": true,
+  "tables": {
+    "silver_financial_news": {
+      "rows": 276,
+      "original_columns_preserved": true,
+      "legacy_model_stamps_added": 0,
+      "backup_identical": true
+    },
+    "silver_sec_filings": {
+      "rows": 106,
+      "original_columns_preserved": true,
+      "legacy_model_stamps_added": 0,
+      "backup_identical": true
+    },
+    "bronze_events_raw": {
+      "rows": 0,
+      "original_columns_preserved": true,
+      "legacy_model_stamps_added": 0,
+      "backup_identical": true
+    }
+  },
+  "migration_version": 5,
+  "legacy_news_without_wire_snapshot": 276,
+  "legacy_sec_without_wire_snapshot": 106
+}

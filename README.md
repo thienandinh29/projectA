@@ -1,4 +1,19 @@
-# Distributed Financial News & Filings Ingestion Pipeline
+# Frozen Financial Sentiment Evaluation
+
+Paper 1 is a reproducible evaluation of a frozen financial-headline sentiment
+model, with explicit duplicate, story-weighting, and label-availability
+controls. Start with [the research roadmap](ROADMAP.md) and
+[the temporal contract and runbook](docs/research-protocol.md).
+
+Research observations are captured **before live deduplication**, versioned in
+schema v5, and exported using a conservative post-data-commit availability time.
+Legacy Silver data is development material, not verified historical
+availability evidence. Continual-learning utilities remain future extensions;
+they are not part of Paper 1. Live collection and paper results are pending.
+
+The infrastructure description below documents the existing operational path.
+Its live Redis canonical-assignment race remains open and its flags are not
+used by the independent research observation/replay path.
 
 A decoupled, multi-worker ingestion pipeline powered by a single-node **Redpanda** streaming cluster, **Redpanda Console**, **Redis AOF** deduplication cache, and modular Python ingestion workers streaming data from Macro RSS feeds, GDELT 2.0 Doc API, and SEC EDGAR.
 
@@ -56,7 +71,7 @@ A decoupled, multi-worker ingestion pipeline powered by a single-node **Redpanda
 
 2. **Differentiated Producer Reliability (Tiered ACKs)**:
    - **`fast` profile (`acks=1`)**: For RSS and GDELT to optimize latency and throughput.
-   - **`critical` profile (`acks=all` / `-1`)**: For SEC filings with idempotence enabled (`enable.idempotence=True`) ensuring zero loss of critical corporate filings.
+   - **`critical` profile (`acks=all` / `-1`)**: For SEC filings with idempotence enabled (`enable.idempotence=True`); durability still depends on broker replication, retention and recovery.
 
 3. **Strict Rate Limiting for SEC EDGAR**:
    - Token bucket algorithm enforcing $\le 8\text{ req/s}$ (safely within SEC's 10 req/s limit).
@@ -156,8 +171,8 @@ Candidates must also pass the shared polarity guard, handling antonyms,
 inflections, and short negation windows. Duplicate records preserve the original
 canonical ID, including when Tier 3 targets a V2 lexical duplicate. This remains
 a keyword heuristic: unknown verbs and subject-specific conflicts are limitations.
-RSS/GDELT V2 lookup and insertion share a Redis lease, so concurrent workers make
-one canonical assignment at a time. The lease serializes Tier 2 globally and can
+RSS/GDELT V2 lookup and insertion share a Redis lease, but it does not cover
+Tier 3 reassignment or guarantee safety after expiry. It serializes Tier 2 and can
 add queueing latency during bursts; Redis outages retain fail-open ingestion.
 
 All retrieved candidates are checked in sorted ID order, with Redis reads

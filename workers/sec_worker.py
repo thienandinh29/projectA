@@ -93,6 +93,7 @@ def run_sec_fetch_cycle(
     """Fetches SEC filings for monitored forms (8-K, 10-Q, 10-K), deduplicates, and publishes with acks=all."""
     stats = {"fetched": 0, "filtered": 0, "duplicates": 0, "published": 0, "queued": 0, "errors": 0}
     stats["_delivery_start"] = producer.delivered_count(TOPIC_SEC)
+    stats['_cycle_started_at'] = datetime.now(timezone.utc).isoformat()
     producer.retry_pending(TOPIC_SEC)
 
     # Query SEC for each critical form type
@@ -129,6 +130,19 @@ def run_sec_fetch_cycle(
 
                 if not event_id:
                     continue
+
+                try:
+                    source_time = datetime.fromisoformat(item['updated'])
+                    if source_time.tzinfo is None or source_time.utcoffset() is None:
+                        source_time = None
+                except (ValueError, TypeError):
+                    source_time = None
+                producer.capture_observation(
+                    source='SEC', article_id=event_id,
+                    title=f"[{form_type}] {item['company_name']}", url=item['link'],
+                    source_item=item, title_provenance='constructed_from_filing_identity',
+                    source_time=source_time, source_time_kind='sec_atom_updated',
+                    source_time_raw=item['updated'] or None)
 
                 # Atomic check & set in Redis
                 if dedup.is_exact_duplicate(event_id, source="SEC", reserve_for_delivery=True):

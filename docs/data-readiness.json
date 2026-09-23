@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-15T01:08:23.850374+00:00",
+  "generated_at": "2026-09-15T07:06:28.020558+00:00",
   "database": "data\\lakehouse.duckdb",
   "thresholds": {
     "freshness_hours": 48,
@@ -18,7 +18,7 @@
     "first_ingested": "2026-09-08T07:15:43.118988+07:00",
     "last_ingested": "2026-09-08T09:53:12.023299+07:00",
     "collection_span_hours": 2.6246956419444447,
-    "latest_record_age_hours": 166.25328529861113
+    "latest_record_age_hours": 172.2211103497222
   },
   "quality": {
     "blank_titles": 0,
@@ -33,24 +33,38 @@
     "publication_time_fallback_rows": 0,
     "nlp_eligible_headline_rows": 226
   },
+  "research": {
+    "total_versions": 0,
+    "eligible_sealed_versions": 0,
+    "unsealed_versions": 0,
+    "legacy_rows_eligible_for_strict_research": 0
+  },
+  "continuous_evidence_note": "Record span alone cannot establish uptime, successful polling, or sustainable throughput. An operational run report remains required.",
   "storage": {
-    "schema_version": 0,
-    "unresolved_transport_faults": null
+    "schema_version": 5,
+    "unresolved_transport_faults": 0
   },
   "gates": {
     "headline_nlp_prototype": true,
-    "current_storage_schema": false,
+    "current_storage_schema": true,
     "bronze_outcome_audit": false,
     "all_sources_present": true,
     "fresh_collection": false,
-    "sustained_collection_window": false,
-    "no_unresolved_transport_faults": false,
+    "record_span_threshold": false,
+    "continuous_operation_verified": false,
+    "no_unresolved_transport_faults": true,
     "canonical_references_valid": true
   },
   "ready_for_headline_nlp_prototype": true,
   "automated_continuous_data_ready": false,
   "manual_gates_remaining": [
     "Verify at least one captured real RSS/GDELT syndication pair.",
-    "Review the fixed headline sentiment sample and record human labels."
+    "Verify continuous operation using source-cycle and broker/outbox evidence.",
+    "Validate live Tier 2/Tier 3 concurrent assignment; live flags are excluded from research replay."
+  ],
+  "research_gates_remaining": [
+    "Freeze a dated dataset, eligibility rules, annotation policy and label ledger.",
+    "Freeze the model artifact, label mapping and immutable predictions.",
+    "Evaluate all three article/story weighting conditions with uncertainty."
   ]
 }

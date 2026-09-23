@@ -1,0 +1,21 @@
+{
+  "generated_at": "2026-09-15T07:11:54.631445+00:00",
+  "python": "3.11.5",
+  "modules": [
+    "tests.test_research_pipeline",
+    "tests.test_worker_handoff",
+    "tests.test_storage",
+    "tests.test_writer",
+    "tests.test_data_readiness",
+    "tests.test_pit_leakage",
+    "tests.test_delivery_recovery",
+    "tests.test_week3_handoff"
+  ],
+  "tests_run": 67,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "passed": true,
+  "scope": "Offline temporary-database/unit regressions; no live collection or trained-model results",
+  "output": "...................................................................\n----------------------------------------------------------------------\nRan 67 tests in 24.774s\n\nOK\n"
+}

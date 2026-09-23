@@ -1,7 +1,7 @@
 -- ============================================================================
 -- POINT-IN-TIME (PiT) FINANCIAL LAKEHOUSE SCHEMA
 -- Designed for DuckDB Columnar Engine with Strict 3-Timestamp Model
--- Eliminates Look-Ahead Bias & Future Data Leakage for ML / Backtesting
+-- Legacy observation-time schema. Strict research availability is added by migration.
 -- ============================================================================
 
 -- 1. BRONZE LAYER: Raw Append-Only Kafka Stream Log
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS silver_financial_news (
     event_time TIMESTAMPTZ,                        -- Physical real-world occurrence
     published_time TIMESTAMPTZ NOT NULL,          -- When wire/source published document
     ingested_time TIMESTAMPTZ NOT NULL,           -- When pipeline captured the event
-    effective_time TIMESTAMPTZ GENERATED ALWAYS AS (GREATEST(published_time, ingested_time)), -- Leak-free horizon
+    effective_time TIMESTAMPTZ GENERATED ALWAYS AS (GREATEST(published_time, ingested_time)), -- Legacy observation-time bound
 
     -- Entity & Cluster Tracking
     tickers_mentioned VARCHAR[],
@@ -68,7 +68,7 @@ CREATE INDEX IF NOT EXISTS idx_sec_effective_time ON silver_sec_filings (effecti
 CREATE INDEX IF NOT EXISTS idx_news_source ON silver_financial_news (source);
 
 -- 5. Helper Views for Quant Backtesting & Modeling
--- Canonical news stream (strictly novel events, zero duplicates, leak-free)
+-- Legacy canonical filter; callers must supply an appropriate temporal cutoff.
 CREATE OR REPLACE VIEW view_canonical_news_pit AS
 SELECT 
     id,

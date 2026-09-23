@@ -84,6 +84,7 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
     """Fetches all feeds, deduplicates, and publishes new items to Redpanda."""
     stats = {"fetched": 0, "duplicates": 0, "published": 0, "queued": 0, "errors": 0}
     stats["_delivery_start"] = producer.delivered_count(TOPIC_RSS)
+    stats['_cycle_started_at'] = datetime.now(timezone.utc).isoformat()
     producer.retry_pending(TOPIC_RSS)
 
     for feed_info in MACRO_FEEDS:
@@ -95,6 +96,7 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
             feed = feedparser.parse(feed_url)
             if feed.bozo and not feed.entries:
                 logger.warning(f"Failed to parse feed {feed_name}: {feed.bozo_exception}")
+                stats['errors'] += 1
                 continue
 
             for entry in feed.entries:
@@ -108,6 +110,15 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
                 # Generate deterministic deduplication ID based on URL or title
                 hash_input = link or title
                 event_id = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
+
+                pub_time, pub_time_provenance = parse_published_time_with_provenance(entry)
+                raw_item = dict(entry) if isinstance(entry, dict) else vars(entry)
+                producer.capture_observation(
+                    source='RSS', article_id=event_id, title=title, url=link,
+                    source_item=raw_item, title_provenance='source_feed',
+                    source_time=None if pub_time_provenance == 'ingestion_fallback' else pub_time,
+                    source_time_kind=pub_time_provenance,
+                    source_time_raw=str(raw_item.get('published') or raw_item.get('updated') or '') or None)
 
                 # Parse snippet and extract entities BEFORE dedup:
                 # Tier 3's entity gate needs them at merge-decision time.
@@ -125,8 +136,6 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
                 if result.is_exact:
                     stats["duplicates"] += 1
                     continue
-
-                pub_time, pub_time_provenance = parse_published_time_with_provenance(entry)
 
                 event = CommonEvent(
                     id=event_id,

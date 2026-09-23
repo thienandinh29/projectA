@@ -13,6 +13,7 @@ from confluent_kafka import Consumer, KafkaError, TopicPartition
 from config import (KAFKA_BOOTSTRAP_SERVERS, TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC,
                     LAKEHOUSE_DB_PATH, LAKEHOUSE_GROUP_ID, LAKEHOUSE_BATCH_SIZE,
                     LAKEHOUSE_BATCH_SECONDS)
+from config import TOPIC_OBSERVATIONS
 from lakehouse.db import LakehouseManager
 from lakehouse.records import KafkaEnvelope, validate_transport_identity, validate_payload
 logger = logging.getLogger(__name__)
@@ -33,7 +34,8 @@ class LakehouseWriter:
                  broker=KAFKA_BOOTSTRAP_SERVERS, manager=None, report_lag=True):
         if batch_size < 1 or batch_seconds <= 0 or not math.isfinite(batch_seconds):
             raise ValueError('Batch size and interval must be positive')
-        self.topic_sources = topic_sources if topic_sources is not None else {TOPIC_RSS:'RSS', TOPIC_GDELT:'GDELT', TOPIC_SEC:'SEC'}
+        self.topic_sources = topic_sources if topic_sources is not None else {
+            TOPIC_RSS:'RSS', TOPIC_GDELT:'GDELT', TOPIC_SEC:'SEC', TOPIC_OBSERVATIONS:'RESEARCH'}
         if not self.topic_sources:
             raise ValueError('At least one source topic is required')
         self.batch_size, self.batch_seconds = batch_size, batch_seconds
@@ -110,7 +112,7 @@ class LakehouseWriter:
         for m in messages:
             try:
                 validate_transport_identity(m)
-                if m.topic not in self.topic_sources:
+                if m.topic not in self.topic_sources or self.topic_sources[m.topic] == 'RESEARCH':
                     continue
                 event = validate_payload(m.payload, self.topic_sources[m.topic])
                 delays.append((datetime.now(timezone.utc) - event.ingested_time).total_seconds())

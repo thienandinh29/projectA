@@ -1,7 +1,7 @@
 """Transactional migrations; backup existing files before changing schemas."""
 from datetime import datetime, timezone
 
-VERSION = 4
+VERSION = 5
 
 
 def migrate(conn, db_path, schema_path):
@@ -75,6 +75,16 @@ def migrate(conn, db_path, schema_path):
         )''')
         conn.execute('''CREATE VIEW IF NOT EXISTS lakehouse_rejections AS
             SELECT * FROM lakehouse_message_outcomes WHERE status='rejected' ''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS research_observations (
+            version_id VARCHAR PRIMARY KEY, article_id VARCHAR NOT NULL,
+            source VARCHAR NOT NULL, title VARCHAR NOT NULL, url VARCHAR NOT NULL,
+            observed_at TIMESTAMPTZ NOT NULL, source_time TIMESTAMPTZ,
+            source_time_kind VARCHAR NOT NULL, title_provenance VARCHAR NOT NULL,
+            nlp_eligible BOOLEAN NOT NULL, content_hash VARCHAR NOT NULL,
+            snapshot JSON NOT NULL, available_at TIMESTAMPTZ,
+            kafka_topic VARCHAR NOT NULL, kafka_partition INTEGER NOT NULL,
+            kafka_offset BIGINT NOT NULL)''')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_research_available ON research_observations(available_at)')
         conn.execute('''CREATE VIEW IF NOT EXISTS lakehouse_conflicts AS
             SELECT * FROM lakehouse_message_outcomes WHERE status='conflict' ''')
         conn.execute('''INSERT INTO lakehouse_message_outcomes

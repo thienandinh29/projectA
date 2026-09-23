@@ -1,5 +1,8 @@
 # Week 3 implementation progress
 
+Historical implementation record. The current research scope is [ROADMAP.md](../ROADMAP.md)
+and its availability contract is [research-protocol.md](research-protocol.md).
+
 This is the week 3 slice of Phase 0 (roadmap weeks 1–5).
 
 | Planned work | Status | Implementation / evidence |
@@ -7,7 +10,7 @@ This is the week 3 slice of Phase 0 (roadmap weeks 1–5).
 | Exact Tier 2 Jaccard verification | Implemented | Shared shingles; exact set intersection/union; boundary regressions |
 | Explicit Tier 2 polarity protection | Implemented | Shared antonym/negation guard; long-headline regressions |
 | RSS/GDELT cross-source clustering behavior | Implemented for synthetic fixtures | Shared V2 buckets; real-feed syndication provenance remains unvalidated |
-| Original canonical IDs | Implemented for concurrent V2 processing | Redis assignment lease serializes lookup/insertion; duplicates retain root IDs |
+| Original canonical IDs | Partial live protection | Tier 3 mutation and lease-expiry races remain open; research replay does not use live canonical IDs |
 | Deterministic candidate verification | Implemented | All candidates checked in sorted batches of 256; live regression with only qualifying match after candidate 256 |
 | Complete event handoff | Implemented | Public embeddings/scores; complete Pydantic wire parsing; SQLite-independent DuckDB roundtrip and PiT tests |
 | Recoverable Kafka delivery failures | Implemented | Durable SQLite outbox; topic-specific retries; acknowledgement-only deletion |
@@ -54,8 +57,8 @@ gates, and `scripts.export_nlp_label_sample` produces the fixed human-label shee
 ## Limits to carry forward
 
 - Keyword polarity guards cannot prove universal semantic safety.
-- The global Redis assignment lease prevents concurrent V2 root creation but can
-  add queueing latency during bursts; its load impact remains to be measured.
+- The Redis lease covers a portion of V2 processing, expires without renewal,
+  and does not cover Tier 3 reassignment. Concurrent root consistency is unproven.
 - All-candidate checks have a timing/payload-byte baseline; crowded-bucket
   readiness and full resident-memory measurement remain open.
 - V2 is a new candidate window: restart workers together; coverage repopulates.

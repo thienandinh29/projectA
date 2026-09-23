@@ -1,10 +1,13 @@
-"""Measure whether a DuckDB collection is ready for continuous NLP use."""
+"""Measure whether a DuckDB collection is ready for scheduled research use."""
 import argparse
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
 import duckdb
+from lakehouse.migrations import VERSION
+from research.observations import LEGACY_HEADLINE_ELIGIBILITY_SQL
 
 
 EXPECTED_SOURCES = ('RSS', 'GDELT', 'SEC')
@@ -85,23 +88,40 @@ def build_report(db_path, now=None, freshness_hours=48, required_span_hours=24):
                      OR content_snippet LIKE 'Domain:%Themes:%')))
                 FROM silver_financial_news''').fetchone()
             quality.update(dict(zip(quality, row)))
+            quality['nlp_eligible_headline_rows'] = _scalar(conn,
+                'SELECT COUNT(*) FROM silver_financial_news WHERE ' + LEGACY_HEADLINE_ELIGIBILITY_SQL)
+
+        research = {'total_versions': 0, 'eligible_sealed_versions': 0, 'unsealed_versions': 0,
+                    'legacy_rows_eligible_for_strict_research': 0}
+        if _table_exists(conn, 'research_observations'):
+            research.update(zip(('total_versions', 'eligible_sealed_versions', 'unsealed_versions'),
+                conn.execute('''SELECT COUNT(*), COUNT(*) FILTER (WHERE nlp_eligible AND available_at IS NOT NULL),
+                    COUNT(*) FILTER (WHERE available_at IS NULL) FROM research_observations''').fetchone()))
+
+        unmatched = None
+        if tables['bronze_events_raw'] and tables['lakehouse_message_outcomes']:
+            unmatched = _scalar(conn, '''SELECT COUNT(*) FROM bronze_events_raw b
+                FULL OUTER JOIN lakehouse_message_outcomes o USING(kafka_topic,kafka_partition,kafka_offset)
+                WHERE b.kafka_topic IS NULL OR o.kafka_topic IS NULL OR o.status='legacy_unprocessed' ''')
 
         gates = {
             'headline_nlp_prototype': quality['nlp_eligible_headline_rows'] >= 100
                                       and quality['blank_titles'] == 0
                                       and quality['published_after_ingested_rows'] == 0,
-            'current_storage_schema': schema_version == 4,
-            'bronze_outcome_audit': bronze > 0 and outcomes == bronze,
+            'current_storage_schema': schema_version == VERSION,
+            'bronze_outcome_audit': bronze > 0 and outcomes == bronze and unmatched == 0,
             'all_sources_present': all(by_source[source] > 0 for source in EXPECTED_SOURCES),
             'fresh_collection': age_hours is not None and 0 <= age_hours <= freshness_hours,
-            'sustained_collection_window': span_hours >= required_span_hours,
+            'record_span_threshold': span_hours >= required_span_hours,
+            'continuous_operation_verified': False,
             'no_unresolved_transport_faults': unresolved == 0,
             'canonical_references_valid': quality['broken_canonical_references'] == 0,
         }
         automated_continuous_ready = all(value for key, value in gates.items()
                                          if key != 'headline_nlp_prototype')
         return {
-            'generated_at': now.isoformat(), 'database': str(Path(db_path)),
+            'generated_at': now.isoformat(), 'database': str(path),
+            'database_id': os.getenv('RESEARCH_DATABASE_ID', f'file:{path}'),
             'thresholds': {'freshness_hours': freshness_hours,
                            'required_span_hours': required_span_hours},
             'collection': {
@@ -112,15 +132,22 @@ def build_report(db_path, now=None, freshness_hours=48, required_span_hours=24):
                 'collection_span_hours': span_hours, 'latest_record_age_hours': age_hours,
             },
             'quality': quality,
+            'research': research,
+            'continuous_evidence_note': 'Record span alone cannot establish uptime, successful polling, or sustainable throughput. An operational run report remains required.',
             'storage': {'schema_version': schema_version,
+                        'database_id': os.getenv('RESEARCH_DATABASE_ID', f'file:{path}'),
                         'unresolved_transport_faults': unresolved},
             'gates': gates,
             'ready_for_headline_nlp_prototype': gates['headline_nlp_prototype'],
             'automated_continuous_data_ready': automated_continuous_ready,
             'manual_gates_remaining': [
                 'Verify at least one captured real RSS/GDELT syndication pair.',
-                'Review the fixed headline sentiment sample and record human labels.',
+                'Verify continuous operation using source-cycle and broker/outbox evidence.',
+                'Validate live Tier 2/Tier 3 concurrent assignment; live flags are excluded from research replay.',
             ],
+            'research_gates_remaining': ['Freeze a dated dataset, eligibility rules, annotation policy and label ledger.',
+                                        'Freeze the model artifact, label mapping and immutable predictions.',
+                                        'Evaluate all three article/story weighting conditions with uncertainty.'],
         }
     finally:
         conn.close()
@@ -128,7 +155,7 @@ def build_report(db_path, now=None, freshness_hours=48, required_span_hours=24):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--db-path', default='data/lakehouse.duckdb')
+    parser.add_argument('--db-path', default=os.getenv('LAKEHOUSE_DB_PATH', 'data/lakehouse.duckdb'))
     parser.add_argument('--output', type=Path)
     parser.add_argument('--freshness-hours', type=float, default=48)
     parser.add_argument('--required-span-hours', type=float, default=24)

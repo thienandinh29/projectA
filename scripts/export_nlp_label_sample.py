@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 
 import duckdb
+from research.observations import LEGACY_HEADLINE_ELIGIBILITY_SQL
 
 
 def quality_flag(title, source, snippet, metadata):
@@ -21,11 +22,12 @@ def quality_flag(title, source, snippet, metadata):
 
 
 def export_sample(db_path, output, total=100, seed='week3-nlp-v1'):
+    if total < 1:
+        raise ValueError('Sample size must be positive')
     conn = duckdb.connect(str(Path(db_path).resolve()), read_only=True)
     try:
         rows = conn.execute('''SELECT id,source,title,published_time,ingested_time,content_snippet,metadata
-            FROM silver_financial_news WHERE NOT is_near_duplicate
-            AND COALESCE(TRIM(title),'')<>'' ''').fetchall()
+            FROM silver_financial_news WHERE ''' + LEGACY_HEADLINE_ELIGIBILITY_SQL).fetchall()
     finally:
         conn.close()
     sources = sorted({row[1] for row in rows})

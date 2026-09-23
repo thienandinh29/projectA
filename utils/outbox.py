@@ -1,5 +1,7 @@
 """Persist outgoing messages until Kafka acknowledges them (at-least-once)."""
 import sqlite3
+import json
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -13,6 +15,14 @@ class DeliveryOutbox:
             conn.execute('CREATE TABLE IF NOT EXISTS pending ('
                          'topic TEXT NOT NULL, event_id TEXT NOT NULL, payload BLOB NOT NULL, '
                          'PRIMARY KEY(topic, event_id))')
+            conn.execute('''CREATE TABLE IF NOT EXISTS source_cycles (
+                cycle_id TEXT PRIMARY KEY, topic TEXT NOT NULL,
+                started_at TEXT, finished_at TEXT NOT NULL, statistics TEXT NOT NULL)''')
+
+    def record_cycle(self, topic, started_at, finished_at, statistics):
+        with self.connect() as conn:
+            conn.execute('INSERT INTO source_cycles VALUES (?,?,?,?,?)',
+                         [str(uuid.uuid4()), topic, started_at, finished_at, json.dumps(statistics, sort_keys=True)])
 
     @contextmanager
     def connect(self):

@@ -53,6 +53,7 @@ SEMANTIC_SCAN_LIMIT = int(os.getenv("SEMANTIC_SCAN_LIMIT", 1000))
 TOPIC_RSS = os.getenv("TOPIC_RSS", "financial.news.rss")
 TOPIC_GDELT = os.getenv("TOPIC_GDELT", "financial.news.gdelt")
 TOPIC_SEC = os.getenv("TOPIC_SEC", "financial.filings.sec")
+TOPIC_OBSERVATIONS = os.getenv('TOPIC_OBSERVATIONS', 'financial.research.observations')
 
 # SEC Settings
 SEC_USER_AGENT = os.getenv("SEC_USER_AGENT", "FinancialPipeline research@example.com")

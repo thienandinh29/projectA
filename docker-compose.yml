@@ -80,6 +80,9 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=redpanda:29092
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - RESEARCH_DATABASE_ID=docker-volume:ingestion-data:/app/data/lakehouse.duckdb
+      - COLLECTION_CODE_REVISION=${COLLECTION_CODE_REVISION:-unrecorded}
+      - COLLECTION_WORKTREE_STATE=${COLLECTION_WORKTREE_STATE:-unrecorded}
 
   worker-gdelt:
     profiles: ["workers"]
@@ -98,6 +101,9 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=redpanda:29092
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - RESEARCH_DATABASE_ID=docker-volume:ingestion-data:/app/data/lakehouse.duckdb
+      - COLLECTION_CODE_REVISION=${COLLECTION_CODE_REVISION:-unrecorded}
+      - COLLECTION_WORKTREE_STATE=${COLLECTION_WORKTREE_STATE:-unrecorded}
 
   worker-sec:
     profiles: ["workers"]
@@ -116,6 +122,9 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=redpanda:29092
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - RESEARCH_DATABASE_ID=docker-volume:ingestion-data:/app/data/lakehouse.duckdb
+      - COLLECTION_CODE_REVISION=${COLLECTION_CODE_REVISION:-unrecorded}
+      - COLLECTION_WORKTREE_STATE=${COLLECTION_WORKTREE_STATE:-unrecorded}
 
   # Exactly one process per shared DB; acquire ownership before Kafka.
   lakehouse-writer:
@@ -132,9 +141,31 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=redpanda:29092
       - LAKEHOUSE_DB_PATH=/app/data/lakehouse.duckdb
+      - RESEARCH_DATABASE_ID=docker-volume:ingestion-data:/app/data/lakehouse.duckdb
+      - COLLECTION_CODE_REVISION=${COLLECTION_CODE_REVISION:-unrecorded}
+      - COLLECTION_WORKTREE_STATE=${COLLECTION_WORKTREE_STATE:-unrecorded}
       - LAKEHOUSE_GROUP_ID=lakehouse-writer-v1
       - LAKEHOUSE_BATCH_SIZE=500
       - LAKEHOUSE_BATCH_SECONDS=2
+
+  # Read-only audit/export commands use the same image and named data volume as
+  # the writer. Run these only while the writer is stopped.
+  research-tools:
+    profiles: ["tools"]
+    build: .
+    volumes:
+      - ingestion-data:/app/data
+    environment:
+      - LAKEHOUSE_DB_PATH=/app/data/lakehouse.duckdb
+      - RESEARCH_DATABASE_ID=docker-volume:ingestion-data:/app/data/lakehouse.duckdb
+      - COLLECTION_CODE_REVISION=${COLLECTION_CODE_REVISION:-unrecorded}
+      - COLLECTION_WORKTREE_STATE=${COLLECTION_WORKTREE_STATE:-unrecorded}
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:29092
+      - LAKEHOUSE_GROUP_ID=lakehouse-writer-v1
+      - LAKEHOUSE_BATCH_SIZE=500
+      - LAKEHOUSE_BATCH_SECONDS=2
+    entrypoint: ["python"]
+    command: ["-m", "scripts.inspect_research_database"]
 
 volumes:
   redpanda-data:
@@ -142,4 +173,5 @@ volumes:
   redis-data:
     driver: local
   ingestion-data:
-    driver: local
+    name: ingestion-data
+    external: true

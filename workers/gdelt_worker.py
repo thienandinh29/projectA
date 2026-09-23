@@ -44,6 +44,7 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
     """Queries GDELT DOC 2.0 API, deduplicates, and publishes to Redpanda."""
     stats = {"fetched": 0, "duplicates": 0, "published": 0, "queued": 0, "errors": 0}
     stats["_delivery_start"] = producer.delivered_count(TOPIC_GDELT)
+    stats['_cycle_started_at'] = datetime.now(timezone.utc).isoformat()
     producer.retry_pending(TOPIC_GDELT)
 
     params = {
@@ -100,6 +101,14 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
                 continue
 
             event_id = hashlib.sha256((url or title).encode("utf-8")).hexdigest()
+
+            seendate = art.get('seendate', '')
+            source_time, provenance = parse_gdelt_timestamp_with_provenance(seendate)
+            producer.capture_observation(
+                source='GDELT', article_id=event_id, title=title, url=url,
+                source_item=art, title_provenance='source_api',
+                source_time=None if provenance == 'ingestion_fallback' else source_time,
+                source_time_kind='gdelt_seendate', source_time_raw=seendate or None)
 
             # Extract entities BEFORE dedup: Tier 3's entity gate needs them
             # at merge-decision time (no-entity headlines bypass the gate).
@@ -198,6 +207,7 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
 
         logger.info(f"Parsing GDELT GKG batch '{fname}' for macroeconomic events...")
         max_batch = 50
+        captured = 0
 
         with z.open(fname) as f:
             for line_bytes in f:
@@ -222,60 +232,20 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
                 slug_clean = " ".join([w for w in slug.split() if not w.endswith((".html", ".htm", ".php"))])
                 title = slug_clean.capitalize() if len(slug_clean) > 5 else f"[{domain}] Macroeconomic & Policy News"
 
-                # Extract entities BEFORE dedup: Tier 3's entity gate needs them
-                # at merge-decision time (no-entity headlines bypass the gate).
-                tickers = extract_financial_entities(f"{title} {themes}")
+                producer.capture_observation(
+                    source='GDELT', article_id=event_id, title=title, url=url,
+                    source_item={'gkg_row': line_str, 'batch': fname},
+                    title_provenance='url_slug', source_time_kind='gkg_batch_time',
+                    source_time_raw=date_str or None)
 
-                # Check Two-Tier Redis deduplication & near-duplicate clustering
-                result = dedup.check_dedup_result(
-                    event_id, title=title, source="GDELT", tickers=tickers, reserve_for_delivery=True
-                )
-                if result.is_exact:
-                    stats["duplicates"] += 1
-                    continue
-
-                # Parse timestamp YYYYMMDDHHMMSS
-                try:
-                    pub_time = datetime.strptime(date_str, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
-                    pub_time_provenance = 'source_gkg'
-                except Exception:
-                    pub_time = datetime.now(timezone.utc)
-                    pub_time_provenance = 'ingestion_fallback'
-
-                event = CommonEvent(
-                    id=event_id,
-                    source="GDELT",
-                    title=title,
-                    content_snippet=f"Domain: {domain}. Themes: {themes[:120]}...",
-                    url=url,
-                    published_at=pub_time,
-                    tickers_mentioned=tickers,
-                    is_near_duplicate=result.is_near,
-                    canonical_cluster_id=result.canonical_id,
-                    embedding=result.embedding,
-                    semantic_score=result.semantic_score,
-                    metadata={
-                        "domain": domain,
-                        "themes": themes[:250],
-                        "gkg_batch": fname,
-                        "title_provenance": "url_slug",
-                        "published_time_provenance": pub_time_provenance,
-                        "nlp_eligible": False,
-                    }
-                )
-
-
-                if producer.produce_event(TOPIC_GDELT, event):
-                    dedup.confirm_staged(event_id, event.source)
-                    stats["queued"] += 1
-                else:
-                    dedup.release_unstaged(event_id, event.source)
-                    stats["errors"] += 1
-
-                if stats["queued"] >= max_batch:
+                # GKG is evidence only: fabricated headlines must not affect
+                # genuine RSS/DOC clusters or reserve their exact URL IDs.
+                captured += 1
+                if captured >= max_batch:
                     break
 
-        logger.info(f"GDELT GKG stream batch queued: {stats['queued']} events to {TOPIC_GDELT}.")
+        stats['research_captured'] = captured
+        logger.info('Captured %s GKG observations for audit only', captured)
 
     except Exception as e:
         logger.error(f"Error in GDELT raw stream cycle: {e}")

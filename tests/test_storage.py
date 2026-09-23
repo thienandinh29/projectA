@@ -199,7 +199,7 @@ class TestMigration(unittest.TestCase):
             upgraded = LakehouseManager(str(path))
             try:
                 self.assertEqual(upgraded.conn.execute(
-                    'SELECT MAX(version) FROM lakehouse_migrations').fetchone()[0], 4)
+                    'SELECT MAX(version) FROM lakehouse_migrations').fetchone()[0], 5)
                 columns = {row[1] for row in upgraded.conn.execute(
                     "PRAGMA table_info('lakehouse_transport_faults')").fetchall()}
                 self.assertTrue({'last_seen_at','occurrence_count','resolution_note'} <= columns)

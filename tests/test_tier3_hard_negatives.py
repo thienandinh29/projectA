@@ -638,7 +638,7 @@ class TestScanCapParityAndLimitation(unittest.TestCase):
 
 
 class TestEmbeddingModelVersioning(unittest.TestCase):
-    """Backfill migration + explicit opt-in model filter (review round 2)."""
+    """Unknown legacy provenance + explicit opt-in model filter."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -657,11 +657,9 @@ class TestEmbeddingModelVersioning(unittest.TestCase):
         e._embedding = get_embedder_cached().embed_text(title)
         return e
 
-    def test_backfill_stamps_null_model_rows(self):
-        """A pre-existing row with no model stamp must be backfilled at init
-        (only one model has ever produced embeddings in this pipeline)."""
+    def test_reopen_preserves_unknown_model_provenance(self):
+        """Reopening must not invent a model stamp for a legacy vector."""
         from lakehouse.db import LakehouseManager
-        from models.embedder import MODEL_NAME
         from models.event import CommonEvent
 
         e = CommonEvent(id="backfill_1", source="RSS", title="Backfill stamp test headline",
@@ -671,11 +669,11 @@ class TestEmbeddingModelVersioning(unittest.TestCase):
         self.lh.conn.execute("UPDATE silver_financial_news SET embedding_model = NULL WHERE id = 'backfill_1'")
 
         self.lh.close()
-        self.lh = LakehouseManager(db_path=self.db_path)  # re-init runs backfill
+        self.lh = LakehouseManager(db_path=self.db_path)
 
         stamped = self.lh.conn.execute(
             "SELECT embedding_model FROM silver_financial_news WHERE id = 'backfill_1'").fetchone()[0]
-        self.assertEqual(stamped, MODEL_NAME, "pre-existing row was not backfilled")
+        self.assertIsNone(stamped, "unknown legacy model provenance must remain unknown")
 
     def test_model_filter_is_explicit_opt_in(self):
         """No filter -> all embedded rows; explicit filter -> only that model.

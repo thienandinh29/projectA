@@ -19,8 +19,14 @@ class TestWorkerHandoff(unittest.TestCase):
         self.producer._is_confluent = True
         self.producer._producer = MagicMock()
         self.sent = []
+        self.observations = []
         def acknowledge(**kwargs):
-            self.sent.append(parse_event_payload(kwargs['value']))
+            from config import TOPIC_OBSERVATIONS
+            from research.observations import SourceObservation
+            if kwargs['topic'] == TOPIC_OBSERVATIONS:
+                self.observations.append(SourceObservation.model_validate_json(kwargs['value']))
+            else:
+                self.sent.append(parse_event_payload(kwargs['value']))
             kwargs['on_delivery'](None, None)
         self.producer._producer.produce.side_effect = acknowledge
         self.dedup = MagicMock()
@@ -73,6 +79,41 @@ class TestWorkerHandoff(unittest.TestCase):
         self.assertEqual((rss_provenance, gdelt_provenance),
                          ('ingestion_fallback', 'ingestion_fallback'))
 
+    def test_source_version_is_captured_even_when_live_exact_dedup_suppresses_it(self):
+        self.dedup.check_dedup_result.return_value = DedupResult(is_exact=True)
+        with patch.object(rss_worker, 'MACRO_FEEDS', [{'name': 'test', 'url': 'https://example.com/rss'}]), \
+             patch.object(rss_worker.feedparser, 'parse', return_value=self.rss_fixture()):
+            stats = rss_worker.run_rss_fetch_cycle(self.producer, self.dedup)
+        self.assertEqual(stats['duplicates'], 1)
+        self.assertEqual(len(self.observations), 1)
+        self.assertEqual(self.sent, [])
+
+    def test_gkg_fallback_is_preserved_without_touching_headline_dedup(self):
+        import io
+        import zipfile
+        payload = io.BytesIO()
+        with zipfile.ZipFile(payload, 'w') as archive:
+            archive.writestr('fixture.gkg.csv', 'id\t20260901140000\t1\texample.com\thttps://example.com/synthetic-slug\t\t\tECON_INFLATION\n')
+        manifest = MagicMock(status_code=200, text='1 hash http://example.com/fixture.gkg.csv.zip')
+        response = MagicMock(content=payload.getvalue())
+        stats = {'fetched':0, 'duplicates':0, 'published':0, 'queued':0, 'errors':0, '_delivery_start':0}
+        with patch.object(gdelt_worker.requests, 'get', side_effect=[manifest, response]):
+            result = gdelt_worker.run_gdelt_raw_stream_cycle(self.producer, self.dedup, stats)
+        self.assertEqual(result['research_captured'], 1)
+        self.assertEqual(len(self.observations), 1)
+        self.assertFalse(self.observations[0].nlp_eligible)
+        self.assertEqual(self.sent, [])
+        self.dedup.check_dedup_result.assert_not_called()
+
+    def test_source_cycle_evidence_survives_outbox_delivery(self):
+        with patch.object(rss_worker, 'MACRO_FEEDS', [{'name': 'test', 'url': 'https://example.com/rss'}]), \
+             patch.object(rss_worker.feedparser, 'parse', return_value=self.rss_fixture()):
+            rss_worker.run_rss_fetch_cycle(self.producer, self.dedup)
+        with self.producer.outbox.connect() as conn:
+            row = conn.execute('SELECT started_at,finished_at,statistics FROM source_cycles').fetchone()
+        self.assertIsNotNone(row)
+        self.assertLessEqual(datetime.fromisoformat(row[0]), datetime.fromisoformat(row[1]))
+
     def test_local_staging_failure_releases_dedup_reservation(self):
         with patch.object(rss_worker, 'MACRO_FEEDS', [{'name': 'test', 'url': 'https://example.com/rss'}]), \
              patch.object(rss_worker.feedparser, 'parse', return_value=self.rss_fixture()), \
@@ -81,7 +122,9 @@ class TestWorkerHandoff(unittest.TestCase):
         self.assertEqual(stats['published'], 0)
         self.assertEqual(stats['queued'], 0)
         self.assertEqual(stats['errors'], 1)
-        self.dedup.release_unstaged.assert_called_once()
+        # Capture failed before Redis was touched, so there is no reservation.
+        self.dedup.check_dedup_result.assert_not_called()
+        self.dedup.release_unstaged.assert_not_called()
         self.dedup.confirm_staged.assert_not_called()
 
 

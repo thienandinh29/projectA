@@ -1,6 +1,7 @@
 import logging
 import threading
 from collections import Counter
+from datetime import datetime, timezone
 from typing import Optional, Literal
 from models.event import CommonEvent
 from config import KAFKA_BOOTSTRAP_SERVERS, OUTBOX_PATH
@@ -101,6 +102,15 @@ class RedpandaProducer:
         self._queue_pending(topic, event.id, payload)
         return True
 
+    def capture_observation(self, **fields):
+        """Stage the source version durably before a live filter can suppress it."""
+        from config import TOPIC_OBSERVATIONS
+        from research.observations import make_observation
+        observation = make_observation(**fields)
+        if not self.produce_event(TOPIC_OBSERVATIONS, observation):
+            raise OSError('Research observation could not be durably staged')
+        return observation
+
     def _finish_delivery(self, topic, event_id, error=None):
         with self._state_lock:
             if error is None:
@@ -138,6 +148,10 @@ class RedpandaProducer:
 
     def retry_pending(self, topic: str, limit: int = 100):
         """Called each fetch cycle, including after process restart."""
+        from config import TOPIC_OBSERVATIONS
+        if topic != TOPIC_OBSERVATIONS:
+            for pending_topic, event_id, payload in self.outbox.pending(TOPIC_OBSERVATIONS, limit):
+                self._queue_pending(pending_topic, event_id, payload)
         for pending_topic, event_id, payload in self.outbox.pending(topic, limit):
             self._queue_pending(pending_topic, event_id, payload)
 
@@ -149,6 +163,13 @@ class RedpandaProducer:
         self.flush(timeout=5.0)
         stats['published'] = self.delivered_count(topic) - stats.pop('_delivery_start')
         stats['pending_delivery'] = self.outbox.count(topic)
+        from config import TOPIC_OBSERVATIONS
+        stats['research_pending_delivery'] = self.outbox.count(TOPIC_OBSERVATIONS)
+        started_at = stats.pop('_cycle_started_at', None)
+        finished_at = datetime.now(timezone.utc).isoformat()
+        self.outbox.record_cycle(topic, started_at, finished_at, stats)
+        logger.info('Source cycle %s', {'topic': topic, 'started_at': started_at,
+                                       'finished_at': finished_at, **stats})
         return stats
 
     def flush(self, timeout: float = 10.0):

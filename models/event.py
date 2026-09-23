@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, field_serializer
 class CommonEvent(BaseModel):
     """
     Standardized Common Event Format for financial news and regulatory filings.
-    Designed for Point-in-Time Lakehouse storage with zero look-ahead bias
+    Legacy event format for observation-time Lakehouse storage
     and soft deduplication clustering tracking.
     """
     id: str = Field(description="Unique deterministic hash or accession number for deduplication")
