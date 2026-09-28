@@ -39,6 +39,7 @@ class RedpandaProducer:
         self._inflight = set()
         self._delivery_counts = Counter()
         self._state_lock = threading.RLock()
+        self._collection_run = None
 
         # Build configuration based on profile
         base_config = {
@@ -106,7 +107,10 @@ class RedpandaProducer:
         """Stage the source version durably before a live filter can suppress it."""
         from config import TOPIC_OBSERVATIONS
         from research.observations import make_observation
-        observation = make_observation(**fields)
+        from research.provenance import collection_run
+        if self._collection_run is None:
+            self._collection_run = collection_run(self.bootstrap_servers, self.profile)
+        observation = make_observation(**fields, collection_run=self._collection_run)
         if not self.produce_event(TOPIC_OBSERVATIONS, observation):
             raise OSError('Research observation could not be durably staged')
         return observation

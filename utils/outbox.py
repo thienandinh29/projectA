@@ -53,6 +53,8 @@ class DeliveryOutbox:
         with self.connect() as conn:
             conn.execute('DELETE FROM pending WHERE topic=? AND event_id=?', (topic, event_id))
 
-    def count(self, topic):
+    def count(self, topic=None):
         with self.connect() as conn:
+            if topic is None:
+                return conn.execute('SELECT COUNT(*) FROM pending').fetchone()[0]
             return conn.execute('SELECT COUNT(*) FROM pending WHERE topic=?', (topic,)).fetchone()[0]

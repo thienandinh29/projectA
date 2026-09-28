@@ -148,8 +148,8 @@ services:
       - LAKEHOUSE_BATCH_SIZE=500
       - LAKEHOUSE_BATCH_SECONDS=2
 
-  # Read-only audit/export commands use the same image and named data volume as
-  # the writer. Run these only while the writer is stopped.
+  # Built from the same source, but a separate service image: rebuild with workers.
+  # Audit/export require a stopped writer; delivery drain requires a running writer.
   research-tools:
     profiles: ["tools"]
     build: .

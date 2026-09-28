@@ -5,13 +5,13 @@ import importlib.metadata
 import json
 import os
 import platform
-import subprocess
 from pathlib import Path
 
 from lakehouse.db import LakehouseManager
 from lakehouse.migrations import VERSION
 from research.observations import canonical_json
 from research.protocol import PROTOCOL_VERSION, utc
+from research.provenance import code_identity
 
 
 COLLECTION_CONFIG_DEFAULTS = {
@@ -45,24 +45,29 @@ def export_dataset(db_path, output_dir, cutoff):
         lake.close()
     rendered = ''.join(canonical_json({key: value.isoformat() if hasattr(value, 'isoformat') else value
                                       for key, value in row.items()}) + '\n' for row in rows)
-    try:
-        git_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
-        dirty = bool(subprocess.check_output(['git', 'status', '--porcelain'], text=True).strip())
-        diff = subprocess.check_output(['git', '-c', 'core.safecrlf=false', 'diff', 'HEAD', '--binary'])
-    except (OSError, subprocess.CalledProcessError):
-        git_commit, dirty, diff = None, None, b''
+    runs, unknown = {}, 0
+    for row in rows:
+        snapshot = json.loads(row['snapshot']) if isinstance(row['snapshot'], str) else row['snapshot']
+        run = snapshot.get('collection_run')
+        if not run:
+            unknown += 1
+            continue
+        run_id = run['run_id']
+        if run_id in runs and runs[run_id] != run:
+            raise ValueError(f'Conflicting collection provenance for run {run_id}')
+        runs[run_id] = run
     database_path = str(Path(db_path).resolve())
-    collection_revision = os.getenv('COLLECTION_CODE_REVISION') or git_commit
     manifest = {'protocol': PROTOCOL_VERSION, 'cutoff': cutoff.isoformat(),
                 'rows': len(rows), 'dataset_sha256': hashlib.sha256(rendered.encode('utf-8')).hexdigest(),
-                'git_commit': git_commit, 'working_tree_dirty': dirty,
-                'tracked_diff_sha256': hashlib.sha256(diff).hexdigest(),
-                'collection_code_revision': collection_revision,
-                'collection_worktree_state': os.getenv('COLLECTION_WORKTREE_STATE',
-                                                       'dirty' if dirty else 'clean' if dirty is not None else 'unrecorded'),
-                'collection_configuration': {
+                'manifest_version': 2,
+                'exporter_provenance': {'code': code_identity(), 'configuration': {
                     name: os.getenv(name, default)
                     for name, default in COLLECTION_CONFIG_DEFAULTS.items()
+                }},
+                'collection_provenance': {
+                    'basis': 'first persisted observation of each exported version',
+                    'runs': [runs[key] for key in sorted(runs)],
+                    'versions_with_unknown_provenance': unknown,
                 },
                 'database': {'id': os.getenv('RESEARCH_DATABASE_ID', f'file:{database_path}'),
                              'path': database_path, 'schema_version': schema_version,
@@ -77,6 +82,8 @@ def export_dataset(db_path, output_dir, cutoff):
                 'legacy_rows_included': False, 'labels_included': False,
                 'paper_ready': False,
                 'limitations': ['Source snapshots are parsed items, not original HTTP response bytes.',
+                                'Collection runs describe first persisted versions, not every fetch or redelivery; Bronze retains wire evidence.',
+                                'Declared revisions are operator assertions. Application file hashes identify collected code but do not archive it or pin dependencies.',
                                 'Model versions, annotations and experiment results must be recorded separately.',
                                 'A dirty worktree hash does not archive untracked source files. Freeze a clean commit before experiments.']}
     output = Path(output_dir)

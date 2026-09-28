@@ -127,8 +127,8 @@ class TestResearchStorage(unittest.TestCase):
         self.assertEqual(first['database']['sealed_research_versions'], 1)
         self.assertEqual(first['database']['unsealed_research_versions'], 0)
         self.assertTrue(first['database']['id'].startswith('file:'))
-        self.assertEqual(first['collection_configuration']['TOPIC_OBSERVATIONS'],
-                         'financial.research.observations')
+        self.assertEqual(first['collection_provenance']['versions_with_unknown_provenance'], 1)
+        self.assertEqual(first['collection_provenance']['runs'], [])
         with self.assertRaises(FileExistsError):
             export_dataset(self.path, a, T+timedelta(hours=1))
 

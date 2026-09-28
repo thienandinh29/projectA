@@ -207,7 +207,10 @@ reader service are outside this milestone. Start FinBERT/NLP after the data
 readiness checks establish reliable historical input; the storage tests alone
 do not declare the whole collection system complete.
 
-Run `python -m scripts.audit_data_readiness --output docs/data-readiness.json`
+The original host report is retained as `docs/data-readiness-legacy-host-20260915.json`;
+it is not Docker readiness evidence. Follow `docs/research-protocol.md` for the
+current Docker snapshot procedure. For an explicitly selected local database,
+run `python -m scripts.audit_data_readiness --output data/readiness-current.json`
 against the database used by the writer. The automated gates require current
 schema, complete Bronze outcomes, all three sources, no unresolved transport
 fault, a fresh record, a 24-hour collection span and valid canonical references.

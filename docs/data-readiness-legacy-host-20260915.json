@@ -1,4 +1,5 @@
 {
+  "evidence_scope": "Historical host database audit, 2026-09-15. Not the authoritative Docker research database; not current readiness evidence.",
   "generated_at": "2026-09-15T07:06:28.020558+00:00",
   "database": "data\\lakehouse.duckdb",
   "thresholds": {

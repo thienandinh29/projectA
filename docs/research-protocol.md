@@ -83,8 +83,10 @@ Never run two writers against this DuckDB file.
 Run regression and configuration checks before collection:
 
 ```powershell
-python -m unittest tests.test_research_pipeline tests.test_worker_handoff tests.test_storage tests.test_writer tests.test_data_readiness tests.test_pit_leakage -q
+python -m unittest tests.test_checkpoint1_delivery tests.test_delivery_recovery tests.test_research_pipeline tests.test_worker_handoff tests.test_storage tests.test_writer tests.test_data_readiness tests.test_pit_leakage -q
 docker compose --profile workers --profile tools config --quiet
+docker compose --profile workers --profile tools build lakehouse-writer worker-rss worker-gdelt research-tools
+if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
 ```
 
 Start the two Paper 1 headline sources and the writer:
@@ -100,26 +102,53 @@ live-session validation is completed in Checkpoint 3.
 
 ## Consistent snapshot procedure
 
-1. Stop `worker-rss` and `worker-gdelt` so no new collection attempts begin.
-2. Wait for their durable outboxes and the broker backlog to drain; record any
-   remaining backlog. Stop the writer only after draining finishes.
+1. Stop all collectors (including SEC if enabled) so no new collection attempts begin.
+2. Run the bounded delivery-only drain with the writer still running. It retries
+   persisted bytes with all-replica acknowledgements, without fetching sources or
+   re-entering dedup. It checks committed writer offsets against every configured
+   topic partition. Only exit code 0 permits stopping the writer for a snapshot.
 3. Run the readiness audit with the writer stopped.
 4. Export to a new directory using an explicit timezone-aware cutoff.
 5. Compare manifest counts with the audit, retain both outputs, then restart only
    services that were intentionally running before the snapshot.
 
 ```powershell
-docker compose --profile workers stop worker-rss worker-gdelt
+docker compose --profile workers stop worker-rss worker-gdelt worker-sec
+if ($LASTEXITCODE -ne 0) { throw 'Collector stop failed' }
+docker compose --profile tools run --rm --no-deps research-tools -m scripts.drain_delivery --timeout 120
+if ($LASTEXITCODE -ne 0) { throw 'Delivery incomplete: leave writer running, repair and retry' }
 docker compose --profile workers stop lakehouse-writer
+if ($LASTEXITCODE -ne 0) { throw 'Writer stop failed' }
 docker compose --profile tools run --rm --no-deps research-tools -m scripts.audit_data_readiness
+if ($LASTEXITCODE -ne 0) { throw 'Audit failed' }
 docker compose --profile tools run --rm --no-deps research-tools -m scripts.export_research_dataset --cutoff 2026-10-01T00:00:00Z --output-dir /app/data/research/snapshot-001
 ```
 
 The exporter refuses to overwrite an existing snapshot. Its manifest records
 the authoritative database identity and schema, research-version counts, cutoff,
-dataset hash, environment versions, collection revision, and collection tree
-state. A dirty state must be accompanied by an archived source tree or patch;
-a commit identifier alone does not reproduce uncommitted and untracked code.
+dataset hash and exporter provenance separately from collection provenance.
+Each producer creates one run identity at its first research capture. Its actual
+application-file hashes and effective allowlisted settings travel with observations
+and survive outbox retries. The manifest lists runs referenced by exported first
+versions; older versions remain unknown. Run metadata is excluded from content
+identity: restarting a collector must not manufacture a new article version.
+Feed definitions and query constants are covered by application-file hashes.
+`COLLECTION_CODE_REVISION` and `COLLECTION_WORKTREE_STATE` are labeled declarations,
+not verified build identity. Without Git, Git fields are null, not an empty-diff hash.
+Archive the matching source and freeze dependencies before experiments; hashes
+alone cannot recreate code. Rebuild tools with collectors before each code rollout;
+Compose service images are built separately, not guaranteed identical by name.
+
+A failed drain keeps pending messages durable and exits nonzero. Repair broker or
+writer availability and rerun it. Missing topics, missing outbox, unavailable offsets,
+or retention gaps cannot certify completeness. Use the same outbox mount, topic
+configuration and writer group as collection. Drain success proves delivery and
+writer commits, including recorded rejections, not research quality. Keep the audit
+and drain output with each snapshot. Independent outbox paths need separate drains.
+
+`docs/data-readiness-legacy-host-20260915.json` is historical host evidence only.
+`docs/checkpoint1-baseline.md` records the dated Docker initialization baseline.
+Neither is a live readiness claim; generate a new Docker audit for each snapshot.
 
 ## Checkpoint 1 pass condition
 
