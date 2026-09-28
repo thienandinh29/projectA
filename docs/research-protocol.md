@@ -115,7 +115,7 @@ live-session validation is completed in Checkpoint 3.
 ```powershell
 docker compose --profile workers stop worker-rss worker-gdelt worker-sec
 if ($LASTEXITCODE -ne 0) { throw 'Collector stop failed' }
-docker compose --profile tools run --rm --no-deps research-tools -m scripts.drain_delivery --timeout 120
+docker compose --profile tools run --rm --no-deps research-tools -m scripts.drain_delivery --timeout 120 --baseline-path /app/docs/collection-baseline-20260928T084655Z.json
 if ($LASTEXITCODE -ne 0) { throw 'Delivery incomplete: leave writer running, repair and retry' }
 docker compose --profile workers stop lakehouse-writer
 if ($LASTEXITCODE -ne 0) { throw 'Writer stop failed' }
@@ -141,7 +141,11 @@ Compose service images are built separately, not guaranteed identical by name.
 
 A failed drain keeps pending messages durable and exits nonzero. Repair broker or
 writer availability and rerun it. Missing topics, missing outbox, unavailable offsets,
-or retention gaps cannot certify completeness. Use the same outbox mount, topic
+or unprocessed retention gaps cannot certify completeness. The active baseline
+allows a topic with no post-baseline messages to remain complete even when its
+older writer commit is unavailable. Once new messages exist, the writer must commit
+through the broker high watermark. A changed partition set, regressed commit/high
+watermark, or retention passing an unprocessed commit fails. Use the same outbox mount, topic
 configuration and writer group as collection. Drain success proves delivery and
 writer commits, including recorded rejections, not research quality. Keep the audit
 and drain output with each snapshot. Independent outbox paths need separate drains.
@@ -149,6 +153,9 @@ and drain output with each snapshot. Independent outbox paths need separate drai
 `docs/data-readiness-legacy-host-20260915.json` is historical host evidence only.
 `docs/checkpoint1-baseline.md` records the dated Docker initialization baseline.
 Neither is a live readiness claim; generate a new Docker audit for each snapshot.
+The active prospective boundary is recorded in
+`docs/collection-baseline-20260928T084655Z.json`. Earlier records are retained as
+development data and excluded from final evaluation.
 
 ## Checkpoint 1 pass condition
 

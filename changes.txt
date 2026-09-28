@@ -1,678 +1,525 @@
 diff --git a/.env.example b/.env.example
-index e7f3d24..a712ad9 100644
+index a712ad9..b182635 100644
 --- a/.env.example
 +++ b/.env.example
-@@ -29,7 +29,8 @@ DEDUP_RESERVATION_SECONDS=60
- # Continuous writer: 500 / 2s are provisional, not tuned targets.
- LAKEHOUSE_DB_PATH=/app/data/lakehouse.duckdb
- RESEARCH_DATABASE_ID=docker-volume:ingestion-data:/app/data/lakehouse.duckdb
--# Set these in the shell before building/running a collection image.
-+# Optional operator declarations, not verified build identity. Actual collector
-+# file hashes/settings are captured automatically; unavailable Git fields stay null.
+@@ -33,6 +33,7 @@ RESEARCH_DATABASE_ID=docker-volume:ingestion-data:/app/data/lakehouse.duckdb
+ # file hashes/settings are captured automatically; unavailable Git fields stay null.
  COLLECTION_CODE_REVISION=replace-with-git-commit
  COLLECTION_WORKTREE_STATE=clean-or-dirty
++COLLECTION_BASELINE_PATH=/app/docs/collection-baseline-20260928T084655Z.json
  LAKEHOUSE_GROUP_ID=lakehouse-writer-v1
+ LAKEHOUSE_BATCH_SIZE=500
+ LAKEHOUSE_BATCH_SECONDS=2
+diff --git a/ROADMAP.md b/ROADMAP.md
+index a402917..ce14d9b 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -37,6 +37,11 @@ Gate: the collector configuration, writer, readiness audit, and exporter all
+ identify `docker-volume:ingestion-data:/app/data/lakehouse.duckdb`. Its initial
+ state is recorded and a repeatable quiet snapshot procedure is documented.
+ 
++Prospective completeness begins at the active topic/partition boundary in
++`docs/collection-baseline-20260928T084655Z.json`. Earlier records remain available
++for development but are excluded from the final evaluation cohort because their
++complete Kafka delivery history cannot be established.
++
+ ## 2. Complete provenance and session evidence
+ 
+ - Store feed identity or GDELT query configuration, domain/publisher, collector
 diff --git a/docker-compose.yml b/docker-compose.yml
-index aa8a38d..c1dae93 100644
+index c1dae93..dd23060 100644
 --- a/docker-compose.yml
 +++ b/docker-compose.yml
-@@ -148,8 +148,8 @@ services:
+@@ -164,6 +164,7 @@ services:
+       - LAKEHOUSE_GROUP_ID=lakehouse-writer-v1
        - LAKEHOUSE_BATCH_SIZE=500
        - LAKEHOUSE_BATCH_SECONDS=2
++      - COLLECTION_BASELINE_PATH=/app/docs/collection-baseline-20260928T084655Z.json
+     entrypoint: ["python"]
+     command: ["-m", "scripts.inspect_research_database"]
  
--  # Read-only audit/export commands use the same image and named data volume as
--  # the writer. Run these only while the writer is stopped.
-+  # Built from the same source, but a separate service image: rebuild with workers.
-+  # Audit/export require a stopped writer; delivery drain requires a running writer.
-   research-tools:
-     profiles: ["tools"]
-     build: .
-diff --git a/docs/checkpoint1-hardening.md b/docs/checkpoint1-hardening.md
+diff --git a/docs/collection-baseline-20260928T084655Z.json b/docs/collection-baseline-20260928T084655Z.json
 new file mode 100644
-index 0000000..ead8ccf
+index 0000000..58e4fae
 --- /dev/null
-+++ b/docs/checkpoint1-hardening.md
-@@ -0,0 +1,62 @@
-+# Checkpoint 1 follow-up — 2026-09-28
-+
-+Implemented three limited changes:
-+
-+- `scripts.drain_delivery` retries the existing SQLite outbox without fetching
-+  news, then checks writer commits on every configured topic partition. Timeout,
-+  unknown offsets, retention gaps and unmonitored outbox topics do not certify a
-+  completed drain. Stop collectors first; keep the writer running until success.
-+- Collection provenance is captured once per producer run at first observation
-+  and carried inside observation snapshots. The exporter lists the runs attached
-+  to exported first versions separately from its own environment. Older records
-+  remain unknown. Application hashes cover the listed files, including feed/query
-+  definitions; declared Git revisions are not treated as verified identity.
-+- The September 15 host audit is named and labeled as historical evidence.
-+
-+This adds no database migration or new service. Run metadata is repeated in wire
-+snapshots to make each delivery self-contained; it does not change content/version
-+identity. It is not a complete session-coverage ledger: attempts that capture no
-+observations still require the later coverage work. First-version export provenance
-+does not enumerate all redelivery runs; their payloads remain in Bronze.
-+
-+## Verification
-+
-+The following command passed **74 tests** locally on September 28, 2026:
-+
-+```text
-+python -m unittest tests.test_checkpoint1_delivery tests.test_delivery_recovery tests.test_worker_handoff tests.test_research_pipeline tests.test_data_readiness tests.test_storage tests.test_writer tests.test_pit_leakage -q
-+```
-+
-+Regressions include 600 staged messages delivered across multiple batches after
-+a simulated broker failure and process restart; original-byte preservation;
-+writer lag and unavailable-offset refusal; unmonitored topics; legacy observation
-+hash compatibility; and collection provenance surviving storage/export despite
-+different exporter settings. Delivery tests use mocked Kafka callbacks/offsets;
-+they are not a new live Docker outage/recovery experiment.
-+
-+Compose configuration validation and `git diff --check` passed. Docker emitted
-+local config-file permission warnings during configuration validation; no live
-+Docker collection or authoritative readiness audit was performed for this change.
-+
-+Before the next collection session, rebuild collector, writer and tools images
-+together, then use the guarded commands in `docs/research-protocol.md`. A successful
-+drain includes records durably rejected by the writer; inspect the audit as well.
-+These fixes improve snapshot evidence, not dataset size or research readiness.
-+
-+## Review against the roadmap
-+
-+- Checkpoint 1: the diff adds an executable quiet-snapshot boundary and separates
-+  collector evidence from exporter evidence. The authoritative volume and schema
-+  stay unchanged; the renamed host report cannot be mistaken for a current audit.
-+- Checkpoint 2: run identity and settings are an initial contribution only.
-+  Request outcomes, empty/failed attempts, session end and interruption evidence
-+  still need work. This diff does not mark that checkpoint complete.
-+- Checkpoint 3: mocked recovery tests establish local behavior, not live operation.
-+  Scheduled Docker collection, live recovery and count reconciliation remain open.
-+- Checkpoints 4–5: eligibility review, annotation, frozen predictions and research
-+  evaluation are unchanged. No new model or research-readiness claim is introduced.
-+
-+Compatibility: existing observation hashes remain valid and schema v5 is retained.
-+The exported manifest is now version 2 with separate provenance sections. Rebuild
-+the writer together with collectors: an older strict payload validator will reject
-+the newly added optional collection metadata field.
-diff --git a/docs/data-readiness.json b/docs/data-readiness-legacy-host-20260915.json
-similarity index 94%
-rename from docs/data-readiness.json
-rename to docs/data-readiness-legacy-host-20260915.json
-index 370976d..a89fe4c 100644
---- a/docs/data-readiness.json
-+++ b/docs/data-readiness-legacy-host-20260915.json
-@@ -1,4 +1,5 @@
- {
-+  "evidence_scope": "Historical host database audit, 2026-09-15. Not the authoritative Docker research database; not current readiness evidence.",
-   "generated_at": "2026-09-15T07:06:28.020558+00:00",
-   "database": "data\\lakehouse.duckdb",
-   "thresholds": {
++++ b/docs/collection-baseline-20260928T084655Z.json
+@@ -0,0 +1,80 @@
++{
++  "kind": "verified_collection_baseline_v1",
++  "captured_at_utc": "2026-09-28T08:46:55.3953565+00:00",
++  "purpose": "Define the earliest boundary from which future collection completeness may be verified. This record does not prove or restore earlier Kafka history.",
++  "state_during_capture": {
++    "collectors_running": false,
++    "writer_running": false,
++    "shared_outbox_exists": true,
++    "shared_outbox_pending": 0
++  },
++  "repository": {
++    "head": "64a713c4edcd65b6187f1fbf330c2666a594ceaf",
++    "worktree_clean": false,
++    "uncommitted_paths": [
++      "requirements.txt"
++    ],
++    "note": "The uncommitted change adds the timezone dependency required by the read-only audit. Freeze a clean revision before the first post-baseline collection session."
++  },
++  "kafka": {
++    "writer_group": "lakehouse-writer-v1",
++    "total_reported_lag": 0,
++    "partitions": [
++      {
++        "topic": "financial.news.rss",
++        "partition": 0,
++        "retained_start_offset": 255,
++        "high_watermark_next_offset": 354,
++        "writer_committed_next_offset": 354,
++        "post_baseline_start_offset": 354
++      },
++      {
++        "topic": "financial.news.gdelt",
++        "partition": 0,
++        "retained_start_offset": 50,
++        "high_watermark_next_offset": 50,
++        "writer_committed_next_offset": null,
++        "post_baseline_start_offset": 50
++      },
++      {
++        "topic": "financial.filings.sec",
++        "partition": 0,
++        "retained_start_offset": 106,
++        "high_watermark_next_offset": 106,
++        "writer_committed_next_offset": null,
++        "post_baseline_start_offset": 106
++      },
++      {
++        "topic": "financial.research.observations",
++        "partition": 0,
++        "retained_start_offset": 0,
++        "high_watermark_next_offset": 150,
++        "writer_committed_next_offset": 150,
++        "post_baseline_start_offset": 150
++      }
++    ]
++  },
++  "duckdb": {
++    "database_id": "docker-volume:ingestion-data:/app/data/lakehouse.duckdb",
++    "schema_version": 5,
++    "counts": {
++      "bronze_events_raw": 249,
++      "lakehouse_message_outcomes": 249,
++      "silver_financial_news": 99,
++      "silver_sec_filings": 0,
++      "research_observations": 149
++    }
++  },
++  "research_scope": {
++    "records_before_baseline": "development_only",
++    "final_paper_evaluation_eligible_from_utc": "2026-09-28T08:46:55.3953565+00:00",
++    "final_paper_evaluation_eligible_from_offsets": "Use each partition's post_baseline_start_offset, subject to later eligibility, annotation, grouping and freeze gates.",
++    "excluded_history": "Kafka delivery completeness before this boundary is unknown. GDELT offsets below 50 and SEC offsets below 106 are no longer retained and have no writer-group commit evidence."
++  },
++  "activation_gate": {
++    "active": true,
++    "activated_on_utc_date": "2026-09-28",
++    "basis": "Baseline-aware drain tests cover clean completion, no-new-record partitions, writer lag, pending delivery, offset and commit regression, retention overtaking an unprocessed writer, and partition-set changes. A live broker check is required before the first verified collection session.",
++    "limitation": "Activation makes later transport ranges verifiable; it does not make pre-baseline records eligible or complete collection-session provenance."
++  }
++}
+diff --git a/docs/collection-baseline-activation-20260928T091512Z.json b/docs/collection-baseline-activation-20260928T091512Z.json
+new file mode 100644
+index 0000000..178081f
+--- /dev/null
++++ b/docs/collection-baseline-activation-20260928T091512Z.json
+@@ -0,0 +1,53 @@
++{
++  "kind": "collection_baseline_activation_evidence_v1",
++  "activated_at_utc": "2026-09-28T09:15:12.1609720+00:00",
++  "baseline_path": "docs/collection-baseline-20260928T084655Z.json",
++  "baseline_sha256": "69df9108d24aa8ff96befcc6eee6e24faadc3ff6901f41ec10abf4e06947dda4",
++  "verification": {
++    "unit_and_regression_tests": {
++      "passed": 79,
++      "failed": 0,
++      "command": "python -m unittest tests.test_checkpoint1_delivery tests.test_delivery_recovery tests.test_research_pipeline tests.test_worker_handoff tests.test_storage tests.test_writer tests.test_data_readiness tests.test_pit_leakage -q"
++    },
++    "compose_configuration_valid": true,
++    "live_drain": {
++      "exit_code": 0,
++      "outbox_pending": 0,
++      "partitions": {
++        "financial.news.rss:0": {
++          "baseline_next_offset": 354,
++          "broker_high_watermark_next_offset": 354,
++          "writer_committed_next_offset": 354,
++          "post_baseline_messages": 0,
++          "lag": 0,
++          "status": "no_new_records"
++        },
++        "financial.news.gdelt:0": {
++          "baseline_next_offset": 50,
++          "broker_high_watermark_next_offset": 50,
++          "writer_committed_next_offset": null,
++          "post_baseline_messages": 0,
++          "lag": 0,
++          "status": "no_new_records"
++        },
++        "financial.filings.sec:0": {
++          "baseline_next_offset": 106,
++          "broker_high_watermark_next_offset": 106,
++          "writer_committed_next_offset": null,
++          "post_baseline_messages": 0,
++          "lag": 0,
++          "status": "no_new_records"
++        },
++        "financial.research.observations:0": {
++          "baseline_next_offset": 150,
++          "broker_high_watermark_next_offset": 150,
++          "writer_committed_next_offset": 150,
++          "post_baseline_messages": 0,
++          "lag": 0,
++          "status": "no_new_records"
++        }
++      }
++    }
++  },
++  "scope": "This activates the prospective transport boundary. It proves the empty boundary state, not a nonempty collection session, source coverage, or Paper 1 readiness. The first post-baseline session still requires source/session evidence, drain, stopped-writer audit and count reconciliation."
++}
 diff --git a/docs/research-protocol.md b/docs/research-protocol.md
-index 1d9e12c..467fdcc 100644
+index 467fdcc..3580dbd 100644
 --- a/docs/research-protocol.md
 +++ b/docs/research-protocol.md
-@@ -83,8 +83,10 @@ Never run two writers against this DuckDB file.
- Run regression and configuration checks before collection:
- 
+@@ -115,7 +115,7 @@ live-session validation is completed in Checkpoint 3.
  ```powershell
--python -m unittest tests.test_research_pipeline tests.test_worker_handoff tests.test_storage tests.test_writer tests.test_data_readiness tests.test_pit_leakage -q
-+python -m unittest tests.test_checkpoint1_delivery tests.test_delivery_recovery tests.test_research_pipeline tests.test_worker_handoff tests.test_storage tests.test_writer tests.test_data_readiness tests.test_pit_leakage -q
- docker compose --profile workers --profile tools config --quiet
-+docker compose --profile workers --profile tools build lakehouse-writer worker-rss worker-gdelt research-tools
-+if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
- ```
- 
- Start the two Paper 1 headline sources and the writer:
-@@ -100,26 +102,53 @@ live-session validation is completed in Checkpoint 3.
- 
- ## Consistent snapshot procedure
- 
--1. Stop `worker-rss` and `worker-gdelt` so no new collection attempts begin.
--2. Wait for their durable outboxes and the broker backlog to drain; record any
--   remaining backlog. Stop the writer only after draining finishes.
-+1. Stop all collectors (including SEC if enabled) so no new collection attempts begin.
-+2. Run the bounded delivery-only drain with the writer still running. It retries
-+   persisted bytes with all-replica acknowledgements, without fetching sources or
-+   re-entering dedup. It checks committed writer offsets against every configured
-+   topic partition. Only exit code 0 permits stopping the writer for a snapshot.
- 3. Run the readiness audit with the writer stopped.
- 4. Export to a new directory using an explicit timezone-aware cutoff.
- 5. Compare manifest counts with the audit, retain both outputs, then restart only
-    services that were intentionally running before the snapshot.
- 
- ```powershell
--docker compose --profile workers stop worker-rss worker-gdelt
-+docker compose --profile workers stop worker-rss worker-gdelt worker-sec
-+if ($LASTEXITCODE -ne 0) { throw 'Collector stop failed' }
-+docker compose --profile tools run --rm --no-deps research-tools -m scripts.drain_delivery --timeout 120
-+if ($LASTEXITCODE -ne 0) { throw 'Delivery incomplete: leave writer running, repair and retry' }
+ docker compose --profile workers stop worker-rss worker-gdelt worker-sec
+ if ($LASTEXITCODE -ne 0) { throw 'Collector stop failed' }
+-docker compose --profile tools run --rm --no-deps research-tools -m scripts.drain_delivery --timeout 120
++docker compose --profile tools run --rm --no-deps research-tools -m scripts.drain_delivery --timeout 120 --baseline-path /app/docs/collection-baseline-20260928T084655Z.json
+ if ($LASTEXITCODE -ne 0) { throw 'Delivery incomplete: leave writer running, repair and retry' }
  docker compose --profile workers stop lakehouse-writer
-+if ($LASTEXITCODE -ne 0) { throw 'Writer stop failed' }
- docker compose --profile tools run --rm --no-deps research-tools -m scripts.audit_data_readiness
-+if ($LASTEXITCODE -ne 0) { throw 'Audit failed' }
- docker compose --profile tools run --rm --no-deps research-tools -m scripts.export_research_dataset --cutoff 2026-10-01T00:00:00Z --output-dir /app/data/research/snapshot-001
- ```
+ if ($LASTEXITCODE -ne 0) { throw 'Writer stop failed' }
+@@ -141,7 +141,11 @@ Compose service images are built separately, not guaranteed identical by name.
  
- The exporter refuses to overwrite an existing snapshot. Its manifest records
- the authoritative database identity and schema, research-version counts, cutoff,
--dataset hash, environment versions, collection revision, and collection tree
--state. A dirty state must be accompanied by an archived source tree or patch;
--a commit identifier alone does not reproduce uncommitted and untracked code.
-+dataset hash and exporter provenance separately from collection provenance.
-+Each producer creates one run identity at its first research capture. Its actual
-+application-file hashes and effective allowlisted settings travel with observations
-+and survive outbox retries. The manifest lists runs referenced by exported first
-+versions; older versions remain unknown. Run metadata is excluded from content
-+identity: restarting a collector must not manufacture a new article version.
-+Feed definitions and query constants are covered by application-file hashes.
-+`COLLECTION_CODE_REVISION` and `COLLECTION_WORKTREE_STATE` are labeled declarations,
-+not verified build identity. Without Git, Git fields are null, not an empty-diff hash.
-+Archive the matching source and freeze dependencies before experiments; hashes
-+alone cannot recreate code. Rebuild tools with collectors before each code rollout;
-+Compose service images are built separately, not guaranteed identical by name.
-+
-+A failed drain keeps pending messages durable and exits nonzero. Repair broker or
-+writer availability and rerun it. Missing topics, missing outbox, unavailable offsets,
-+or retention gaps cannot certify completeness. Use the same outbox mount, topic
-+configuration and writer group as collection. Drain success proves delivery and
-+writer commits, including recorded rejections, not research quality. Keep the audit
-+and drain output with each snapshot. Independent outbox paths need separate drains.
-+
-+`docs/data-readiness-legacy-host-20260915.json` is historical host evidence only.
-+`docs/checkpoint1-baseline.md` records the dated Docker initialization baseline.
-+Neither is a live readiness claim; generate a new Docker audit for each snapshot.
+ A failed drain keeps pending messages durable and exits nonzero. Repair broker or
+ writer availability and rerun it. Missing topics, missing outbox, unavailable offsets,
+-or retention gaps cannot certify completeness. Use the same outbox mount, topic
++or unprocessed retention gaps cannot certify completeness. The active baseline
++allows a topic with no post-baseline messages to remain complete even when its
++older writer commit is unavailable. Once new messages exist, the writer must commit
++through the broker high watermark. A changed partition set, regressed commit/high
++watermark, or retention passing an unprocessed commit fails. Use the same outbox mount, topic
+ configuration and writer group as collection. Drain success proves delivery and
+ writer commits, including recorded rejections, not research quality. Keep the audit
+ and drain output with each snapshot. Independent outbox paths need separate drains.
+@@ -149,6 +153,9 @@ and drain output with each snapshot. Independent outbox paths need separate drai
+ `docs/data-readiness-legacy-host-20260915.json` is historical host evidence only.
+ `docs/checkpoint1-baseline.md` records the dated Docker initialization baseline.
+ Neither is a live readiness claim; generate a new Docker audit for each snapshot.
++The active prospective boundary is recorded in
++`docs/collection-baseline-20260928T084655Z.json`. Earlier records are retained as
++development data and excluded from final evaluation.
  
  ## Checkpoint 1 pass condition
  
-diff --git a/docs/storage-progress.md b/docs/storage-progress.md
-index 3140702..3d5d88b 100644
---- a/docs/storage-progress.md
-+++ b/docs/storage-progress.md
-@@ -207,7 +207,10 @@ reader service are outside this milestone. Start FinBERT/NLP after the data
- readiness checks establish reliable historical input; the storage tests alone
- do not declare the whole collection system complete.
- 
--Run `python -m scripts.audit_data_readiness --output docs/data-readiness.json`
-+The original host report is retained as `docs/data-readiness-legacy-host-20260915.json`;
-+it is not Docker readiness evidence. Follow `docs/research-protocol.md` for the
-+current Docker snapshot procedure. For an explicitly selected local database,
-+run `python -m scripts.audit_data_readiness --output data/readiness-current.json`
- against the database used by the writer. The automated gates require current
- schema, complete Bronze outcomes, all three sources, no unresolved transport
- fault, a fresh record, a 24-hour collection span and valid canonical references.
-diff --git a/research/observations.py b/research/observations.py
-index 1a79341..ee848bd 100644
---- a/research/observations.py
-+++ b/research/observations.py
-@@ -35,12 +35,13 @@ class SourceObservation(BaseModel):
-     source_item: dict[str, Any]
-     content_hash: str
-     schema_version: Literal['research-v1'] = 'research-v1'
-+    collection_run: dict[str, Any] | None = None
- 
-     @model_validator(mode='after')
-     def verify_identity(self):
-         if not self.article_id.strip():
-             raise ValueError('article_id must not be blank')
--        material = self.model_dump(mode='json', exclude={'id', 'observed_at', 'content_hash'})
-+        material = self.model_dump(mode='json', exclude={'id', 'observed_at', 'content_hash', 'collection_run'})
-         digest = version_hash(material)
-         if self.content_hash != digest or self.id != digest:
-             raise ValueError('Observation content hash or version ID mismatch')
-@@ -58,7 +59,7 @@ class SourceObservation(BaseModel):
- 
- def make_observation(*, source, article_id, title, url, source_item,
-                      title_provenance, source_time=None, source_time_kind='unknown',
--                     source_time_raw=None, observed_at=None):
-+                     source_time_raw=None, observed_at=None, collection_run=None):
-     # Parsed source items, not a claim of original HTTP response-byte capture.
-     item = json.loads(json.dumps(source_item, default=str, ensure_ascii=False, allow_nan=False))
-     values = dict(kind='source_observation_v1', article_id=article_id, source=source,
-@@ -68,7 +69,8 @@ def make_observation(*, source, article_id, title, url, source_item,
-                   schema_version='research-v1')
-     digest = version_hash(values)
-     return SourceObservation(id=digest, content_hash=digest,
--                             observed_at=observed_at or datetime.now(timezone.utc), **values)
-+                             observed_at=observed_at or datetime.now(timezone.utc),
-+                             collection_run=collection_run, **values)
- 
- 
- # The legacy sample is explicitly a labeling pilot, not historical evidence.
-diff --git a/research/provenance.py b/research/provenance.py
-new file mode 100644
-index 0000000..0c9c121
---- /dev/null
-+++ b/research/provenance.py
-@@ -0,0 +1,57 @@
-+"""Capture runtime evidence without treating operator-supplied revisions as proof."""
-+import hashlib
-+import importlib.metadata
-+import json
-+import os
-+import platform
-+import subprocess
-+import uuid
-+from datetime import datetime, timezone
-+from pathlib import Path
-+
-+ROOT = Path(__file__).resolve().parents[1]
-+
-+
-+def code_identity(root=ROOT):
-+    root = Path(root)
-+    # Explicit application scope: no data, credentials, virtualenvs or Git internals.
-+    paths = list(root.glob('*.py'))
-+    for directory in ('workers', 'utils', 'models', 'research', 'lakehouse', 'scripts'):
-+        paths.extend((root / directory).rglob('*.py'))
-+    paths.extend(root / name for name in ('requirements.txt', 'Dockerfile') if (root / name).exists())
-+    files = {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
-+             for p in sorted(paths)}
-+    digest = hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()
-+    try:
-+        def git(*args):
-+            return subprocess.check_output(['git', *args], cwd=root, stderr=subprocess.DEVNULL)
-+        commit = git('rev-parse', 'HEAD').decode().strip()
-+        dirty = bool(git('status', '--porcelain').strip())
-+        diff_hash = hashlib.sha256(git('diff', 'HEAD', '--binary')).hexdigest()
-+    except (OSError, subprocess.CalledProcessError):
-+        commit = dirty = diff_hash = None
-+    return {'application_sha256': digest, 'application_files': files,
-+            'git_commit': commit, 'working_tree_dirty': dirty, 'tracked_diff_sha256': diff_hash,
-+            'python': platform.python_version()}
-+
-+
-+def collection_run(bootstrap_servers, profile):
-+    import config
-+    names = ('TOPIC_RSS', 'TOPIC_GDELT', 'TOPIC_SEC', 'TOPIC_OBSERVATIONS',
-+             'RSS_POLL_INTERVAL_SECONDS', 'GDELT_POLL_INTERVAL_SECONDS', 'SEC_POLL_INTERVAL_SECONDS',
-+             'REDIS_TTL_SECONDS', 'REDIS_LSH_TTL_SECONDS', 'REDIS_SEMANTIC_TTL_SECONDS',
-+             'SEMANTIC_COSINE_THRESHOLD', 'SEMANTIC_SCAN_LIMIT', 'DEDUP_RESERVATION_SECONDS',
-+             'SEC_MAX_REQUESTS_PER_SECOND')
-+    packages = {}
-+    for name in ('confluent-kafka', 'feedparser', 'requests', 'pydantic', 'redis',
-+                 'datasketch', 'fastembed', 'numpy'):
-+        try:
-+            packages[name] = importlib.metadata.version(name)
-+        except importlib.metadata.PackageNotFoundError:
-+            packages[name] = None
-+    return {'run_id': str(uuid.uuid4()), 'started_at': datetime.now(timezone.utc).isoformat(),
-+            'code': code_identity(), 'packages': packages,
-+            'configuration': {**{name: getattr(config, name) for name in names},
-+                              'KAFKA_BOOTSTRAP_SERVERS': bootstrap_servers, 'producer_profile': profile},
-+            'declared_revision': os.getenv('COLLECTION_CODE_REVISION'),
-+            'declared_worktree_state': os.getenv('COLLECTION_WORKTREE_STATE')}
+diff --git a/requirements.txt b/requirements.txt
+index 254cc30..15d96ed 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -4,6 +4,7 @@ feedparser>=6.0.10
+ requests>=2.31.0
+ pydantic>=2.5.0
+ python-dotenv>=1.0.0
++pytz>=2023.3
+ schedule>=1.2.0
+ datasketch>=1.6.4
+ duckdb>=1.1.0
 diff --git a/scripts/drain_delivery.py b/scripts/drain_delivery.py
-new file mode 100644
-index 0000000..2c487df
---- /dev/null
+index 2c487df..0abe0a5 100644
+--- a/scripts/drain_delivery.py
 +++ b/scripts/drain_delivery.py
-@@ -0,0 +1,99 @@
-+"""Retry staged delivery without fetching feeds; wait for durable writer commits.
-+
-+Stop ALL collectors first and leave the writer running. Exit 0 is a delivery
-+boundary, not a payload-quality or research-readiness certificate.
-+"""
-+import argparse
-+import json
-+import math
-+import time
-+from pathlib import Path
-+
-+from config import (OUTBOX_PATH, KAFKA_BOOTSTRAP_SERVERS, LAKEHOUSE_GROUP_ID,
-+                    TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC, TOPIC_OBSERVATIONS)
-+from utils.kafka_producer import RedpandaProducer
-+
-+
-+def writer_backlog(consumer, topics, deadline):
-+    from confluent_kafka import TopicPartition
-+    def budget():
-+        remaining = deadline - time.monotonic()
-+        if remaining <= 0:
-+            raise TimeoutError('Backlog inspection timed out')
-+        return min(5.0, remaining)
-+    metadata = consumer.list_topics(timeout=budget())
-+    partitions = []
-+    for topic in topics:
-+        info = metadata.topics.get(topic)
-+        if info is None or info.error or not info.partitions:
-+            raise RuntimeError(f'Cannot verify topic {topic}')
-+        partitions.extend(TopicPartition(topic, p) for p in info.partitions)
-+    committed = consumer.committed(partitions, timeout=budget())
-+    lag = {}
-+    for p in committed:
-+        if p.error:
-+            raise RuntimeError(str(p.error))
-+        low, high = consumer.get_watermark_offsets(p, timeout=budget(), cached=False)
-+        # Missing commits on a retained nonempty partition are not proof of processing.
-+        if (p.offset < 0 and low > 0) or (0 <= p.offset < low) or p.offset > high:
-+            raise RuntimeError(f'Unverifiable retained history: {p.topic}:{p.partition}')
-+        lag[f'{p.topic}:{p.partition}'] = max(0, high - max(0, p.offset))
-+    if len(lag) != len(partitions):
-+        raise RuntimeError('Incomplete partition offset response')
-+    return lag
-+
-+
-+def drain(producer, backlog, timeout=120, batch_size=256, allowed_topics=None):
-+    if not math.isfinite(timeout) or timeout <= 0 or batch_size < 1:
-+        raise ValueError('Positive timeout and batch size required')
-+    deadline = time.monotonic() + timeout
-+    last_lag, error = None, None
-+    while time.monotonic() < deadline:
-+        for topic, event_id, payload in producer.outbox.pending(limit=batch_size):
-+            if time.monotonic() >= deadline:
-+                break
-+            if allowed_topics is not None and topic not in allowed_topics:
-+                return {'drained': False, 'pending': producer.outbox.count(),
-+                        'writer_lag': last_lag, 'error': f'Unmonitored outbox topic: {topic}'}
-+            producer._queue_pending(topic, event_id, payload)
-+        producer.flush(timeout=max(0, min(1.0, deadline - time.monotonic())))
-+        if producer.outbox.count() == 0:
-+            try:
-+                last_lag = backlog(deadline)
-+                error = None
-+                if last_lag and all(value == 0 for value in last_lag.values()):
-+                    return {'drained': True, 'pending': 0, 'writer_lag': last_lag}
-+            except Exception as exc:
-+                error = str(exc)
-+        time.sleep(max(0, min(.2, deadline - time.monotonic())))
-+    return {'drained': False, 'pending': producer.outbox.count(),
-+            'writer_lag': last_lag, 'error': error or 'Deadline reached; do not snapshot yet'}
-+
-+
-+def main():
-+    parser = argparse.ArgumentParser(description=__doc__)
-+    parser.add_argument('--timeout', type=float, default=120)
-+    parser.add_argument('--outbox-path', default=OUTBOX_PATH)
-+    args = parser.parse_args()
-+    if not math.isfinite(args.timeout) or args.timeout <= 0:
-+        parser.error('--timeout must be finite and positive')
-+    if not Path(args.outbox_path).is_file():
-+        parser.error('Outbox is missing: verify the data mount; do not assume it is empty')
-+    from confluent_kafka import Consumer
-+    # Inspect offsets only: never subscribe/join, consume, or commit in this command.
-+    consumer = Consumer({'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS,
-+                         'group.id': LAKEHOUSE_GROUP_ID, 'enable.auto.commit': False,
-+                         'enable.auto.offset.store': False})
-+    try:
-+        producer = RedpandaProducer(profile='critical', outbox_path=args.outbox_path)
-+        topics = (TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC, TOPIC_OBSERVATIONS)
-+        result = drain(producer, lambda deadline: writer_backlog(consumer,
-+                       topics, deadline), args.timeout, allowed_topics=topics)
-+        print(json.dumps(result, indent=2))
-+    finally:
-+        consumer.close()
-+    raise SystemExit(0 if result['drained'] else 1)
-+
-+
-+if __name__ == '__main__':
-+    main()
-diff --git a/scripts/export_research_dataset.py b/scripts/export_research_dataset.py
-index 802306d..f5c517e 100644
---- a/scripts/export_research_dataset.py
-+++ b/scripts/export_research_dataset.py
-@@ -5,13 +5,13 @@ import importlib.metadata
+@@ -4,8 +4,10 @@ Stop ALL collectors first and leave the writer running. Exit 0 is a delivery
+ boundary, not a payload-quality or research-readiness certificate.
+ """
+ import argparse
++import hashlib
  import json
- import os
- import platform
--import subprocess
+ import math
++import os
+ import time
  from pathlib import Path
  
- from lakehouse.db import LakehouseManager
- from lakehouse.migrations import VERSION
- from research.observations import canonical_json
- from research.protocol import PROTOCOL_VERSION, utc
-+from research.provenance import code_identity
+@@ -14,7 +16,39 @@ from config import (OUTBOX_PATH, KAFKA_BOOTSTRAP_SERVERS, LAKEHOUSE_GROUP_ID,
+ from utils.kafka_producer import RedpandaProducer
  
  
- COLLECTION_CONFIG_DEFAULTS = {
-@@ -45,24 +45,29 @@ def export_dataset(db_path, output_dir, cutoff):
-         lake.close()
-     rendered = ''.join(canonical_json({key: value.isoformat() if hasattr(value, 'isoformat') else value
-                                       for key, value in row.items()}) + '\n' for row in rows)
--    try:
--        git_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
--        dirty = bool(subprocess.check_output(['git', 'status', '--porcelain'], text=True).strip())
--        diff = subprocess.check_output(['git', '-c', 'core.safecrlf=false', 'diff', 'HEAD', '--binary'])
--    except (OSError, subprocess.CalledProcessError):
--        git_commit, dirty, diff = None, None, b''
-+    runs, unknown = {}, 0
-+    for row in rows:
-+        snapshot = json.loads(row['snapshot']) if isinstance(row['snapshot'], str) else row['snapshot']
-+        run = snapshot.get('collection_run')
-+        if not run:
-+            unknown += 1
+-def writer_backlog(consumer, topics, deadline):
++def load_baseline(path, topics, writer_group):
++    path = Path(path)
++    raw = path.read_bytes()
++    document = json.loads(raw)
++    if document.get('kind') != 'verified_collection_baseline_v1':
++        raise ValueError('Baseline kind is not active and supported')
++    if document.get('activation_gate', {}).get('active') is not True:
++        raise ValueError('Baseline activation gate is not active')
++    kafka = document.get('kafka', {})
++    if kafka.get('writer_group') != writer_group:
++        raise ValueError('Baseline writer group does not match configured writer group')
++    configured_topics = set(topics)
++    partitions = {}
++    for item in kafka.get('partitions', []):
++        key = (item.get('topic'), item.get('partition'))
++        start = item.get('post_baseline_start_offset')
++        committed = item.get('writer_committed_next_offset')
++        if key in partitions:
++            raise ValueError(f'Duplicate baseline partition: {key}')
++        if key[0] not in configured_topics or not isinstance(key[1], int) or key[1] < 0:
++            raise ValueError(f'Invalid baseline partition: {key}')
++        if not isinstance(start, int) or start < 0:
++            raise ValueError(f'Invalid baseline start offset: {key}')
++        if committed is not None and (not isinstance(committed, int) or committed < 0):
++            raise ValueError(f'Invalid baseline committed offset: {key}')
++        partitions[key] = {'start': start, 'committed_at_capture': committed}
++    if {topic for topic, _ in partitions} != configured_topics:
++        raise ValueError('Baseline topics do not match configured topics')
++    return {'path': str(path), 'sha256': hashlib.sha256(raw).hexdigest(),
++            'captured_at_utc': document.get('captured_at_utc'), 'partitions': partitions}
++
++
++def writer_backlog(consumer, topics, deadline, baseline_partitions=None):
+     from confluent_kafka import TopicPartition
+     def budget():
+         remaining = deadline - time.monotonic()
+@@ -23,24 +57,70 @@ def writer_backlog(consumer, topics, deadline):
+         return min(5.0, remaining)
+     metadata = consumer.list_topics(timeout=budget())
+     partitions = []
++    actual = set()
+     for topic in topics:
+         info = metadata.topics.get(topic)
+         if info is None or info.error or not info.partitions:
+             raise RuntimeError(f'Cannot verify topic {topic}')
+-        partitions.extend(TopicPartition(topic, p) for p in info.partitions)
++        for partition in info.partitions:
++            actual.add((topic, partition))
++            partitions.append(TopicPartition(topic, partition))
++    if baseline_partitions is not None and actual != set(baseline_partitions):
++        missing = sorted(set(baseline_partitions) - actual)
++        added = sorted(actual - set(baseline_partitions))
++        raise RuntimeError(f'Kafka partition set changed; missing={missing}, added={added}')
+     committed = consumer.committed(partitions, timeout=budget())
+-    lag = {}
++    progress = {}
+     for p in committed:
+         if p.error:
+             raise RuntimeError(str(p.error))
+         low, high = consumer.get_watermark_offsets(p, timeout=budget(), cached=False)
+-        # Missing commits on a retained nonempty partition are not proof of processing.
+-        if (p.offset < 0 and low > 0) or (0 <= p.offset < low) or p.offset > high:
+-            raise RuntimeError(f'Unverifiable retained history: {p.topic}:{p.partition}')
+-        lag[f'{p.topic}:{p.partition}'] = max(0, high - max(0, p.offset))
+-    if len(lag) != len(partitions):
++        key, label = (p.topic, p.partition), f'{p.topic}:{p.partition}'
++        committed_offset = p.offset if p.offset >= 0 else None
++        if baseline_partitions is None:
++            # Legacy whole-retained-log check, kept for callers without a baseline.
++            if (committed_offset is None and low > 0) or (
++                    committed_offset is not None and committed_offset < low) or (
++                    committed_offset is not None and committed_offset > high):
++                raise RuntimeError(f'Unverifiable retained history: {label}')
++            progress[label] = max(0, high - max(0, committed_offset or 0))
 +            continue
-+        run_id = run['run_id']
-+        if run_id in runs and runs[run_id] != run:
-+            raise ValueError(f'Conflicting collection provenance for run {run_id}')
-+        runs[run_id] = run
-     database_path = str(Path(db_path).resolve())
--    collection_revision = os.getenv('COLLECTION_CODE_REVISION') or git_commit
-     manifest = {'protocol': PROTOCOL_VERSION, 'cutoff': cutoff.isoformat(),
-                 'rows': len(rows), 'dataset_sha256': hashlib.sha256(rendered.encode('utf-8')).hexdigest(),
--                'git_commit': git_commit, 'working_tree_dirty': dirty,
--                'tracked_diff_sha256': hashlib.sha256(diff).hexdigest(),
--                'collection_code_revision': collection_revision,
--                'collection_worktree_state': os.getenv('COLLECTION_WORKTREE_STATE',
--                                                       'dirty' if dirty else 'clean' if dirty is not None else 'unrecorded'),
--                'collection_configuration': {
-+                'manifest_version': 2,
-+                'exporter_provenance': {'code': code_identity(), 'configuration': {
-                     name: os.getenv(name, default)
-                     for name, default in COLLECTION_CONFIG_DEFAULTS.items()
-+                }},
-+                'collection_provenance': {
-+                    'basis': 'first persisted observation of each exported version',
-+                    'runs': [runs[key] for key in sorted(runs)],
-+                    'versions_with_unknown_provenance': unknown,
-                 },
-                 'database': {'id': os.getenv('RESEARCH_DATABASE_ID', f'file:{database_path}'),
-                              'path': database_path, 'schema_version': schema_version,
-@@ -77,6 +82,8 @@ def export_dataset(db_path, output_dir, cutoff):
-                 'legacy_rows_included': False, 'labels_included': False,
-                 'paper_ready': False,
-                 'limitations': ['Source snapshots are parsed items, not original HTTP response bytes.',
-+                                'Collection runs describe first persisted versions, not every fetch or redelivery; Bronze retains wire evidence.',
-+                                'Declared revisions are operator assertions. Application file hashes identify collected code but do not archive it or pin dependencies.',
-                                 'Model versions, annotations and experiment results must be recorded separately.',
-                                 'A dirty worktree hash does not archive untracked source files. Freeze a clean commit before experiments.']}
-     output = Path(output_dir)
++        baseline = baseline_partitions[key]
++        start, captured_commit = baseline['start'], baseline['committed_at_capture']
++        if low > high:
++            raise RuntimeError(f'Invalid broker offset range: {label}')
++        if high < start:
++            raise RuntimeError(f'Broker high watermark regressed before baseline: {label}')
++        if captured_commit is not None and (
++                committed_offset is None or committed_offset < captured_commit):
++            raise RuntimeError(f'Writer commit regressed from baseline: {label}')
++        if committed_offset is not None and committed_offset > high:
++            raise RuntimeError(f'Writer commit exceeds broker high watermark: {label}')
++        if high > start and committed_offset is None:
++            raise RuntimeError(f'Post-baseline messages have no writer commit: {label}')
++        if committed_offset is not None and committed_offset < start and high > start:
++            raise RuntimeError(f'Writer commit is behind baseline: {label}')
++        if low > start and (committed_offset is None or committed_offset < low):
++            raise RuntimeError(f'Retention overtook unprocessed post-baseline data: {label}')
++        effective_commit = start if committed_offset is None else max(start, committed_offset)
++        lag = max(0, high - effective_commit)
++        progress[label] = {
++            'baseline_next_offset': start,
++            'retained_start_offset': low,
++            'broker_high_watermark_next_offset': high,
++            'writer_committed_next_offset': committed_offset,
++            'post_baseline_messages': high - start,
++            'lag': lag,
++            'status': 'no_new_records' if high == start else 'complete' if lag == 0 else 'writer_lag',
++        }
++    if len(progress) != len(partitions):
+         raise RuntimeError('Incomplete partition offset response')
+-    return lag
++    return progress
++
++
++def _lag_values(progress):
++    return {key: value['lag'] if isinstance(value, dict) else value
++            for key, value in progress.items()}
+ 
+ 
+ def drain(producer, backlog, timeout=120, batch_size=256, allowed_topics=None):
+@@ -61,24 +141,37 @@ def drain(producer, backlog, timeout=120, batch_size=256, allowed_topics=None):
+             try:
+                 last_lag = backlog(deadline)
+                 error = None
+-                if last_lag and all(value == 0 for value in last_lag.values()):
+-                    return {'drained': True, 'pending': 0, 'writer_lag': last_lag}
++                lags = _lag_values(last_lag)
++                if lags and all(value == 0 for value in lags.values()):
++                    return {'drained': True, 'pending': 0, 'writer_lag': lags,
++                            'writer_progress': last_lag}
+             except Exception as exc:
+                 error = str(exc)
+         time.sleep(max(0, min(.2, deadline - time.monotonic())))
+     return {'drained': False, 'pending': producer.outbox.count(),
+-            'writer_lag': last_lag, 'error': error or 'Deadline reached; do not snapshot yet'}
++            'writer_lag': _lag_values(last_lag) if last_lag else last_lag,
++            'writer_progress': last_lag,
++            'error': error or 'Deadline reached; do not snapshot yet'}
+ 
+ 
+ def main():
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument('--timeout', type=float, default=120)
+     parser.add_argument('--outbox-path', default=OUTBOX_PATH)
++    parser.add_argument('--baseline-path', default=os.getenv('COLLECTION_BASELINE_PATH'),
++                        help='Active collection-baseline JSON (required)')
+     args = parser.parse_args()
+     if not math.isfinite(args.timeout) or args.timeout <= 0:
+         parser.error('--timeout must be finite and positive')
+     if not Path(args.outbox_path).is_file():
+         parser.error('Outbox is missing: verify the data mount; do not assume it is empty')
++    if not args.baseline_path:
++        parser.error('--baseline-path or COLLECTION_BASELINE_PATH is required')
++    topics = (TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC, TOPIC_OBSERVATIONS)
++    try:
++        baseline = load_baseline(args.baseline_path, topics, LAKEHOUSE_GROUP_ID)
++    except (OSError, ValueError, json.JSONDecodeError) as exc:
++        parser.error(f'Invalid baseline: {exc}')
+     from confluent_kafka import Consumer
+     # Inspect offsets only: never subscribe/join, consume, or commit in this command.
+     consumer = Consumer({'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS,
+@@ -86,9 +179,10 @@ def main():
+                          'enable.auto.offset.store': False})
+     try:
+         producer = RedpandaProducer(profile='critical', outbox_path=args.outbox_path)
+-        topics = (TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC, TOPIC_OBSERVATIONS)
+         result = drain(producer, lambda deadline: writer_backlog(consumer,
+-                       topics, deadline), args.timeout, allowed_topics=topics)
++                       topics, deadline, baseline['partitions']),
++                       args.timeout, allowed_topics=topics)
++        result['baseline'] = {key: baseline[key] for key in ('path', 'sha256', 'captured_at_utc')}
+         print(json.dumps(result, indent=2))
+     finally:
+         consumer.close()
 diff --git a/tests/test_checkpoint1_delivery.py b/tests/test_checkpoint1_delivery.py
-new file mode 100644
-index 0000000..17c8dae
---- /dev/null
+index 17c8dae..6ff6b32 100644
+--- a/tests/test_checkpoint1_delivery.py
 +++ b/tests/test_checkpoint1_delivery.py
-@@ -0,0 +1,139 @@
-+"""Snapshot-boundary regressions: failures must never certify completeness."""
-+import json
-+import tempfile
-+import time
-+import unittest
-+from pathlib import Path
-+from types import SimpleNamespace
-+from unittest.mock import MagicMock, patch
-+
-+from research.provenance import code_identity
-+from scripts.drain_delivery import drain, writer_backlog
-+from tests.test_research_pipeline import observation, message, T
-+from tests import test_research_pipeline as research_tests
-+from scripts.export_research_dataset import export_dataset
-+from utils.kafka_producer import RedpandaProducer
-+from datetime import timedelta
-+
-+
-+class TestDrain(unittest.TestCase):
-+    def setUp(self):
-+        self.tmp = tempfile.TemporaryDirectory()
-+        self.path = str(Path(self.tmp.name) / 'outbox.sqlite3')
-+
-+    def tearDown(self):
-+        self.tmp.cleanup()
-+
-+    def producer(self):
-+        with patch.object(RedpandaProducer, '_init_producer'):
-+            producer = RedpandaProducer(outbox_path=self.path, profile='critical')
-+        producer._is_confluent = True
-+        producer._producer = MagicMock()
-+        return producer
-+
-+    def test_offline_timeout_then_new_process_drains_all_batches_original_bytes(self):
-+        first = self.producer()
-+        for i in range(600):
-+            first.outbox.enqueue('observations', str(i), f'original-{i}'.encode())
-+        first._producer.produce.side_effect = lambda **kw: kw['on_delivery']('offline', None)
-+        with patch('utils.kafka_producer.logger'):
-+            result = drain(first, lambda _: {'topic:0': 0}, timeout=.02)
-+        self.assertFalse(result['drained'])
-+        self.assertEqual(first.outbox.count(), 600)
-+        second, received = self.producer(), []
-+        def acknowledge(**kw):
-+            received.append(kw['value'])
-+            kw['on_delivery'](None, None)
-+        second._producer.produce.side_effect = acknowledge
-+        result = drain(second, lambda _: {'topic:0': 0}, timeout=10)
-+        self.assertTrue(result['drained'])
-+        self.assertEqual(received, [f'original-{i}'.encode() for i in range(600)])
-+
-+    def test_empty_outbox_does_not_hide_lag_or_unknown_offsets(self):
-+        producer = self.producer()
-+        self.assertFalse(drain(producer, lambda _: {'topic:0': 1}, timeout=.02)['drained'])
-+        self.assertFalse(drain(producer, lambda _: {}, timeout=.02)['drained'])
-+        def unavailable(_):
-+            raise RuntimeError('broker unavailable')
-+        result = drain(producer, unavailable, timeout=.02)
-+        self.assertFalse(result['drained'])
-+        self.assertIn('unavailable', result['error'])
-+
-+    def test_unmonitored_topic_stays_pending(self):
-+        producer = self.producer()
-+        producer.outbox.enqueue('old-topic', 'one', b'original')
-+        result = drain(producer, lambda _: {'topic:0': 0}, allowed_topics=['topic'])
-+        self.assertFalse(result['drained'])
-+        self.assertEqual(producer.outbox.count(), 1)
-+        producer._producer.produce.assert_not_called()
-+
-+    def test_partition_inspection_never_subscribes_or_commits_and_rejects_retention_gap(self):
+@@ -8,7 +8,7 @@ from types import SimpleNamespace
+ from unittest.mock import MagicMock, patch
+ 
+ from research.provenance import code_identity
+-from scripts.drain_delivery import drain, writer_backlog
++from scripts.drain_delivery import drain, load_baseline, writer_backlog
+ from tests.test_research_pipeline import observation, message, T
+ from tests import test_research_pipeline as research_tests
+ from scripts.export_research_dataset import export_dataset
+@@ -45,7 +45,7 @@ class TestDrain(unittest.TestCase):
+             received.append(kw['value'])
+             kw['on_delivery'](None, None)
+         second._producer.produce.side_effect = acknowledge
+-        result = drain(second, lambda _: {'topic:0': 0}, timeout=10)
++        result = drain(second, lambda _: {'topic:0': 0}, timeout=30)
+         self.assertTrue(result['drained'])
+         self.assertEqual(received, [f'original-{i}'.encode() for i in range(600)])
+ 
+@@ -80,6 +80,80 @@ class TestDrain(unittest.TestCase):
+         consumer.subscribe.assert_not_called()
+         consumer.commit.assert_not_called()
+ 
++    def test_baseline_allows_newly_empty_topic_without_historical_commit(self):
 +        consumer = MagicMock()
-+        consumer.list_topics.return_value.topics = {'topic': SimpleNamespace(error=None, partitions={0: None})}
-+        p = SimpleNamespace(topic='topic', partition=0, offset=4, error=None)
-+        consumer.committed.return_value = [p]
++        consumer.list_topics.return_value.topics = {
++            'topic': SimpleNamespace(error=None, partitions={0: None})}
++        consumer.committed.return_value = [
++            SimpleNamespace(topic='topic', partition=0, offset=-1001, error=None)]
++        consumer.get_watermark_offsets.return_value = (5, 5)
++        baseline = {('topic', 0): {'start': 5, 'committed_at_capture': None}}
++        progress = writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
++        self.assertEqual(progress['topic:0']['status'], 'no_new_records')
++        self.assertEqual(progress['topic:0']['lag'], 0)
++
++    def test_baseline_reports_complete_post_baseline_range(self):
++        consumer = MagicMock()
++        consumer.list_topics.return_value.topics = {
++            'topic': SimpleNamespace(error=None, partitions={0: None})}
++        consumer.committed.return_value = [
++            SimpleNamespace(topic='topic', partition=0, offset=8, error=None)]
++        consumer.get_watermark_offsets.return_value = (5, 8)
++        baseline = {('topic', 0): {'start': 5, 'committed_at_capture': None}}
++        progress = writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
++        self.assertEqual(progress['topic:0']['post_baseline_messages'], 3)
++        self.assertEqual(progress['topic:0']['status'], 'complete')
++
++    def test_baseline_rejects_lag_retention_and_partition_changes(self):
++        consumer = MagicMock()
++        consumer.list_topics.return_value.topics = {
++            'topic': SimpleNamespace(error=None, partitions={0: None})}
++        baseline = {('topic', 0): {'start': 5, 'committed_at_capture': None}}
++        consumer.committed.return_value = [
++            SimpleNamespace(topic='topic', partition=0, offset=6, error=None)]
++        consumer.get_watermark_offsets.return_value = (5, 8)
++        progress = writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
++        self.assertEqual(progress['topic:0']['status'], 'writer_lag')
++        self.assertEqual(progress['topic:0']['lag'], 2)
++        consumer.get_watermark_offsets.return_value = (7, 8)
++        with self.assertRaisesRegex(RuntimeError, 'Retention overtook'):
++            writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
++        consumer.list_topics.return_value.topics['topic'].partitions = {0: None, 1: None}
++        with self.assertRaisesRegex(RuntimeError, 'partition set changed'):
++            writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
++
++    def test_baseline_rejects_offset_or_commit_regression(self):
++        consumer = MagicMock()
++        consumer.list_topics.return_value.topics = {
++            'topic': SimpleNamespace(error=None, partitions={0: None})}
++        baseline = {('topic', 0): {'start': 5, 'committed_at_capture': 5}}
++        consumer.committed.return_value = [
++            SimpleNamespace(topic='topic', partition=0, offset=4, error=None)]
 +        consumer.get_watermark_offsets.return_value = (0, 5)
-+        self.assertEqual(writer_backlog(consumer, ['topic'], time.monotonic()+5), {'topic:0': 1})
-+        consumer.get_watermark_offsets.return_value = (5, 7)
-+        with self.assertRaisesRegex(RuntimeError, 'retained history'):
-+            writer_backlog(consumer, ['topic'], time.monotonic()+5)
-+        consumer.subscribe.assert_not_called()
-+        consumer.commit.assert_not_called()
++        with self.assertRaisesRegex(RuntimeError, 'commit regressed'):
++            writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
++        consumer.committed.return_value[0].offset = 5
++        consumer.get_watermark_offsets.return_value = (0, 4)
++        with self.assertRaisesRegex(RuntimeError, 'watermark regressed'):
++            writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
 +
-+    def test_collection_metadata_survives_staging_and_is_created_once(self):
-+        producer = self.producer()
-+        fields = observation().model_dump()
-+        for name in ('kind', 'id', 'content_hash', 'schema_version', 'collection_run'):
-+            fields.pop(name)
-+        with patch('research.provenance.collection_run', return_value={'run_id': 'collector'}) as capture:
-+            a = producer.capture_observation(**fields)
-+            b = producer.capture_observation(**fields)
-+        capture.assert_called_once()
-+        self.assertEqual(a.id, b.id)
-+        payload = json.loads(producer.outbox.pending()[0][2])
-+        self.assertEqual(payload['collection_run']['run_id'], 'collector')
++    def test_load_baseline_requires_active_matching_group_and_topics(self):
++        path = Path(self.tmp.name) / 'baseline.json'
++        document = {
++            'kind': 'verified_collection_baseline_v1',
++            'captured_at_utc': '2026-09-28T08:46:55Z',
++            'activation_gate': {'active': True},
++            'kafka': {'writer_group': 'writer', 'partitions': [{
++                'topic': 'topic', 'partition': 0, 'post_baseline_start_offset': 5,
++                'writer_committed_next_offset': None}]}}
++        path.write_text(json.dumps(document))
++        loaded = load_baseline(path, ['topic'], 'writer')
++        self.assertEqual(loaded['partitions'][('topic', 0)]['start'], 5)
++        document['activation_gate']['active'] = False
++        path.write_text(json.dumps(document))
++        with self.assertRaisesRegex(ValueError, 'not active'):
++            load_baseline(path, ['topic'], 'writer')
 +
-+
-+class TestProvenance(unittest.TestCase):
-+    def test_no_git_is_unknown_not_empty_diff_and_code_edits_change_identity(self):
-+        with tempfile.TemporaryDirectory() as tmp:
-+            path = Path(tmp) / 'config.py'
-+            path.write_text('setting = 1')
-+            with patch('research.provenance.subprocess.check_output', side_effect=FileNotFoundError):
-+                before = code_identity(tmp)
-+                path.write_text('setting = 2')
-+                after = code_identity(tmp)
-+            self.assertIsNone(before['git_commit'])
-+            self.assertIsNone(before['tracked_diff_sha256'])
-+            self.assertNotEqual(before['application_sha256'], after['application_sha256'])
-+
-+    def test_provenance_does_not_change_content_identity_or_legacy_validation(self):
-+        a = observation()
-+        b = observation(collection_run={'run_id': 'new-session'})
-+        self.assertEqual(a.id, b.id)
-+        from research.observations import SourceObservation
-+        legacy = a.model_dump(mode='json')
-+        legacy.pop('collection_run')
-+        self.assertEqual(SourceObservation.model_validate(legacy).id, b.id)
-+
-+    def test_collection_metadata_survives_storage_export_and_exporter_env_changes(self):
-+        # Reuse storage fixture without inheriting/re-running its entire test suite.
-+        fixture = research_tests.TestResearchStorage()
-+        fixture.setUp()
-+        try:
-+            run = {'run_id': 'real-collector-run', 'configuration': {'TOPIC_RSS': 'captured-topic'}}
-+            fixture.write_at([message(observation(collection_run=run))], T+timedelta(minutes=10))
-+            fixture.write_at([message(observation(collection_run={'run_id': 'later-run'}), 1)],
-+                             T+timedelta(minutes=20))
-+            fixture.lake.close()
-+            with patch.dict('os.environ', {'TOPIC_RSS': 'exporter-topic', 'COLLECTION_CODE_REVISION': 'wrong'}):
-+                manifest = export_dataset(fixture.path, Path(fixture.tmp.name)/'export', T+timedelta(hours=1))
-+            self.assertEqual(manifest['collection_provenance']['runs'], [run])
-+            self.assertEqual(manifest['collection_provenance']['versions_with_unknown_provenance'], 0)
-+            self.assertEqual(manifest['exporter_provenance']['configuration']['TOPIC_RSS'], 'exporter-topic')
-+        finally:
-+            fixture.tearDown()
-+
-+
-+if __name__ == '__main__':
-+    unittest.main()
-diff --git a/tests/test_research_pipeline.py b/tests/test_research_pipeline.py
-index 45f5e18..ef5b69e 100644
---- a/tests/test_research_pipeline.py
-+++ b/tests/test_research_pipeline.py
-@@ -127,8 +127,8 @@ class TestResearchStorage(unittest.TestCase):
-         self.assertEqual(first['database']['sealed_research_versions'], 1)
-         self.assertEqual(first['database']['unsealed_research_versions'], 0)
-         self.assertTrue(first['database']['id'].startswith('file:'))
--        self.assertEqual(first['collection_configuration']['TOPIC_OBSERVATIONS'],
--                         'financial.research.observations')
-+        self.assertEqual(first['collection_provenance']['versions_with_unknown_provenance'], 1)
-+        self.assertEqual(first['collection_provenance']['runs'], [])
-         with self.assertRaises(FileExistsError):
-             export_dataset(self.path, a, T+timedelta(hours=1))
- 
-diff --git a/utils/kafka_producer.py b/utils/kafka_producer.py
-index ac78c53..44e5385 100644
---- a/utils/kafka_producer.py
-+++ b/utils/kafka_producer.py
-@@ -39,6 +39,7 @@ class RedpandaProducer:
-         self._inflight = set()
-         self._delivery_counts = Counter()
-         self._state_lock = threading.RLock()
-+        self._collection_run = None
- 
-         # Build configuration based on profile
-         base_config = {
-@@ -106,7 +107,10 @@ class RedpandaProducer:
-         """Stage the source version durably before a live filter can suppress it."""
-         from config import TOPIC_OBSERVATIONS
-         from research.observations import make_observation
--        observation = make_observation(**fields)
-+        from research.provenance import collection_run
-+        if self._collection_run is None:
-+            self._collection_run = collection_run(self.bootstrap_servers, self.profile)
-+        observation = make_observation(**fields, collection_run=self._collection_run)
-         if not self.produce_event(TOPIC_OBSERVATIONS, observation):
-             raise OSError('Research observation could not be durably staged')
-         return observation
-diff --git a/utils/outbox.py b/utils/outbox.py
-index 89d1f6d..7531008 100644
---- a/utils/outbox.py
-+++ b/utils/outbox.py
-@@ -53,6 +53,8 @@ class DeliveryOutbox:
-         with self.connect() as conn:
-             conn.execute('DELETE FROM pending WHERE topic=? AND event_id=?', (topic, event_id))
- 
--    def count(self, topic):
-+    def count(self, topic=None):
-         with self.connect() as conn:
-+            if topic is None:
-+                return conn.execute('SELECT COUNT(*) FROM pending').fetchone()[0]
-             return conn.execute('SELECT COUNT(*) FROM pending WHERE topic=?', (topic,)).fetchone()[0]
+     def test_collection_metadata_survives_staging_and_is_created_once(self):
+         producer = self.producer()
+         fields = observation().model_dump()

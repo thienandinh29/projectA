@@ -1,0 +1,80 @@
+{
+  "kind": "verified_collection_baseline_v1",
+  "captured_at_utc": "2026-09-28T08:46:55.3953565+00:00",
+  "purpose": "Define the earliest boundary from which future collection completeness may be verified. This record does not prove or restore earlier Kafka history.",
+  "state_during_capture": {
+    "collectors_running": false,
+    "writer_running": false,
+    "shared_outbox_exists": true,
+    "shared_outbox_pending": 0
+  },
+  "repository": {
+    "head": "64a713c4edcd65b6187f1fbf330c2666a594ceaf",
+    "worktree_clean": false,
+    "uncommitted_paths": [
+      "requirements.txt"
+    ],
+    "note": "The uncommitted change adds the timezone dependency required by the read-only audit. Freeze a clean revision before the first post-baseline collection session."
+  },
+  "kafka": {
+    "writer_group": "lakehouse-writer-v1",
+    "total_reported_lag": 0,
+    "partitions": [
+      {
+        "topic": "financial.news.rss",
+        "partition": 0,
+        "retained_start_offset": 255,
+        "high_watermark_next_offset": 354,
+        "writer_committed_next_offset": 354,
+        "post_baseline_start_offset": 354
+      },
+      {
+        "topic": "financial.news.gdelt",
+        "partition": 0,
+        "retained_start_offset": 50,
+        "high_watermark_next_offset": 50,
+        "writer_committed_next_offset": null,
+        "post_baseline_start_offset": 50
+      },
+      {
+        "topic": "financial.filings.sec",
+        "partition": 0,
+        "retained_start_offset": 106,
+        "high_watermark_next_offset": 106,
+        "writer_committed_next_offset": null,
+        "post_baseline_start_offset": 106
+      },
+      {
+        "topic": "financial.research.observations",
+        "partition": 0,
+        "retained_start_offset": 0,
+        "high_watermark_next_offset": 150,
+        "writer_committed_next_offset": 150,
+        "post_baseline_start_offset": 150
+      }
+    ]
+  },
+  "duckdb": {
+    "database_id": "docker-volume:ingestion-data:/app/data/lakehouse.duckdb",
+    "schema_version": 5,
+    "counts": {
+      "bronze_events_raw": 249,
+      "lakehouse_message_outcomes": 249,
+      "silver_financial_news": 99,
+      "silver_sec_filings": 0,
+      "research_observations": 149
+    }
+  },
+  "research_scope": {
+    "records_before_baseline": "development_only",
+    "final_paper_evaluation_eligible_from_utc": "2026-09-28T08:46:55.3953565+00:00",
+    "final_paper_evaluation_eligible_from_offsets": "Use each partition's post_baseline_start_offset, subject to later eligibility, annotation, grouping and freeze gates.",
+    "excluded_history": "Kafka delivery completeness before this boundary is unknown. GDELT offsets below 50 and SEC offsets below 106 are no longer retained and have no writer-group commit evidence."
+  },
+  "activation_gate": {
+    "active": true,
+    "activated_on_utc_date": "2026-09-28",
+    "basis": "Baseline-aware drain tests cover clean completion, no-new-record partitions, writer lag, pending delivery, offset and commit regression, retention overtaking an unprocessed writer, and partition-set changes. A live broker check is required before the first verified collection session.",
+    "limitation": "Activation makes later transport ranges verifiable; it does not make pre-baseline records eligible or complete collection-session provenance."
+  }
+}

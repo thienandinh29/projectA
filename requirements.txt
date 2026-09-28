@@ -4,6 +4,7 @@ feedparser>=6.0.10
 requests>=2.31.0
 pydantic>=2.5.0
 python-dotenv>=1.0.0
+pytz>=2023.3
 schedule>=1.2.0
 datasketch>=1.6.4
 duckdb>=1.1.0

@@ -1,0 +1,53 @@
+{
+  "kind": "collection_baseline_activation_evidence_v1",
+  "activated_at_utc": "2026-09-28T09:15:12.1609720+00:00",
+  "baseline_path": "docs/collection-baseline-20260928T084655Z.json",
+  "baseline_sha256": "69df9108d24aa8ff96befcc6eee6e24faadc3ff6901f41ec10abf4e06947dda4",
+  "verification": {
+    "unit_and_regression_tests": {
+      "passed": 79,
+      "failed": 0,
+      "command": "python -m unittest tests.test_checkpoint1_delivery tests.test_delivery_recovery tests.test_research_pipeline tests.test_worker_handoff tests.test_storage tests.test_writer tests.test_data_readiness tests.test_pit_leakage -q"
+    },
+    "compose_configuration_valid": true,
+    "live_drain": {
+      "exit_code": 0,
+      "outbox_pending": 0,
+      "partitions": {
+        "financial.news.rss:0": {
+          "baseline_next_offset": 354,
+          "broker_high_watermark_next_offset": 354,
+          "writer_committed_next_offset": 354,
+          "post_baseline_messages": 0,
+          "lag": 0,
+          "status": "no_new_records"
+        },
+        "financial.news.gdelt:0": {
+          "baseline_next_offset": 50,
+          "broker_high_watermark_next_offset": 50,
+          "writer_committed_next_offset": null,
+          "post_baseline_messages": 0,
+          "lag": 0,
+          "status": "no_new_records"
+        },
+        "financial.filings.sec:0": {
+          "baseline_next_offset": 106,
+          "broker_high_watermark_next_offset": 106,
+          "writer_committed_next_offset": null,
+          "post_baseline_messages": 0,
+          "lag": 0,
+          "status": "no_new_records"
+        },
+        "financial.research.observations:0": {
+          "baseline_next_offset": 150,
+          "broker_high_watermark_next_offset": 150,
+          "writer_committed_next_offset": 150,
+          "post_baseline_messages": 0,
+          "lag": 0,
+          "status": "no_new_records"
+        }
+      }
+    }
+  },
+  "scope": "This activates the prospective transport boundary. It proves the empty boundary state, not a nonempty collection session, source coverage, or Paper 1 readiness. The first post-baseline session still requires source/session evidence, drain, stopped-writer audit and count reconciliation."
+}

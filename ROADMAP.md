@@ -37,6 +37,11 @@ Gate: the collector configuration, writer, readiness audit, and exporter all
 identify `docker-volume:ingestion-data:/app/data/lakehouse.duckdb`. Its initial
 state is recorded and a repeatable quiet snapshot procedure is documented.
 
+Prospective completeness begins at the active topic/partition boundary in
+`docs/collection-baseline-20260928T084655Z.json`. Earlier records remain available
+for development but are excluded from the final evaluation cohort because their
+complete Kafka delivery history cannot be established.
+
 ## 2. Complete provenance and session evidence
 
 - Store feed identity or GDELT query configuration, domain/publisher, collector

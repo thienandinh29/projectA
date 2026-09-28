@@ -164,6 +164,7 @@ services:
       - LAKEHOUSE_GROUP_ID=lakehouse-writer-v1
       - LAKEHOUSE_BATCH_SIZE=500
       - LAKEHOUSE_BATCH_SECONDS=2
+      - COLLECTION_BASELINE_PATH=/app/docs/collection-baseline-20260928T084655Z.json
     entrypoint: ["python"]
     command: ["-m", "scripts.inspect_research_database"]
 

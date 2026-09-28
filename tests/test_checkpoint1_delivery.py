@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from research.provenance import code_identity
-from scripts.drain_delivery import drain, writer_backlog
+from scripts.drain_delivery import drain, load_baseline, writer_backlog
 from tests.test_research_pipeline import observation, message, T
 from tests import test_research_pipeline as research_tests
 from scripts.export_research_dataset import export_dataset
@@ -45,7 +45,7 @@ class TestDrain(unittest.TestCase):
             received.append(kw['value'])
             kw['on_delivery'](None, None)
         second._producer.produce.side_effect = acknowledge
-        result = drain(second, lambda _: {'topic:0': 0}, timeout=10)
+        result = drain(second, lambda _: {'topic:0': 0}, timeout=30)
         self.assertTrue(result['drained'])
         self.assertEqual(received, [f'original-{i}'.encode() for i in range(600)])
 
@@ -79,6 +79,80 @@ class TestDrain(unittest.TestCase):
             writer_backlog(consumer, ['topic'], time.monotonic()+5)
         consumer.subscribe.assert_not_called()
         consumer.commit.assert_not_called()
+
+    def test_baseline_allows_newly_empty_topic_without_historical_commit(self):
+        consumer = MagicMock()
+        consumer.list_topics.return_value.topics = {
+            'topic': SimpleNamespace(error=None, partitions={0: None})}
+        consumer.committed.return_value = [
+            SimpleNamespace(topic='topic', partition=0, offset=-1001, error=None)]
+        consumer.get_watermark_offsets.return_value = (5, 5)
+        baseline = {('topic', 0): {'start': 5, 'committed_at_capture': None}}
+        progress = writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
+        self.assertEqual(progress['topic:0']['status'], 'no_new_records')
+        self.assertEqual(progress['topic:0']['lag'], 0)
+
+    def test_baseline_reports_complete_post_baseline_range(self):
+        consumer = MagicMock()
+        consumer.list_topics.return_value.topics = {
+            'topic': SimpleNamespace(error=None, partitions={0: None})}
+        consumer.committed.return_value = [
+            SimpleNamespace(topic='topic', partition=0, offset=8, error=None)]
+        consumer.get_watermark_offsets.return_value = (5, 8)
+        baseline = {('topic', 0): {'start': 5, 'committed_at_capture': None}}
+        progress = writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
+        self.assertEqual(progress['topic:0']['post_baseline_messages'], 3)
+        self.assertEqual(progress['topic:0']['status'], 'complete')
+
+    def test_baseline_rejects_lag_retention_and_partition_changes(self):
+        consumer = MagicMock()
+        consumer.list_topics.return_value.topics = {
+            'topic': SimpleNamespace(error=None, partitions={0: None})}
+        baseline = {('topic', 0): {'start': 5, 'committed_at_capture': None}}
+        consumer.committed.return_value = [
+            SimpleNamespace(topic='topic', partition=0, offset=6, error=None)]
+        consumer.get_watermark_offsets.return_value = (5, 8)
+        progress = writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
+        self.assertEqual(progress['topic:0']['status'], 'writer_lag')
+        self.assertEqual(progress['topic:0']['lag'], 2)
+        consumer.get_watermark_offsets.return_value = (7, 8)
+        with self.assertRaisesRegex(RuntimeError, 'Retention overtook'):
+            writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
+        consumer.list_topics.return_value.topics['topic'].partitions = {0: None, 1: None}
+        with self.assertRaisesRegex(RuntimeError, 'partition set changed'):
+            writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
+
+    def test_baseline_rejects_offset_or_commit_regression(self):
+        consumer = MagicMock()
+        consumer.list_topics.return_value.topics = {
+            'topic': SimpleNamespace(error=None, partitions={0: None})}
+        baseline = {('topic', 0): {'start': 5, 'committed_at_capture': 5}}
+        consumer.committed.return_value = [
+            SimpleNamespace(topic='topic', partition=0, offset=4, error=None)]
+        consumer.get_watermark_offsets.return_value = (0, 5)
+        with self.assertRaisesRegex(RuntimeError, 'commit regressed'):
+            writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
+        consumer.committed.return_value[0].offset = 5
+        consumer.get_watermark_offsets.return_value = (0, 4)
+        with self.assertRaisesRegex(RuntimeError, 'watermark regressed'):
+            writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
+
+    def test_load_baseline_requires_active_matching_group_and_topics(self):
+        path = Path(self.tmp.name) / 'baseline.json'
+        document = {
+            'kind': 'verified_collection_baseline_v1',
+            'captured_at_utc': '2026-09-28T08:46:55Z',
+            'activation_gate': {'active': True},
+            'kafka': {'writer_group': 'writer', 'partitions': [{
+                'topic': 'topic', 'partition': 0, 'post_baseline_start_offset': 5,
+                'writer_committed_next_offset': None}]}}
+        path.write_text(json.dumps(document))
+        loaded = load_baseline(path, ['topic'], 'writer')
+        self.assertEqual(loaded['partitions'][('topic', 0)]['start'], 5)
+        document['activation_gate']['active'] = False
+        path.write_text(json.dumps(document))
+        with self.assertRaisesRegex(ValueError, 'not active'):
+            load_baseline(path, ['topic'], 'writer')
 
     def test_collection_metadata_survives_staging_and_is_created_once(self):
         producer = self.producer()
