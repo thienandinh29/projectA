@@ -201,7 +201,7 @@ class TestProvenance(unittest.TestCase):
                              T+timedelta(minutes=20))
             fixture.lake.close()
             with patch.dict('os.environ', {'TOPIC_RSS': 'exporter-topic', 'COLLECTION_CODE_REVISION': 'wrong'}):
-                manifest = export_dataset(fixture.path, Path(fixture.tmp.name)/'export', T+timedelta(hours=1))
+                manifest = export_dataset(fixture.path, Path(fixture.tmp.name)/'export', T+timedelta(hours=1), development=True)
             self.assertEqual(manifest['collection_provenance']['runs'], [run])
             self.assertEqual(manifest['collection_provenance']['versions_with_unknown_provenance'], 0)
             self.assertEqual(manifest['exporter_provenance']['configuration']['TOPIC_RSS'], 'exporter-topic')

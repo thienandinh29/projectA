@@ -1,11 +1,9 @@
-import sys
 import time
 import hashlib
 import logging
-import signal
-import argparse
 from datetime import datetime, timezone
 import requests
+from urllib.parse import urlsplit
 
 from config import (
     TOPIC_GDELT,
@@ -45,6 +43,8 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
     stats = {"fetched": 0, "duplicates": 0, "published": 0, "queued": 0, "errors": 0}
     stats["_delivery_start"] = producer.delivered_count(TOPIC_GDELT)
     stats['_cycle_started_at'] = datetime.now(timezone.utc).isoformat()
+    session = producer.start_session(TOPIC_GDELT, {'endpoint': GDELT_DOC_API, 'query': MACRO_QUERY,
+                                                 'maxrecords': 50, 'fallback': 'GKG audit only'})
     producer.retry_pending(TOPIC_GDELT)
 
     params = {
@@ -57,8 +57,11 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
 
     logger.info(f"Querying GDELT DOC 2.0 API with query: {MACRO_QUERY}...")
     max_retries = 3
-    resp = None
+    articles = None
     for attempt in range(1, max_retries + 1):
+        request_id = session.begin_request(GDELT_DOC_API, {'params': params, 'attempt': attempt,
+                                                         'timeout_seconds': 15})
+        r = None
         try:
             r = requests.get(
                 GDELT_DOC_API,
@@ -66,30 +69,36 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
                 headers={"User-Agent": "FinancialIngestionWorker/1.0"},
                 timeout=15.0
             )
-            if r.status_code == 429:
-                logger.warning(f"GDELT rate limit (429) hit. Waiting 6 seconds before retry {attempt}/{max_retries}...")
-                time.sleep(6.0)
-                continue
-            if r.status_code != 200:
-                logger.warning(f"GDELT API returned status {r.status_code}: {r.text[:200]}")
-                stats["errors"] += 1
-                return producer.finish_cycle(TOPIC_GDELT, stats)
-            resp = r
-            break
+            r.raise_for_status()
+            data = r.json()
+            if not isinstance(data, dict) or not isinstance(data.get('articles'), list):
+                raise ValueError('GDELT response requires an articles list')
+            if not all(isinstance(art, dict) for art in data['articles']):
+                raise ValueError('GDELT articles must be objects')
+            articles = data['articles']
         except Exception as e:
-            if attempt == max_retries:
-                logger.error(f"Error querying GDELT API: {e}")
-                stats["errors"] += 1
-                return producer.finish_cycle(TOPIC_GDELT, stats)
-            time.sleep(3.0)
+            status = r.status_code if r is not None else None
+            session.finish_request(request_id, 'failed', http_status=status,
+                                   error=f'{type(e).__name__}: {e}',
+                                   response_excerpt=r.text[:200] if r is not None else None)
+            stats['errors'] += 1
+            logger.warning('GDELT DOC attempt %s/%s failed (HTTP %s): %s', attempt, max_retries, status, e)
+            # Retrying permanent HTTP errors will not help. Preserve the failure
+            # and the separate fallback outcome, rather than relabeling as 429.
+            if status is not None and status not in (429, 500, 502, 503, 504):
+                break
+            if attempt < max_retries:
+                time.sleep(6 if status == 429 else 3)
+        else:
+            session.finish_request(request_id, 'success' if articles else 'empty',
+                                   http_status=r.status_code, item_count=len(articles))
+            break
 
-    if resp is None or not (resp_text := resp.text.strip()).startswith(("{", "[")):
-        logger.warning("GDELT DOC 2.0 API is rate-limited (HTTP 429). Falling back to GDELT 15-minute Realtime GKG Stream...")
+    if articles is None:
+        logger.warning('GDELT DOC unavailable; trying GKG as separate audit-only coverage')
         return run_gdelt_raw_stream_cycle(producer, dedup, stats)
 
     try:
-        data = resp.json()
-        articles = data.get("articles", [])
         stats["fetched"] = len(articles)
         logger.info(f"Retrieved {len(articles)} articles from GDELT.")
 
@@ -108,6 +117,7 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
                 source='GDELT', article_id=event_id, title=title, url=url,
                 source_item=art, title_provenance='source_api',
                 source_time=None if provenance == 'ingestion_fallback' else source_time,
+                request_context=session.context(request_id, art.get('domain') or urlsplit(url).hostname),
                 source_time_kind='gdelt_seendate', source_time_raw=seendate or None)
 
             # Extract entities BEFORE dedup: Tier 3's entity gate needs them
@@ -160,6 +170,7 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
                 stats["errors"] += 1
 
     except Exception as e:
+        session.event('processing_error', request_id=request_id, error=f'{type(e).__name__}: {e}')
         logger.error(f"Error processing GDELT response: {e}")
         stats["errors"] += 1
 
@@ -169,22 +180,24 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
 def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator, stats: dict) -> dict:
     """
     Fallback Ingestion from GDELT 15-minute Realtime GKG Stream.
-    This endpoint (http://data.gdeltproject.org/gdeltv2/lastupdate.txt) is updated
-    every 15 minutes and is never blocked by IP rate-limits.
+    Synthetic GKG titles are audit only. Requests may fail independently of DOC.
     """
     import io
     import zipfile
 
-    GDELT_LASTUPDATE_URL = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt"
+    GDELT_LASTUPDATE_URL = "https://data.gdeltproject.org/gdeltv2/lastupdate.txt"
     ECON_THEMES = ["ECON_", "INFLATION", "CENTRAL_BANK", "EPU_ECONOMY", "WB_1104_MACROECONOMIC", "UNEMPLOYMENT"]
 
+    session = producer.start_session(TOPIC_GDELT, {'endpoint': GDELT_DOC_API, 'query': MACRO_QUERY,
+                                                 'maxrecords': 50, 'fallback': 'GKG audit only'})
+    request_id = session.begin_request(GDELT_LASTUPDATE_URL, {'purpose': 'GKG manifest', 'timeout_seconds': 10})
+    request_finished = False
+    status = None
     try:
         logger.info(f"Fetching GDELT Realtime manifest from {GDELT_LASTUPDATE_URL}...")
         resp = requests.get(GDELT_LASTUPDATE_URL, timeout=10.0)
-        if resp.status_code != 200:
-            logger.error(f"Failed to fetch GDELT lastupdate.txt: HTTP {resp.status_code}")
-            stats["errors"] += 1
-            return producer.finish_cycle(TOPIC_GDELT, stats)
+        status = resp.status_code
+        resp.raise_for_status()
 
         # Lines format: <size> <md5> <url>
         lines = resp.text.strip().split("\n")
@@ -196,12 +209,22 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
                 break
 
         if not gkg_url:
-            logger.error("Could not locate GKG file in GDELT lastupdate.txt")
-            stats["errors"] += 1
-            return producer.finish_cycle(TOPIC_GDELT, stats)
+            raise ValueError('Could not locate GKG file in manifest')
+
+        session.finish_request(request_id, 'success', http_status=status, item_count=len(lines))
+        request_finished = True
+        manifest_request_id = request_id
+        request_id = session.begin_request(gkg_url, {'purpose': 'GKG audit only',
+                                                    'manifest_request_id': manifest_request_id,
+                                                    'max_captured': 50, 'themes': ECON_THEMES,
+                                                    'timeout_seconds': 30})
+        request_finished = False
+        status = None
 
         logger.info(f"Downloading GDELT Realtime GKG batch: {gkg_url}...")
         zip_resp = requests.get(gkg_url, timeout=30.0)
+        status = zip_resp.status_code
+        zip_resp.raise_for_status()
         z = zipfile.ZipFile(io.BytesIO(zip_resp.content))
         fname = z.namelist()[0]
 
@@ -235,6 +258,7 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
                 producer.capture_observation(
                     source='GDELT', article_id=event_id, title=title, url=url,
                     source_item={'gkg_row': line_str, 'batch': fname},
+                    request_context=session.context(request_id, urlsplit(url).hostname),
                     title_provenance='url_slug', source_time_kind='gkg_batch_time',
                     source_time_raw=date_str or None)
 
@@ -245,9 +269,15 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
                     break
 
         stats['research_captured'] = captured
+        session.finish_request(request_id, 'success' if captured else 'empty', http_status=status,
+                               item_count=captured, capped=captured >= max_batch,
+                               count_basis='selected economic rows, not total archive rows')
+        request_finished = True
         logger.info('Captured %s GKG observations for audit only', captured)
 
     except Exception as e:
+        if not request_finished:
+            session.finish_request(request_id, 'failed', http_status=status, error=f'{type(e).__name__}: {e}')
         logger.error(f"Error in GDELT raw stream cycle: {e}")
         stats["errors"] += 1
 
@@ -255,45 +285,9 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
 
 
 def main():
-    parser = argparse.ArgumentParser(description="GDELT DOC 2.0 Ingestion Worker")
-    parser.add_argument("--once", action="store_true", help="Run a single fetch cycle and exit")
-    args = parser.parse_args()
-
-    producer = RedpandaProducer(profile="fast")
-    dedup = RedisDeduplicator()
-
-    if not dedup.ping():
-        logger.warning("Redis is currently not reachable.")
-
-    stop_requested = False
-
-    def handle_signal(signum, frame):
-        nonlocal stop_requested
-        logger.info("Termination signal received. Shutting down GDELT Worker...")
-        stop_requested = True
-
-    signal.signal(signal.SIGINT, handle_signal)
-    signal.signal(signal.SIGTERM, handle_signal)
-
-    logger.info(f"GDELT Worker started (Topic: {TOPIC_GDELT}, Interval: {GDELT_POLL_INTERVAL_SECONDS}s)")
-
-    while not stop_requested:
-        stats = run_gdelt_fetch_cycle(producer, dedup)
-        logger.info(
-            f"GDELT Cycle: Fetched={stats['fetched']}, Duplicates={stats['duplicates']}, "
-            f"Published={stats['published']}, Errors={stats['errors']}"
-        )
-
-        if args.once:
-            break
-
-        for _ in range(GDELT_POLL_INTERVAL_SECONDS):
-            if stop_requested:
-                break
-            time.sleep(1)
-
-    producer.flush(timeout=5.0)
-    logger.info("GDELT Worker exited cleanly.")
+    from utils.collector_lifecycle import run_collector
+    run_collector('gdelt_worker', TOPIC_GDELT, GDELT_POLL_INTERVAL_SECONDS,
+                  {'endpoint': GDELT_DOC_API, 'query': MACRO_QUERY, 'maxrecords': 50, 'fallback': 'GKG audit only'}, run_gdelt_fetch_cycle)
 
 
 if __name__ == "__main__":

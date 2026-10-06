@@ -118,8 +118,8 @@ class TestResearchStorage(unittest.TestCase):
         # Close the writer before an independent read-only connection.
         self.lake.close()
         a, b = Path(self.tmp.name)/'a', Path(self.tmp.name)/'b'
-        first = export_dataset(self.path, a, T+timedelta(hours=1))
-        second = export_dataset(self.path, b, T+timedelta(hours=1))
+        first = export_dataset(self.path, a, T+timedelta(hours=1), development=True)
+        second = export_dataset(self.path, b, T+timedelta(hours=1), development=True)
         self.assertEqual(first['dataset_sha256'], second['dataset_sha256'])
         self.assertEqual(first['rows'], 1)
         self.assertEqual(first['database']['schema_version'], 5)
@@ -130,7 +130,7 @@ class TestResearchStorage(unittest.TestCase):
         self.assertEqual(first['collection_provenance']['versions_with_unknown_provenance'], 1)
         self.assertEqual(first['collection_provenance']['runs'], [])
         with self.assertRaises(FileExistsError):
-            export_dataset(self.path, a, T+timedelta(hours=1))
+            export_dataset(self.path, a, T+timedelta(hours=1), development=True)
 
     def test_pilot_export_and_audit_share_eligibility(self):
         self.lake.write_message_batch([

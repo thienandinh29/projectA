@@ -1,525 +1,2192 @@
-diff --git a/.env.example b/.env.example
-index a712ad9..b182635 100644
---- a/.env.example
-+++ b/.env.example
-@@ -33,6 +33,7 @@ RESEARCH_DATABASE_ID=docker-volume:ingestion-data:/app/data/lakehouse.duckdb
- # file hashes/settings are captured automatically; unavailable Git fields stay null.
- COLLECTION_CODE_REVISION=replace-with-git-commit
- COLLECTION_WORKTREE_STATE=clean-or-dirty
-+COLLECTION_BASELINE_PATH=/app/docs/collection-baseline-20260928T084655Z.json
- LAKEHOUSE_GROUP_ID=lakehouse-writer-v1
- LAKEHOUSE_BATCH_SIZE=500
- LAKEHOUSE_BATCH_SECONDS=2
 diff --git a/ROADMAP.md b/ROADMAP.md
-index a402917..ce14d9b 100644
+index ce14d9b..1b893ce 100644
 --- a/ROADMAP.md
 +++ b/ROADMAP.md
-@@ -37,6 +37,11 @@ Gate: the collector configuration, writer, readiness audit, and exporter all
- identify `docker-volume:ingestion-data:/app/data/lakehouse.duckdb`. Its initial
- state is recorded and a repeatable quiet snapshot procedure is documented.
+@@ -41,6 +41,10 @@ Prospective completeness begins at the active topic/partition boundary in
+ `docs/collection-baseline-20260928T084655Z.json`. Earlier records remain available
+ for development but are excluded from the final evaluation cohort because their
+ complete Kafka delivery history cannot be established.
++Prospective exports enforce this boundary using both first-version transport
++coordinates and observation/availability times, then reconcile saved drain ranges
++against stored raw deliveries and outcomes. Development exports require an
++explicit mode and cannot be mistaken for the prospective cohort.
  
-+Prospective completeness begins at the active topic/partition boundary in
-+`docs/collection-baseline-20260928T084655Z.json`. Earlier records remain available
-+for development but are excluded from the final evaluation cohort because their
-+complete Kafka delivery history cannot be established.
-+
  ## 2. Complete provenance and session evidence
  
- - Store feed identity or GDELT query configuration, domain/publisher, collector
-diff --git a/docker-compose.yml b/docker-compose.yml
-index c1dae93..dd23060 100644
---- a/docker-compose.yml
-+++ b/docker-compose.yml
-@@ -164,6 +164,7 @@ services:
-       - LAKEHOUSE_GROUP_ID=lakehouse-writer-v1
-       - LAKEHOUSE_BATCH_SIZE=500
-       - LAKEHOUSE_BATCH_SECONDS=2
-+      - COLLECTION_BASELINE_PATH=/app/docs/collection-baseline-20260928T084655Z.json
-     entrypoint: ["python"]
-     command: ["-m", "scripts.inspect_research_database"]
+@@ -52,6 +56,12 @@ complete Kafka delivery history cannot be established.
+ - Retain duplicate observations and corrected versions before study filtering.
+ - Detect interrupted sessions and record planned shutdowns.
  
-diff --git a/docs/collection-baseline-20260928T084655Z.json b/docs/collection-baseline-20260928T084655Z.json
++RSS/GDELT now record append-only sessions and per-request outcomes in the shared
++delivery SQLite ledger. Observation request links travel to Bronze and research
++snapshots; exports archive and validate the ledger. Legacy rows have unknown
++request context. Interrupted-session detection records restart time, not an
++invented stop time. Real source coverage must still pass the live-session gate.
++
+ Gate: one headline can be traced from source attempt through delivery, immutable
+ content version, durable availability, and exported research row.
+ 
+diff --git a/docs/checkpoint2-corrected-headline-trace-20261006.json b/docs/checkpoint2-corrected-headline-trace-20261006.json
 new file mode 100644
-index 0000000..58e4fae
+index 0000000..91f0550
 --- /dev/null
-+++ b/docs/collection-baseline-20260928T084655Z.json
-@@ -0,0 +1,80 @@
++++ b/docs/checkpoint2-corrected-headline-trace-20261006.json
+@@ -0,0 +1,38 @@
 +{
-+  "kind": "verified_collection_baseline_v1",
-+  "captured_at_utc": "2026-09-28T08:46:55.3953565+00:00",
-+  "purpose": "Define the earliest boundary from which future collection completeness may be verified. This record does not prove or restore earlier Kafka history.",
-+  "state_during_capture": {
-+    "collectors_running": false,
-+    "writer_running": false,
-+    "shared_outbox_exists": true,
-+    "shared_outbox_pending": 0
++  "status": "valid_corrected_capture_development_evidence",
++  "title": "The 2029 tipping point: Western populations are about to start shrinking, piling pressure on public finances",
++  "url": "https://www.cnbc.com/2026/10/05/aging-population-moodys-public-finances.html",
++  "source": "RSS",
++  "version_id": "6a20838e0a78b624a065de3c8f66ce08d93d237546e0c1c8a10476253c1bad39",
++  "source_time": "2026-10-05T05:00:01+00:00",
++  "observed_at": "2026-10-06T03:37:13.876974+00:00",
++  "available_at": "2026-10-06T03:37:16.979632+00:00",
++  "transport": {
++    "kafka_topic": "financial.research.observations",
++    "kafka_partition": 0,
++    "kafka_offset": 343
 +  },
-+  "repository": {
-+    "head": "64a713c4edcd65b6187f1fbf330c2666a594ceaf",
-+    "worktree_clean": false,
-+    "uncommitted_paths": [
-+      "requirements.txt"
-+    ],
-+    "note": "The uncommitted change adds the timezone dependency required by the read-only audit. Freeze a clean revision before the first post-baseline collection session."
-+  },
-+  "kafka": {
-+    "writer_group": "lakehouse-writer-v1",
-+    "total_reported_lag": 0,
-+    "partitions": [
-+      {
-+        "topic": "financial.news.rss",
-+        "partition": 0,
-+        "retained_start_offset": 255,
-+        "high_watermark_next_offset": 354,
-+        "writer_committed_next_offset": 354,
-+        "post_baseline_start_offset": 354
-+      },
-+      {
-+        "topic": "financial.news.gdelt",
-+        "partition": 0,
-+        "retained_start_offset": 50,
-+        "high_watermark_next_offset": 50,
-+        "writer_committed_next_offset": null,
-+        "post_baseline_start_offset": 50
-+      },
-+      {
-+        "topic": "financial.filings.sec",
-+        "partition": 0,
-+        "retained_start_offset": 106,
-+        "high_watermark_next_offset": 106,
-+        "writer_committed_next_offset": null,
-+        "post_baseline_start_offset": 106
-+      },
-+      {
-+        "topic": "financial.research.observations",
-+        "partition": 0,
-+        "retained_start_offset": 0,
-+        "high_watermark_next_offset": 150,
-+        "writer_committed_next_offset": 150,
-+        "post_baseline_start_offset": 150
-+      }
-+    ]
-+  },
-+  "duckdb": {
-+    "database_id": "docker-volume:ingestion-data:/app/data/lakehouse.duckdb",
-+    "schema_version": 5,
-+    "counts": {
-+      "bronze_events_raw": 249,
-+      "lakehouse_message_outcomes": 249,
-+      "silver_financial_news": 99,
-+      "silver_sec_filings": 0,
-+      "research_observations": 149
-+    }
-+  },
-+  "research_scope": {
-+    "records_before_baseline": "development_only",
-+    "final_paper_evaluation_eligible_from_utc": "2026-09-28T08:46:55.3953565+00:00",
-+    "final_paper_evaluation_eligible_from_offsets": "Use each partition's post_baseline_start_offset, subject to later eligibility, annotation, grouping and freeze gates.",
-+    "excluded_history": "Kafka delivery completeness before this boundary is unknown. GDELT offsets below 50 and SEC offsets below 106 are no longer retained and have no writer-group commit evidence."
-+  },
-+  "activation_gate": {
-+    "active": true,
-+    "activated_on_utc_date": "2026-09-28",
-+    "basis": "Baseline-aware drain tests cover clean completion, no-new-record partitions, writer lag, pending delivery, offset and commit regression, retention overtaking an unprocessed writer, and partition-set changes. A live broker check is required before the first verified collection session.",
-+    "limitation": "Activation makes later transport ranges verifiable; it does not make pre-baseline records eligible or complete collection-session provenance."
-+  }
-+}
-diff --git a/docs/collection-baseline-activation-20260928T091512Z.json b/docs/collection-baseline-activation-20260928T091512Z.json
-new file mode 100644
-index 0000000..178081f
---- /dev/null
-+++ b/docs/collection-baseline-activation-20260928T091512Z.json
-@@ -0,0 +1,53 @@
-+{
-+  "kind": "collection_baseline_activation_evidence_v1",
-+  "activated_at_utc": "2026-09-28T09:15:12.1609720+00:00",
-+  "baseline_path": "docs/collection-baseline-20260928T084655Z.json",
-+  "baseline_sha256": "69df9108d24aa8ff96befcc6eee6e24faadc3ff6901f41ec10abf4e06947dda4",
-+  "verification": {
-+    "unit_and_regression_tests": {
-+      "passed": 79,
-+      "failed": 0,
-+      "command": "python -m unittest tests.test_checkpoint1_delivery tests.test_delivery_recovery tests.test_research_pipeline tests.test_worker_handoff tests.test_storage tests.test_writer tests.test_data_readiness tests.test_pit_leakage -q"
++  "request": {
++    "configuration": {
++      "feed_name": "CNBC Economy",
++      "timeout_seconds": 15
 +    },
-+    "compose_configuration_valid": true,
-+    "live_drain": {
-+      "exit_code": 0,
-+      "outbox_pending": 0,
-+      "partitions": {
-+        "financial.news.rss:0": {
-+          "baseline_next_offset": 354,
-+          "broker_high_watermark_next_offset": 354,
-+          "writer_committed_next_offset": 354,
-+          "post_baseline_messages": 0,
-+          "lag": 0,
-+          "status": "no_new_records"
-+        },
-+        "financial.news.gdelt:0": {
-+          "baseline_next_offset": 50,
-+          "broker_high_watermark_next_offset": 50,
-+          "writer_committed_next_offset": null,
-+          "post_baseline_messages": 0,
-+          "lag": 0,
-+          "status": "no_new_records"
-+        },
-+        "financial.filings.sec:0": {
-+          "baseline_next_offset": 106,
-+          "broker_high_watermark_next_offset": 106,
-+          "writer_committed_next_offset": null,
-+          "post_baseline_messages": 0,
-+          "lag": 0,
-+          "status": "no_new_records"
-+        },
-+        "financial.research.observations:0": {
-+          "baseline_next_offset": 150,
-+          "broker_high_watermark_next_offset": 150,
-+          "writer_committed_next_offset": 150,
-+          "post_baseline_messages": 0,
-+          "lag": 0,
-+          "status": "no_new_records"
-+        }
-+      }
-+    }
++    "details": {
++      "parse_warning": null,
++      "response_url": "https://www.cnbc.com/id/20910258/device/rss/rss.html"
++    },
++    "endpoint": "https://www.cnbc.com/id/20910258/device/rss/rss.html",
++    "error": null,
++    "finished_at": "2026-10-06T03:37:13.857891+00:00",
++    "http_status": 200,
++    "item_count": 30,
++    "outcome": "success",
++    "request_id": "74840a36-f8aa-49dd-8d9d-e1e999248f79",
++    "run_id": "bd6c214d-6b32-4928-af63-b990260f2cde",
++    "started_at": "2026-10-06T03:37:13.321680+00:00",
++    "topic": "financial.news.rss"
 +  },
-+  "scope": "This activates the prospective transport boundary. It proves the empty boundary state, not a nonempty collection session, source coverage, or Paper 1 readiness. The first post-baseline session still requires source/session evidence, drain, stopped-writer audit and count reconciliation."
++  "run_id": "bd6c214d-6b32-4928-af63-b990260f2cde",
++  "snapshot_directory": "/app/data/research/checkpoint2-corrected-20261006-snapshot",
++  "paper_ready": false
 +}
+diff --git a/docs/checkpoint2-headline-trace-20261006.json b/docs/checkpoint2-headline-trace-20261006.json
+new file mode 100644
+index 0000000..a6d11fe
+--- /dev/null
++++ b/docs/checkpoint2-headline-trace-20261006.json
+@@ -0,0 +1,39 @@
++{
++  "status": "invalid_for_research",
++  "reason": "Faulty smoke run omitted RSS response base URL and manufactured a content version. Retained as debugging evidence only; use checkpoint2-corrected-headline-trace-20261006.json for the corrected capture.",
++  "title": "Ennis (EBF) Grows Sales but Earns Less. Are Legal Items Hiding a Better Business?",
++  "url": "https://finance.yahoo.com/markets/stocks/articles/ennis-ebf-grows-sales-earns-015226342.html",
++  "source": "RSS",
++  "version_id": "a7d3a791d56848ef4b423aafe58040f26b1b5a135b868d083c8078194a2c6bfb",
++  "source_time": "2026-09-23T01:52:26+00:00",
++  "observed_at": "2026-10-06T03:27:40.107804+00:00",
++  "available_at": "2026-10-06T03:27:42.415192+00:00",
++  "transport": {
++    "kafka_topic": "financial.research.observations",
++    "kafka_partition": 0,
++    "kafka_offset": 150
++  },
++  "request": {
++    "configuration": {
++      "feed_name": "Yahoo Finance Economy",
++      "timeout_seconds": 15
++    },
++    "details": {
++      "parse_warning": null,
++      "response_url": "https://finance.yahoo.com/news/rssindex"
++    },
++    "endpoint": "https://finance.yahoo.com/news/rssindex",
++    "error": null,
++    "finished_at": "2026-10-06T03:27:39.824243+00:00",
++    "http_status": 200,
++    "item_count": 49,
++    "outcome": "success",
++    "request_id": "251ab45e-508f-4613-af97-954f9070bfd3",
++    "run_id": "7f71934f-704d-4025-8f30-f78adf0fb5e6",
++    "started_at": "2026-10-06T03:27:38.417707+00:00",
++    "topic": "financial.news.rss"
++  },
++  "run_id": "7f71934f-704d-4025-8f30-f78adf0fb5e6",
++  "database_id": "docker-volume:ingestion-data:/app/data/lakehouse.duckdb",
++  "snapshot_directory": "/app/data/research/checkpoint2-smoke-20261006-snapshot"
++}
+diff --git a/docs/checkpoint2-session-evidence-20261006.md b/docs/checkpoint2-session-evidence-20261006.md
+new file mode 100644
+index 0000000..5924491
+--- /dev/null
++++ b/docs/checkpoint2-session-evidence-20261006.md
+@@ -0,0 +1,145 @@
++# Checkpoint 2: collector sessions and request evidence
++
++RSS/GDELT session and request evidence is implemented and verified with live
++delivery, restart fixtures, and a corrected prospective snapshot. Continuous
++collection and real GDELT DOC coverage have not passed their gates.
++
++## Implemented behavior
++
++- Append-only session starts, normal/failed exits, planned stop requests and
++  interruption detection in the persistent shared delivery SQLite ledger.
++- Exclusive local ownership per source topic. A second collector fails rather
++  than declaring a live owner's session interrupted. Inspection is read-only.
++- Separate HTTP/request outcomes, feed/query/filter configuration, returned or
++  selected counts, response errors and parsing warnings. Valid empty responses
++  remain distinct from failed requests. Each DOC retry is recorded separately.
++- New observations carry request/run IDs and publisher domain before live
++  deduplication. These fields do not change content identity. Bronze retains
++  repeated delivery evidence; stored versions preserve their first observation.
++- Exports archive/hash the session ledger, verify first-version request links,
++  and disclose legacy unknown links, unfinished evidence and faulty-run exclusions.
++- Bounded collectors accept `--duration-seconds`; the configured duration is
++  recorded. Collection stops starting cycles at that deadline. An in-progress
++  request/processing cycle can finish later. Closing a collector does not prove
++  a successful drain or successful source coverage.
++
++The ledger remains in `/app/data/delivery-outbox.sqlite3` alongside the authoritative
++DuckDB volume. It is independent operational evidence; request failures and empty
++responses have no news row to store in DuckDB. Back up both databases. No DuckDB
++schema migration was required (schema remains v5).
++
++## Live-discovered parser fault and correction
++
++The first smoke capture switched from `feedparser.parse(url)` to fetching bounded
++HTTP bytes, but initially omitted the response URL/headers. An unchanged Yahoo
++headline differed from its older stored version only in
++`source_item.title_detail.base` (feed URL versus empty string). This manufactured
++version identities. The first 89-row export is **invalid for research**.
++
++The corrected parser supplies response headers and the final URL, preserving
++relative links and parser context. A regression compares URL-fetch and HTTP-byte
++parse results directly. A valid empty XML feed with a content-type warning is
++recorded as empty with its warning, while unrecognized/malformed feeds fail.
++
++Faulty RSS run `7f71934f-704d-4025-8f30-f78adf0fb5e6` was invalidated with a dated
++append-only reason. No raw delivery, version, original manifest or dataset was
++deleted or rewritten. The original snapshot has a separate
++`INVALID_FOR_RESEARCH.json` marker. Subsequent exports exclude its 89 first
++versions and report the exclusion separately from baseline exclusions.
++These are development-stage quality decisions before final protocol freeze;
++they must never be concealed or used to tune held-out results.
++
++## Corrected verification
++
++**99 local regression tests passed**; **27 boundary/session/worker tests passed
++inside the rebuilt Docker environment**. All four service images were rebuilt
++together. Tests cover a second collector, real process death, unfinished requests,
++restart interruption detection, planned signals, startup failure, malformed DOC
++responses, exhausted 429 retries, valid empty feeds, old observation compatibility,
++stable identity across request IDs, missing/wrong request evidence, source/topic
++mismatch, faulty-run exclusion and preserved raw versions.
++
++Corrected live source cycle:
++
++| Source request | Outcome | Returned/selected items |
++| --- | --- | ---: |
++| Yahoo Finance RSS | HTTP 200 success | 49 |
++| CNBC RSS | HTTP 200 success | 30 |
++| MarketWatch RSS | HTTP 200 success | 10 |
++| Investing.com RSS | Read timeout | Unknown |
++| GDELT DOC | Three HTTP 429 failures | Unknown |
++| GKG manifest/download | Separate audit-only success | 50 selected rows, capped |
++
++Both collectors exited normally. RSS reported 89 live exact duplicates, but
++pre-dedup research capture still persisted their source observations. Source
++failures remained visible. A successful saved drain preceded stopping the writer.
++
++The corrected snapshot contains **20 provenance-eligible RSS versions**, with
++20 distinct article IDs and no pre-baseline version for those article IDs.
++All 20 have verified request links. This is not a claim of 20 independent events
++or final sentiment/language eligibility. It excludes 99 pre-baseline versions and
++89 first versions from the faulty run. There are no unfinished sessions/requests
++or unsealed versions in this snapshot.
++
++At that quiet boundary the database held **621 Bronze rows**, **621 outcomes**
++and **358 sealed research versions**. The stored ranges reconcile with RSS next
++offset 443 and observation next offset 433. GDELT/SEC news topics had no new
++messages. Invalid and synthetic records remain archived.
++
++Artifacts in external Docker volume `ingestion-data`:
++
++- `/app/data/research/checkpoint2-corrected-20261006-drain.json`
++- `/app/data/research/checkpoint2-corrected-20261006-audit.json`
++- `/app/data/research/checkpoint2-corrected-20261006-snapshot/manifest.json`
++- `/app/data/research/checkpoint2-corrected-20261006-snapshot/dataset.jsonl`
++- `/app/data/research/checkpoint2-corrected-20261006-snapshot/collection-sessions.json`
++- `/app/data/research/checkpoint2-corrected-20261006-snapshot/headline-trace.json`
++
++The earlier `checkpoint2-smoke-20261006-snapshot` is retained as invalid debugging
++evidence. Its manifest remains the original artifact, not a current validity claim.
++
++## Learning example and remaining gate
++
++`docs/checkpoint2-corrected-headline-trace-20261006.json` traces a CNBC headline:
++source publication **2026-10-05 05:00:01 UTC**, corrected observation
++**2026-10-06 03:37:13.876974 UTC**, durable availability
++**2026-10-06 03:37:16.979632 UTC**. These are three different events on the same
++UTC clock. Publication time does not make the headline available earlier.
++
++The next operational check is a bounded two-hour RSS/GDELT session, then drain,
++stop the writer, audit and export using new paths. Actual windows, failures and
++gaps must be reviewed; a long historical record span is not continuous operation.
++GDELT DOC availability and stale/reissued feed items still need source-panel
++investigation. GKG never substitutes for real sentiment headlines. Three
++provisional sessions, pilot eligibility/annotation, duplicate review, protocol
++freeze and final sample-size planning remain. The data is **not paper-ready**.
++
++## Two-hour session started (not yet certified complete)
++
++Started October 6 at approximately **03:41 UTC / 10:41 Bangkok time**:
++
++- `paper1-rss-session01-20261006`
++- `paper1-gdelt-session01-20261006`
++- the sole Compose `lakehouse-writer`
++
++Collectors use `--duration-seconds 7200` and Docker restart policy `no`.
++They stop starting cycles around 05:41 UTC / 12:41 Bangkok time; an in-progress
++cycle may finish later. The writer remains running for the final delivery drain.
++No final snapshot or continuity claim has been made for this session.
++
++After both actual named containers exit, inspect their status/ledger, then:
++
++```powershell
++docker compose --profile tools run --rm --no-deps research-tools -m scripts.drain_delivery --timeout 120 --output /app/data/research/session01-20261006-drain.json
++if ($LASTEXITCODE -ne 0) { throw 'Drain failed: leave writer running' }
++docker compose --profile workers stop --timeout 30 lakehouse-writer
++if ($LASTEXITCODE -ne 0) { throw 'Writer stop failed' }
++docker compose --profile tools run --rm --no-deps research-tools -m scripts.audit_data_readiness --output /app/data/research/session01-20261006-audit.json
++if ($LASTEXITCODE -ne 0) { throw 'Audit command failed' }
++$sessionCutoff = [DateTimeOffset]::UtcNow.ToString('o')
++docker compose --profile tools run --rm --no-deps research-tools -m scripts.export_research_dataset --cutoff $sessionCutoff --drain-report /app/data/research/session01-20261006-drain.json --output-dir /app/data/research/session01-20261006-snapshot
++```
++
++Use an actual stored cutoff for that snapshot. Do not reuse the earlier smoke
++drain after more deliveries arrived. Do not inspect DuckDB concurrently with its
++writer. Preserve the stopped named session containers/logs until review.
+diff --git a/docs/collection-boundary-fixes-20261006.md b/docs/collection-boundary-fixes-20261006.md
+new file mode 100644
+index 0000000..2d5aadc
+--- /dev/null
++++ b/docs/collection-boundary-fixes-20261006.md
+@@ -0,0 +1,70 @@
++# Collection boundary fixes — October 6, 2026
++
++The idle-period check failed after the inactive Kafka writer group's commits
++expired, even though every high watermark still equaled the recorded baseline.
++The previous exporter also selected eligible old versions without enforcing that
++baseline. Both issues are now covered by code and regression checks.
++
++## Behavior
++
++- A missing commit is allowed only when that partition's broker high watermark
++  still equals its baseline. The drain reports the expired idle commit explicitly.
++  Existing numerical commit regression, missing commits for new messages, writer
++  lag, invalid broker ranges, retention gaps and changed partition sets fail.
++- A drain report can be saved with `--output`, with a baseline hash, database
++  identity, checked UTC time, and per-partition progress. Existing reports are
++  never overwritten. The client does not subscribe, reset offsets, or commit.
++- Prospective exports require an active baseline and successful saved drain
++  report. After stopping the writer, each post-baseline delivery range must have
++  every expected raw Bronze record and matching processed outcome. Research
++  outcomes must refer to a stored version. Missing records, stale reports,
++  mismatched identities/hashes, unresolved faults and unsealed versions fail.
++- Selection requires first-version transport offset and observation time at or
++  after the baseline, and sealed availability at or before the cutoff. Unchanged
++  pre-baseline versions redelivered later remain excluded. Corrections captured
++  after the boundary may qualify. Original publication time is preserved and may
++  precede the boundary.
++- Manifest v3 reports prospective/development scope, exclusions, boundary hash,
++  and storage reconciliation. `--development` explicitly exports eligible pilot
++  material without asserting prospective transport completeness.
++
++## Verification
++
++Local regression command: **87 tests passed**.
++
++```text
++python -m unittest tests.test_collection_boundary tests.test_checkpoint1_delivery tests.test_delivery_recovery tests.test_research_pipeline tests.test_worker_handoff tests.test_storage tests.test_writer tests.test_data_readiness tests.test_pit_leakage -q
++```
++
++The eight new boundary tests also passed inside the rebuilt Docker tools image.
++Fixtures exercise nonempty ranges, dropped Bronze rows, missing outcomes/versions,
++stale/failed reports, boundary/cutoff equality, redelivery, and delayed observation.
++Compose configuration and code whitespace checks passed.
++
++Live idle verification saved in external Docker volume `ingestion-data`:
++
++- `/app/data/research/idle-fix-20261006-drain.json`
++- `/app/data/research/idle-fix-20261006-snapshot/manifest.json`
++- `/app/data/research/idle-fix-20261006-snapshot/dataset.jsonl`
++
++The drain reported zero pending messages and zero post-baseline deliveries on
++RSS, GDELT, SEC and research topics. All four commits were missing; the earlier
++RSS/research commits were explicitly marked expired at the unchanged boundary.
++The prospective snapshot exported **0 rows**, excluded **99 old eligible versions**,
++and retained **149 research versions**, **249 Bronze rows**, and **249 outcomes**.
++No source collection was started, and the writer and collectors stayed stopped.
++
++## Limits and next work
++
++Live verification covered an empty prospective range. Nonempty success/failure
++was exercised in fixtures, not a new live ingestion or outage experiment. Session
++start/end evidence and GDELT source-outcome reporting remain the next milestone.
++The snapshot is not paper-ready.
++
++Stored range reconciliation assumes these topics use delete retention and no
++transactional/compaction gaps. The baseline and reports are trusted local evidence;
++operator resets and topic recreation require a fresh documented investigation.
++An expired commit with an advanced high watermark still fails until storage and
++transport progress are investigated. Hashes identify evidence; they do not archive
++source code or dependencies. Rebuild all service images together before the next
++collection session, since this verification rebuilt tools only.
 diff --git a/docs/research-protocol.md b/docs/research-protocol.md
-index 467fdcc..3580dbd 100644
+index 3580dbd..9446976 100644
 --- a/docs/research-protocol.md
 +++ b/docs/research-protocol.md
-@@ -115,7 +115,7 @@ live-session validation is completed in Checkpoint 3.
+@@ -83,7 +83,7 @@ Never run two writers against this DuckDB file.
+ Run regression and configuration checks before collection:
+ 
+ ```powershell
+-python -m unittest tests.test_checkpoint1_delivery tests.test_delivery_recovery tests.test_research_pipeline tests.test_worker_handoff tests.test_storage tests.test_writer tests.test_data_readiness tests.test_pit_leakage -q
++python -m unittest tests.test_collection_sessions tests.test_collection_boundary tests.test_checkpoint1_delivery tests.test_delivery_recovery tests.test_research_pipeline tests.test_worker_handoff tests.test_storage tests.test_writer tests.test_data_readiness tests.test_pit_leakage -q
+ docker compose --profile workers --profile tools config --quiet
+ docker compose --profile workers --profile tools build lakehouse-writer worker-rss worker-gdelt research-tools
+ if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
+@@ -96,9 +96,44 @@ docker compose --profile workers up -d --build lakehouse-writer worker-rss worke
+ docker compose --profile workers logs --tail 50 lakehouse-writer worker-rss worker-gdelt
+ ```
+ 
+-The writer consumes `financial.research.observations`. Source-cycle, request,
+-coverage, and interruption evidence is completed in Checkpoint 2. Scheduled
+-live-session validation is completed in Checkpoint 3.
++The writer consumes `financial.research.observations`. RSS and GDELT save session
++and request evidence in the shared delivery SQLite ledger. SEC session evidence
++is outside the current Paper 1 headline-source milestone. Scheduled live-session
++validation is completed in Checkpoint 3.
++
++For a bounded two-hour session, start only the writer, then run the collectors
++without their automatic restart policy. The duration limits starting new cycles;
++an in-progress bounded HTTP request/cycle may finish after that time.
++
++```powershell
++docker compose --profile workers up -d lakehouse-writer
++docker compose --profile workers run -d --no-deps --name paper1-rss-session worker-rss python -m workers.rss_worker --duration-seconds 7200
++docker compose --profile workers run -d --no-deps --name paper1-gdelt-session worker-gdelt python -m workers.gdelt_worker --duration-seconds 7200
++docker compose --profile tools run --rm --no-deps research-tools -m scripts.inspect_collection_sessions
++```
++
++Do not run these named session containers alongside the regular collectors.
++Collector ownership is exclusive per topic and shared ledger directory. For the
++snapshot, wait for these bounded containers to exit or stop them by their actual
++names with sufficient grace (for example `docker stop --time 180 ...`). Stopping
++the regular Compose services does not stop containers created by `compose run`.
++The writer remains running until the successful saved drain. Retain session
++containers/logs as evidence rather than removing them before inspection.
++
++Each request records endpoint, feed/query/filter configuration, UTC start/result
++times, HTTP status when available, returned/selected item count and error. A valid
++empty feed/API response is `empty`; HTTP, timeout, parsing or shape failures are
++`failed`. Every DOC retry is separate. GKG success does not erase DOC failures and
++does not supply eligible sentiment headlines. RSS feeds with usable entries and
++parser warnings retain their warning rather than losing those entries.
++
++Session termination appends a normal or failed event. A killed process leaves an
++unfinished session/request. A subsequent worker holding the same exclusive topic
++lock appends interruption detection; this never invents its actual stop time.
++Inspection itself is read-only and does not infer process liveness. A closed
++collector can still have pending deliveries and source failures; closure is not
++a successful drain or proof of continuous coverage. Cross-host collection sharing
++this ledger is not supported by this local file-ownership design.
+ 
+ ## Consistent snapshot procedure
+ 
+@@ -108,31 +143,76 @@ live-session validation is completed in Checkpoint 3.
+    re-entering dedup. It checks committed writer offsets against every configured
+    topic partition. Only exit code 0 permits stopping the writer for a snapshot.
+ 3. Run the readiness audit with the writer stopped.
+-4. Export to a new directory using an explicit timezone-aware cutoff.
++4. Export to a new directory using an explicit timezone-aware cutoff, the active
++   baseline, and the saved successful drain report. With the writer stopped, the
++   exporter reconciles delivery ranges against Bronze and processing outcomes.
+ 5. Compare manifest counts with the audit, retain both outputs, then restart only
+    services that were intentionally running before the snapshot.
+ 
  ```powershell
  docker compose --profile workers stop worker-rss worker-gdelt worker-sec
  if ($LASTEXITCODE -ne 0) { throw 'Collector stop failed' }
--docker compose --profile tools run --rm --no-deps research-tools -m scripts.drain_delivery --timeout 120
-+docker compose --profile tools run --rm --no-deps research-tools -m scripts.drain_delivery --timeout 120 --baseline-path /app/docs/collection-baseline-20260928T084655Z.json
+-docker compose --profile tools run --rm --no-deps research-tools -m scripts.drain_delivery --timeout 120 --baseline-path /app/docs/collection-baseline-20260928T084655Z.json
++docker compose --profile tools run --rm --no-deps research-tools -m scripts.drain_delivery --timeout 120 --baseline-path /app/docs/collection-baseline-20260928T084655Z.json --output /app/data/research/session-001-drain.json
  if ($LASTEXITCODE -ne 0) { throw 'Delivery incomplete: leave writer running, repair and retry' }
  docker compose --profile workers stop lakehouse-writer
  if ($LASTEXITCODE -ne 0) { throw 'Writer stop failed' }
-@@ -141,7 +141,11 @@ Compose service images are built separately, not guaranteed identical by name.
+ docker compose --profile tools run --rm --no-deps research-tools -m scripts.audit_data_readiness
+ if ($LASTEXITCODE -ne 0) { throw 'Audit failed' }
+-docker compose --profile tools run --rm --no-deps research-tools -m scripts.export_research_dataset --cutoff 2026-10-01T00:00:00Z --output-dir /app/data/research/snapshot-001
++docker compose --profile tools run --rm --no-deps research-tools -m scripts.export_research_dataset --cutoff 2026-10-06T12:00:00Z --drain-report /app/data/research/session-001-drain.json --output-dir /app/data/research/snapshot-001
+ ```
  
- A failed drain keeps pending messages durable and exits nonzero. Repair broker or
+ The exporter refuses to overwrite an existing snapshot. Its manifest records
+ the authoritative database identity and schema, research-version counts, cutoff,
+ dataset hash and exporter provenance separately from collection provenance.
+-Each producer creates one run identity at its first research capture. Its actual
++Manifest v3 distinguishes `prospective_since_baseline` from an explicit
++`--development` export. Prospective selection requires the first stored version's
++offset at or after its partition baseline, observation time at or after the
++baseline time, and sealed availability at or before the cutoff. A pre-baseline
++version redelivered later remains development data; a new corrected version may
++qualify. A source publication date may precede the baseline without exclusion.
++All eligible versions before this boundary are retained in the database.
++
++The stopped-writer check requires every delivery offset from each baseline to
++its reported high watermark to have raw Bronze bytes and a matching processed
++outcome. Research outcomes must also refer to a stored research version. Missing
++evidence, unresolved transport faults, unsealed versions, database identity
++mismatch, a report for another baseline, or database deliveries beyond the report
++prevent export. This assumes the configured topics use delete retention without
++transactional offset gaps or compaction. It does not establish successful source
++coverage or final sentiment eligibility. Keep collectors stopped throughout.
++Choose a fresh report and snapshot path for each run.
++Each RSS/GDELT collector creates one run identity before fetching, including empty
++and failed sessions. Its actual
+ application-file hashes and effective allowlisted settings travel with observations
+ and survive outbox retries. The manifest lists runs referenced by exported first
+-versions; older versions remain unknown. Run metadata is excluded from content
++versions; older versions remain unknown. Run and request metadata are excluded from content
+ identity: restarting a collector must not manufacture a new article version.
+ Feed definitions and query constants are covered by application-file hashes.
++Each new observation also carries its request/run ID and publisher domain in
++`request_context`. The first stored version retains its original link; repeated
++captures have their own links in Bronze without multiplying versions. The CLI
++exporter reads the shared ledger (`--session-ledger` can override its path),
++archives `collection-sessions.json`, hashes it in the manifest, and verifies the
++exported first-version links. Missing/inconsistent evidence fails export. Old
++versions without request links remain explicitly unknown. This separate ledger
++contains operational source history, including empty/failing requests that have
++no DuckDB observation. Keep it backed up with the DuckDB file. Its snapshot may
++contain events after the research cutoff: it is audit evidence, never model input.
++
++Quality faults discovered before protocol freeze can invalidate a terminated
++collection run using `scripts.inspect_collection_sessions --invalidate-run RUN_ID
++--reason "Concrete fault and evidence"`. This appends a dated audit event; no
++Bronze record, observation, first-seen time, or original snapshot is deleted or
++rewritten. Later exports exclude first versions from those runs and separately
++report their count and run IDs. This is a disclosed quality decision at export
++time, not a backdated label or feature. Archive the reasons and freeze inclusion
++rules before final testing. Previously exported faulty artifacts must be marked
++invalid separately and must not be used for experiments.
++
++RSS HTTP-byte parsing preserves the response headers and final URL, including
++relative-link resolution and `title_detail.base`. Changing fetch methods without
++this context can manufacture content versions. A regression compares the old
++URL-fetch and new HTTP-byte parse results for exactly this case.
+ `COLLECTION_CODE_REVISION` and `COLLECTION_WORKTREE_STATE` are labeled declarations,
+ not verified build identity. Without Git, Git fields are null, not an empty-diff hash.
+ Archive the matching source and freeze dependencies before experiments; hashes
+@@ -143,11 +223,13 @@ A failed drain keeps pending messages durable and exits nonzero. Repair broker o
  writer availability and rerun it. Missing topics, missing outbox, unavailable offsets,
--or retention gaps cannot certify completeness. Use the same outbox mount, topic
-+or unprocessed retention gaps cannot certify completeness. The active baseline
-+allows a topic with no post-baseline messages to remain complete even when its
-+older writer commit is unavailable. Once new messages exist, the writer must commit
-+through the broker high watermark. A changed partition set, regressed commit/high
-+watermark, or retention passing an unprocessed commit fails. Use the same outbox mount, topic
- configuration and writer group as collection. Drain success proves delivery and
- writer commits, including recorded rejections, not research quality. Keep the audit
+ or unprocessed retention gaps cannot certify completeness. The active baseline
+ allows a topic with no post-baseline messages to remain complete even when its
+-older writer commit is unavailable. Once new messages exist, the writer must commit
++older writer commit expired during inactivity. Such partitions are explicitly
++marked `commit_expired_at_idle_boundary`; no Kafka position is reset. Once new messages exist, the writer must commit
+ through the broker high watermark. A changed partition set, regressed commit/high
+ watermark, or retention passing an unprocessed commit fails. Use the same outbox mount, topic
+-configuration and writer group as collection. Drain success proves delivery and
+-writer commits, including recorded rejections, not research quality. Keep the audit
++configuration and writer group as collection. Drain success verifies the broker
++boundary and current commits; the stopped-writer export check separately verifies
++stored deliveries, including recorded rejections. Neither establishes research quality. Keep the audit
  and drain output with each snapshot. Independent outbox paths need separate drains.
-@@ -149,6 +153,9 @@ and drain output with each snapshot. Independent outbox paths need separate drai
+ 
  `docs/data-readiness-legacy-host-20260915.json` is historical host evidence only.
- `docs/checkpoint1-baseline.md` records the dated Docker initialization baseline.
- Neither is a live readiness claim; generate a new Docker audit for each snapshot.
-+The active prospective boundary is recorded in
-+`docs/collection-baseline-20260928T084655Z.json`. Earlier records are retained as
-+development data and excluded from final evaluation.
- 
- ## Checkpoint 1 pass condition
- 
-diff --git a/requirements.txt b/requirements.txt
-index 254cc30..15d96ed 100644
---- a/requirements.txt
-+++ b/requirements.txt
-@@ -4,6 +4,7 @@ feedparser>=6.0.10
- requests>=2.31.0
- pydantic>=2.5.0
- python-dotenv>=1.0.0
-+pytz>=2023.3
- schedule>=1.2.0
- datasketch>=1.6.4
- duckdb>=1.1.0
-diff --git a/scripts/drain_delivery.py b/scripts/drain_delivery.py
-index 2c487df..0abe0a5 100644
---- a/scripts/drain_delivery.py
-+++ b/scripts/drain_delivery.py
-@@ -4,8 +4,10 @@ Stop ALL collectors first and leave the writer running. Exit 0 is a delivery
- boundary, not a payload-quality or research-readiness certificate.
- """
- import argparse
+diff --git a/research/collection_boundary.py b/research/collection_boundary.py
+new file mode 100644
+index 0000000..0596f79
+--- /dev/null
++++ b/research/collection_boundary.py
+@@ -0,0 +1,105 @@
++"""Validated prospective collection boundaries and stored delivery evidence."""
 +import hashlib
- import json
- import math
-+import os
- import time
- from pathlib import Path
- 
-@@ -14,7 +16,39 @@ from config import (OUTBOX_PATH, KAFKA_BOOTSTRAP_SERVERS, LAKEHOUSE_GROUP_ID,
- from utils.kafka_producer import RedpandaProducer
- 
- 
--def writer_backlog(consumer, topics, deadline):
++import json
++from datetime import datetime, timezone
++from pathlib import Path
++
++
 +def load_baseline(path, topics, writer_group):
-+    path = Path(path)
-+    raw = path.read_bytes()
++    raw = Path(path).read_bytes()
 +    document = json.loads(raw)
-+    if document.get('kind') != 'verified_collection_baseline_v1':
++    if not isinstance(document, dict) or document.get('kind') != 'verified_collection_baseline_v1':
 +        raise ValueError('Baseline kind is not active and supported')
 +    if document.get('activation_gate', {}).get('active') is not True:
 +        raise ValueError('Baseline activation gate is not active')
++    captured = datetime.fromisoformat(document['captured_at_utc'].replace('Z', '+00:00'))
++    if captured.tzinfo is None:
++        raise ValueError('Baseline timestamp must be timezone-aware')
 +    kafka = document.get('kafka', {})
 +    if kafka.get('writer_group') != writer_group:
 +        raise ValueError('Baseline writer group does not match configured writer group')
-+    configured_topics = set(topics)
-+    partitions = {}
++    configured_topics, partitions = set(topics), {}
 +    for item in kafka.get('partitions', []):
 +        key = (item.get('topic'), item.get('partition'))
-+        start = item.get('post_baseline_start_offset')
-+        committed = item.get('writer_committed_next_offset')
++        start, committed = item.get('post_baseline_start_offset'), item.get('writer_committed_next_offset')
 +        if key in partitions:
 +            raise ValueError(f'Duplicate baseline partition: {key}')
-+        if key[0] not in configured_topics or not isinstance(key[1], int) or key[1] < 0:
++        if key[0] not in configured_topics or type(key[1]) is not int or key[1] < 0:
 +            raise ValueError(f'Invalid baseline partition: {key}')
-+        if not isinstance(start, int) or start < 0:
++        if type(start) is not int or start < 0:
 +            raise ValueError(f'Invalid baseline start offset: {key}')
-+        if committed is not None and (not isinstance(committed, int) or committed < 0):
++        if committed is not None and (type(committed) is not int or committed < 0 or committed > start):
 +            raise ValueError(f'Invalid baseline committed offset: {key}')
 +        partitions[key] = {'start': start, 'committed_at_capture': committed}
 +    if {topic for topic, _ in partitions} != configured_topics:
 +        raise ValueError('Baseline topics do not match configured topics')
 +    return {'path': str(path), 'sha256': hashlib.sha256(raw).hexdigest(),
-+            'captured_at_utc': document.get('captured_at_utc'), 'partitions': partitions}
++            'captured_at_utc': captured.astimezone(timezone.utc).isoformat(),
++            'partitions': partitions, 'database': document.get('duckdb', {})}
 +
 +
-+def writer_backlog(consumer, topics, deadline, baseline_partitions=None):
-     from confluent_kafka import TopicPartition
-     def budget():
-         remaining = deadline - time.monotonic()
-@@ -23,24 +57,70 @@ def writer_backlog(consumer, topics, deadline):
-         return min(5.0, remaining)
-     metadata = consumer.list_topics(timeout=budget())
-     partitions = []
-+    actual = set()
-     for topic in topics:
-         info = metadata.topics.get(topic)
-         if info is None or info.error or not info.partitions:
-             raise RuntimeError(f'Cannot verify topic {topic}')
--        partitions.extend(TopicPartition(topic, p) for p in info.partitions)
-+        for partition in info.partitions:
-+            actual.add((topic, partition))
-+            partitions.append(TopicPartition(topic, partition))
-+    if baseline_partitions is not None and actual != set(baseline_partitions):
-+        missing = sorted(set(baseline_partitions) - actual)
-+        added = sorted(actual - set(baseline_partitions))
-+        raise RuntimeError(f'Kafka partition set changed; missing={missing}, added={added}')
++def reconcile_storage(conn, baseline, report_path, database_id):
++    """Read-only check after stopping the writer; commits alone are insufficient.
++
++    These topics use delete retention and nontransactional/idempotent producers.
++    Require every integer delivery offset in each declared range to have raw
++    bytes and a matching processed outcome. Compacted/transactional streams need
++    a different protocol, never an automatic relaxation of this check.
++    """
++    raw = Path(report_path).read_bytes()
++    report = json.loads(raw)
++    if report.get('drained') is not True or report.get('pending') != 0:
++        raise ValueError('A successful empty-outbox drain report is required')
++    if report.get('baseline', {}).get('sha256') != baseline['sha256']:
++        raise ValueError('Drain report baseline hash mismatch')
++    if baseline['database'].get('database_id') != database_id or report.get('database_id') != database_id:
++        raise ValueError('Baseline/drain database identity mismatch')
++    expected = {f'{t}:{p}': (t, p) for t, p in baseline['partitions']}
++    progress = report.get('writer_progress', {})
++    if set(progress) != set(expected):
++        raise ValueError('Drain report partition set mismatch')
++    ranges = []
++    for label, key in expected.items():
++        part = progress[label]
++        start, high = baseline['partitions'][key]['start'], part.get('broker_high_watermark_next_offset')
++        commit = part.get('writer_committed_next_offset')
++        if type(high) is not int or high < start or part.get('baseline_next_offset') != start:
++            raise ValueError(f'Invalid reported range: {label}')
++        if part.get('lag') != 0 or (high > start and (type(commit) is not int or commit != high)):
++            raise ValueError(f'Incomplete reported writer progress: {label}')
++        counts = conn.execute('''SELECT COUNT(*),
++            COUNT(*) FILTER (WHERE b.raw_bytes IS NOT NULL AND o.status IS NOT NULL
++                AND o.status <> 'legacy_unprocessed' AND b.event_id IS NOT DISTINCT FROM o.event_id
++                AND (o.status NOT IN ('research_inserted','research_redelivery') OR r.version_id IS NOT NULL))
++            FROM bronze_events_raw b LEFT JOIN lakehouse_message_outcomes o
++            USING(kafka_topic,kafka_partition,kafka_offset)
++            LEFT JOIN research_observations r ON r.version_id=o.event_id
++            WHERE b.kafka_topic=? AND b.kafka_partition=? AND b.kafka_offset>=? AND b.kafka_offset<?''',
++            [*key, start, high]).fetchone()
++        if counts != (high-start, high-start):
++            raise ValueError(f'Stored delivery range is incomplete: {label}; expected {high-start}, found {counts}')
++        # Detect deliveries received after this report or using an undeclared partition.
++        beyond = conn.execute('''SELECT COUNT(*) FROM bronze_events_raw
++            WHERE kafka_topic=? AND kafka_partition=? AND kafka_offset>=?''', [*key, high]).fetchone()[0]
++        if beyond:
++            raise ValueError(f'Drain report is stale for database deliveries: {label}')
++        ranges.append({'topic': key[0], 'partition': key[1], 'start': start, 'end': high,
++                       'bronze_rows': counts[0], 'processed_outcomes': counts[1]})
++    for topic, partition in conn.execute('SELECT DISTINCT kafka_topic,kafka_partition FROM research_observations').fetchall():
++        if (topic, partition) not in baseline['partitions']:
++            raise ValueError('Stored research observations use a partition outside the baseline')
++    if conn.execute('SELECT COUNT(*) FROM lakehouse_transport_faults WHERE resolved_at IS NULL').fetchone()[0]:
++        raise ValueError('Unresolved transport faults prevent prospective export')
++    if conn.execute('SELECT COUNT(*) FROM research_observations WHERE available_at IS NULL').fetchone()[0]:
++        raise ValueError('Unsealed research observations prevent prospective export')
++    stored_counts = {}
++    for table in ('bronze_events_raw', 'lakehouse_message_outcomes', 'research_observations',
++                  'silver_financial_news', 'silver_sec_filings'):
++        count = conn.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
++        minimum = baseline['database'].get('counts', {}).get(table, 0)
++        if type(minimum) is not int or minimum < 0 or count < minimum:
++            raise ValueError(f'Database count fell below the saved baseline: {table}')
++        stored_counts[table] = count
++    return {'drain_report_sha256': hashlib.sha256(raw).hexdigest(), 'ranges': ranges,
++            'current_database_counts': stored_counts,
++            'basis': 'exact topic/partition/offset ranges with raw Bronze bytes and matching processed outcomes'}
+diff --git a/research/observations.py b/research/observations.py
+index ee848bd..da44e9c 100644
+--- a/research/observations.py
++++ b/research/observations.py
+@@ -36,12 +36,13 @@ class SourceObservation(BaseModel):
+     content_hash: str
+     schema_version: Literal['research-v1'] = 'research-v1'
+     collection_run: dict[str, Any] | None = None
++    request_context: dict[str, Any] | None = None
+ 
+     @model_validator(mode='after')
+     def verify_identity(self):
+         if not self.article_id.strip():
+             raise ValueError('article_id must not be blank')
+-        material = self.model_dump(mode='json', exclude={'id', 'observed_at', 'content_hash', 'collection_run'})
++        material = self.model_dump(mode='json', exclude={'id', 'observed_at', 'content_hash', 'collection_run', 'request_context'})
+         digest = version_hash(material)
+         if self.content_hash != digest or self.id != digest:
+             raise ValueError('Observation content hash or version ID mismatch')
+@@ -59,7 +60,7 @@ class SourceObservation(BaseModel):
+ 
+ def make_observation(*, source, article_id, title, url, source_item,
+                      title_provenance, source_time=None, source_time_kind='unknown',
+-                     source_time_raw=None, observed_at=None, collection_run=None):
++                     source_time_raw=None, observed_at=None, collection_run=None, request_context=None):
+     # Parsed source items, not a claim of original HTTP response-byte capture.
+     item = json.loads(json.dumps(source_item, default=str, ensure_ascii=False, allow_nan=False))
+     values = dict(kind='source_observation_v1', article_id=article_id, source=source,
+@@ -70,7 +71,7 @@ def make_observation(*, source, article_id, title, url, source_item,
+     digest = version_hash(values)
+     return SourceObservation(id=digest, content_hash=digest,
+                              observed_at=observed_at or datetime.now(timezone.utc),
+-                             collection_run=collection_run, **values)
++                             collection_run=collection_run, request_context=request_context, **values)
+ 
+ 
+ # The legacy sample is explicitly a labeling pilot, not historical evidence.
+diff --git a/research/sessions.py b/research/sessions.py
+new file mode 100644
+index 0000000..ca6af32
+--- /dev/null
++++ b/research/sessions.py
+@@ -0,0 +1,178 @@
++"""Append-only collector evidence in the shared delivery SQLite database.
++
++This ledger records collector activity, not broker or DuckDB acknowledgement.
++An unclosed session is unfinished evidence; a subsequent exclusive worker start
++can identify it as interrupted, without inventing its actual termination time.
++"""
++import json
++import os
++import sqlite3
++import uuid
++from datetime import datetime, timezone
++from pathlib import Path
++
++
++def now():
++    return datetime.now(timezone.utc).isoformat()
++
++
++class CollectionSession:
++    def __init__(self, outbox, run, topic, source_config):
++        self.outbox, self.run, self.topic = outbox, run, topic
++        # One local collector of each topic per shared volume. The OS releases
++        # ownership on process death; only then can recovery append interruption.
++        lock_name = uuid.uuid5(uuid.NAMESPACE_URL, topic).hex
++        self.lock = open(outbox.path.parent / f'collector-{lock_name}.lock', 'a+b')
++        try:
++            if os.fstat(self.lock.fileno()).st_size == 0:
++                self.lock.write(b'0')
++                self.lock.flush()
++            self.lock.seek(0)
++            if os.name == 'nt':
++                import msvcrt
++                msvcrt.locking(self.lock.fileno(), msvcrt.LK_NBLCK, 1)
++            else:
++                import fcntl
++                fcntl.flock(self.lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
++        except OSError:
++            self.lock.close()
++            raise RuntimeError(f'Another collector owns topic {topic}')
++        self.closed = False
++        try:
++            with outbox.connect() as conn:
++                old = conn.execute('''SELECT s.run_id FROM collection_sessions s
++                    WHERE s.topic=? AND NOT EXISTS (SELECT 1 FROM session_events e
++                    WHERE e.run_id=s.run_id AND e.kind IN ('closed','failed','interrupted'))''', [topic]).fetchall()
++                for (run_id,) in old:
++                    conn.execute('INSERT INTO session_events VALUES (?,?,?,?,?)',
++                                 [str(uuid.uuid4()), run_id, now(), 'interrupted',
++                                  json.dumps({'reason': 'exclusive collector restarted; actual stop time unknown'})])
++                conn.execute('INSERT INTO collection_sessions VALUES (?,?,?,?,?)',
++                             [run['run_id'], topic, run['started_at'], json.dumps(run, sort_keys=True),
++                              json.dumps(source_config, sort_keys=True)])
++        except BaseException:
++            self.release()
++            raise
++
++    def event(self, kind, **details):
++        with self.outbox.connect() as conn:
++            conn.execute('INSERT INTO session_events VALUES (?,?,?,?,?)',
++                         [str(uuid.uuid4()), self.run['run_id'], now(), kind, json.dumps(details, sort_keys=True)])
++
++    def release(self):
++        if not self.lock.closed:
++            if os.name == 'nt':
++                import msvcrt
++                self.lock.seek(0)
++                msvcrt.locking(self.lock.fileno(), msvcrt.LK_UNLCK, 1)
++            self.lock.close()
++
++    def close(self, reason='normal', failed=False):
++        if self.closed:
++            return
++        try:
++            self.event('failed' if failed else 'closed', reason=reason,
++                       pending_delivery=self.outbox.count())
++            self.closed = True
++        finally:
++            self.release()
++
++    def begin_request(self, endpoint, configuration):
++        request_id = str(uuid.uuid4())
++        with self.outbox.connect() as conn:
++            conn.execute('INSERT INTO source_requests VALUES (?,?,?,?,?,?)',
++                         [request_id, self.run['run_id'], self.topic, now(), endpoint,
++                          json.dumps(configuration, sort_keys=True)])
++        return request_id
++
++    def finish_request(self, request_id, outcome, *, http_status=None, item_count=None,
++                       error=None, **details):
++        if outcome not in ('success', 'empty', 'failed'):
++            raise ValueError('Unknown source request outcome')
++        with self.outbox.connect() as conn:
++            conn.execute('INSERT INTO source_request_results VALUES (?,?,?,?,?,?,?)',
++                         [request_id, now(), outcome, http_status, item_count, error,
++                          json.dumps(details, sort_keys=True)])
++
++    def context(self, request_id, publisher=None):
++        return {'run_id': self.run['run_id'], 'request_id': request_id,
++                'publisher': publisher}
++
++
++def read_session_evidence(path):
++    """Read without creating a missing ledger or modifying interrupted sessions."""
++    path = Path(path).resolve()
++    if not path.is_file():
++        raise FileNotFoundError(path)
++    conn = sqlite3.connect(path.as_uri() + '?mode=ro', uri=True)
++    conn.row_factory = sqlite3.Row
++    try:
++        conn.execute('BEGIN')
++        sessions = [dict(row) for row in conn.execute('SELECT * FROM collection_sessions ORDER BY started_at,run_id')]
++        events = [dict(row) for row in conn.execute('SELECT * FROM session_events ORDER BY recorded_at,event_id')]
++        requests = [dict(row) for row in conn.execute('''SELECT q.*,r.finished_at,r.outcome,r.http_status,
++            r.item_count,r.error,r.details FROM source_requests q
++            LEFT JOIN source_request_results r USING(request_id) ORDER BY q.started_at,q.request_id''')]
++        for row in sessions:
++            row['provenance'] = json.loads(row['provenance'])
++            row['source_configuration'] = json.loads(row['source_configuration'])
++            terminal = [e for e in events if e['run_id'] == row['run_id'] and
++                        e['kind'] in ('closed', 'failed', 'interrupted')]
++            row['status'] = terminal[-1]['kind'] if terminal else 'unfinished'
++            row['invalidated'] = any(e['run_id'] == row['run_id'] and e['kind'] == 'invalidated' for e in events)
++        for row in events:
++            row['details'] = json.loads(row['details'])
++        for row in requests:
++            row['configuration'] = json.loads(row['configuration'])
++            row['details'] = json.loads(row['details']) if row['details'] else None
++            row['outcome'] = row['outcome'] or 'unfinished'
++        return {'kind': 'collection_session_evidence_v1', 'sessions': sessions,
++                'session_events': events, 'requests': requests}
++    finally:
++        conn.close()
++
++
++def invalidate_session(outbox, run_id, reason):
++    """Append a disclosed research exclusion; never delete source/delivery history."""
++    if not reason.strip():
++        raise ValueError('A concrete invalidation reason is required')
++    with outbox.connect() as conn:
++        if not conn.execute('SELECT 1 FROM collection_sessions WHERE run_id=?', [run_id]).fetchone():
++            raise ValueError('Unknown collection session')
++        if not conn.execute("SELECT 1 FROM session_events WHERE run_id=? AND kind IN ('closed','failed','interrupted')", [run_id]).fetchone():
++            raise ValueError('Stop and record termination before invalidating a session')
++        conn.execute('INSERT INTO session_events VALUES (?,?,?,?,?)',
++                     [str(uuid.uuid4()), run_id, now(), 'invalidated', json.dumps({'reason': reason})])
++
++
++def verify_request_links(rows, evidence):
++    """Validate first-version links; legacy observations remain explicitly unknown."""
++    requests = {row['request_id']: row for row in evidence['requests']}
++    sessions = {row['run_id']: row for row in evidence['sessions']}
++    linked, unknown = 0, 0
++    for row in rows:
++        snapshot = json.loads(row['snapshot']) if isinstance(row['snapshot'], str) else row['snapshot']
++        context = snapshot.get('request_context')
++        if not context:
++            unknown += 1
++            continue
++        request = requests.get(context.get('request_id'))
++        run = sessions.get(context.get('run_id'))
++        if not request or not run or request['run_id'] != run['run_id']:
++            raise ValueError('Observation request/session evidence is missing or inconsistent')
++        if snapshot.get('collection_run') != run['provenance']:
++            raise ValueError('Observation collection provenance differs from its session ledger')
++        from config import TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC
++        expected_topic = {'RSS': TOPIC_RSS, 'GDELT': TOPIC_GDELT, 'SEC': TOPIC_SEC}[snapshot['source']]
++        # Fixture/custom topic ledgers must use the configured topic as well.
++        if request['topic'] != expected_topic or run['topic'] != expected_topic:
++            raise ValueError('Observation source differs from its request/session topic')
++        from research.protocol import utc
++        if utc(request['started_at']) > utc(snapshot['observed_at']):
++            raise ValueError('Source request starts after observation')
++        if request['outcome'] == 'empty':
++            raise ValueError('An empty source response cannot contain an observed headline')
++        linked += 1
++    return {'linked_versions': linked, 'versions_with_unknown_request': unknown,
++            'unfinished_sessions': sum(row['status'] == 'unfinished' for row in evidence['sessions']),
++            'unfinished_requests': sum(row['outcome'] == 'unfinished' for row in evidence['requests'])}
+diff --git a/scripts/drain_delivery.py b/scripts/drain_delivery.py
+index 0abe0a5..5a0030b 100644
+--- a/scripts/drain_delivery.py
++++ b/scripts/drain_delivery.py
+@@ -1,51 +1,21 @@
+ """Retry staged delivery without fetching feeds; wait for durable writer commits.
+ 
+-Stop ALL collectors first and leave the writer running. Exit 0 is a delivery
+-boundary, not a payload-quality or research-readiness certificate.
++Stop ALL collectors first. Keep the writer running when deliveries remain;
++an unchanged idle boundary can be inspected with the writer stopped. Exit 0
++verifies transport progress; prospective export separately reconciles storage.
+ """
+ import argparse
+-import hashlib
+ import json
+ import math
+ import os
+ import time
++from datetime import datetime, timezone
+ from pathlib import Path
+ 
+-from config import (OUTBOX_PATH, KAFKA_BOOTSTRAP_SERVERS, LAKEHOUSE_GROUP_ID,
++from config import (OUTBOX_PATH, KAFKA_BOOTSTRAP_SERVERS, LAKEHOUSE_GROUP_ID, LAKEHOUSE_DB_PATH,
+                     TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC, TOPIC_OBSERVATIONS)
+ from utils.kafka_producer import RedpandaProducer
+-
+-
+-def load_baseline(path, topics, writer_group):
+-    path = Path(path)
+-    raw = path.read_bytes()
+-    document = json.loads(raw)
+-    if document.get('kind') != 'verified_collection_baseline_v1':
+-        raise ValueError('Baseline kind is not active and supported')
+-    if document.get('activation_gate', {}).get('active') is not True:
+-        raise ValueError('Baseline activation gate is not active')
+-    kafka = document.get('kafka', {})
+-    if kafka.get('writer_group') != writer_group:
+-        raise ValueError('Baseline writer group does not match configured writer group')
+-    configured_topics = set(topics)
+-    partitions = {}
+-    for item in kafka.get('partitions', []):
+-        key = (item.get('topic'), item.get('partition'))
+-        start = item.get('post_baseline_start_offset')
+-        committed = item.get('writer_committed_next_offset')
+-        if key in partitions:
+-            raise ValueError(f'Duplicate baseline partition: {key}')
+-        if key[0] not in configured_topics or not isinstance(key[1], int) or key[1] < 0:
+-            raise ValueError(f'Invalid baseline partition: {key}')
+-        if not isinstance(start, int) or start < 0:
+-            raise ValueError(f'Invalid baseline start offset: {key}')
+-        if committed is not None and (not isinstance(committed, int) or committed < 0):
+-            raise ValueError(f'Invalid baseline committed offset: {key}')
+-        partitions[key] = {'start': start, 'committed_at_capture': committed}
+-    if {topic for topic, _ in partitions} != configured_topics:
+-        raise ValueError('Baseline topics do not match configured topics')
+-    return {'path': str(path), 'sha256': hashlib.sha256(raw).hexdigest(),
+-            'captured_at_utc': document.get('captured_at_utc'), 'partitions': partitions}
++from research.collection_boundary import load_baseline
+ 
+ 
+ def writer_backlog(consumer, topics, deadline, baseline_partitions=None):
+@@ -71,6 +41,9 @@ def writer_backlog(consumer, topics, deadline, baseline_partitions=None):
+         raise RuntimeError(f'Kafka partition set changed; missing={missing}, added={added}')
      committed = consumer.committed(partitions, timeout=budget())
--    lag = {}
-+    progress = {}
+     progress = {}
++    returned = [(p.topic, p.partition) for p in committed]
++    if len(returned) != len(actual) or set(returned) != actual:
++        raise RuntimeError('Incomplete or unexpected partition offset response')
      for p in committed:
          if p.error:
              raise RuntimeError(str(p.error))
-         low, high = consumer.get_watermark_offsets(p, timeout=budget(), cached=False)
--        # Missing commits on a retained nonempty partition are not proof of processing.
--        if (p.offset < 0 and low > 0) or (0 <= p.offset < low) or p.offset > high:
--            raise RuntimeError(f'Unverifiable retained history: {p.topic}:{p.partition}')
--        lag[f'{p.topic}:{p.partition}'] = max(0, high - max(0, p.offset))
--    if len(lag) != len(partitions):
-+        key, label = (p.topic, p.partition), f'{p.topic}:{p.partition}'
-+        committed_offset = p.offset if p.offset >= 0 else None
-+        if baseline_partitions is None:
-+            # Legacy whole-retained-log check, kept for callers without a baseline.
-+            if (committed_offset is None and low > 0) or (
-+                    committed_offset is not None and committed_offset < low) or (
-+                    committed_offset is not None and committed_offset > high):
-+                raise RuntimeError(f'Unverifiable retained history: {label}')
-+            progress[label] = max(0, high - max(0, committed_offset or 0))
-+            continue
-+        baseline = baseline_partitions[key]
-+        start, captured_commit = baseline['start'], baseline['committed_at_capture']
-+        if low > high:
-+            raise RuntimeError(f'Invalid broker offset range: {label}')
-+        if high < start:
-+            raise RuntimeError(f'Broker high watermark regressed before baseline: {label}')
-+        if captured_commit is not None and (
-+                committed_offset is None or committed_offset < captured_commit):
-+            raise RuntimeError(f'Writer commit regressed from baseline: {label}')
-+        if committed_offset is not None and committed_offset > high:
-+            raise RuntimeError(f'Writer commit exceeds broker high watermark: {label}')
-+        if high > start and committed_offset is None:
-+            raise RuntimeError(f'Post-baseline messages have no writer commit: {label}')
-+        if committed_offset is not None and committed_offset < start and high > start:
-+            raise RuntimeError(f'Writer commit is behind baseline: {label}')
-+        if low > start and (committed_offset is None or committed_offset < low):
-+            raise RuntimeError(f'Retention overtook unprocessed post-baseline data: {label}')
-+        effective_commit = start if committed_offset is None else max(start, committed_offset)
-+        lag = max(0, high - effective_commit)
-+        progress[label] = {
-+            'baseline_next_offset': start,
-+            'retained_start_offset': low,
-+            'broker_high_watermark_next_offset': high,
-+            'writer_committed_next_offset': committed_offset,
-+            'post_baseline_messages': high - start,
-+            'lag': lag,
-+            'status': 'no_new_records' if high == start else 'complete' if lag == 0 else 'writer_lag',
-+        }
-+    if len(progress) != len(partitions):
-         raise RuntimeError('Incomplete partition offset response')
--    return lag
-+    return progress
-+
-+
-+def _lag_values(progress):
-+    return {key: value['lag'] if isinstance(value, dict) else value
-+            for key, value in progress.items()}
- 
- 
- def drain(producer, backlog, timeout=120, batch_size=256, allowed_topics=None):
-@@ -61,24 +141,37 @@ def drain(producer, backlog, timeout=120, batch_size=256, allowed_topics=None):
-             try:
-                 last_lag = backlog(deadline)
-                 error = None
--                if last_lag and all(value == 0 for value in last_lag.values()):
--                    return {'drained': True, 'pending': 0, 'writer_lag': last_lag}
-+                lags = _lag_values(last_lag)
-+                if lags and all(value == 0 for value in lags.values()):
-+                    return {'drained': True, 'pending': 0, 'writer_lag': lags,
-+                            'writer_progress': last_lag}
-             except Exception as exc:
-                 error = str(exc)
-         time.sleep(max(0, min(.2, deadline - time.monotonic())))
-     return {'drained': False, 'pending': producer.outbox.count(),
--            'writer_lag': last_lag, 'error': error or 'Deadline reached; do not snapshot yet'}
-+            'writer_lag': _lag_values(last_lag) if last_lag else last_lag,
-+            'writer_progress': last_lag,
-+            'error': error or 'Deadline reached; do not snapshot yet'}
- 
- 
- def main():
-     parser = argparse.ArgumentParser(description=__doc__)
-     parser.add_argument('--timeout', type=float, default=120)
+@@ -92,7 +65,8 @@ def writer_backlog(consumer, topics, deadline, baseline_partitions=None):
+         if high < start:
+             raise RuntimeError(f'Broker high watermark regressed before baseline: {label}')
+         if captured_commit is not None and (
+-                committed_offset is None or committed_offset < captured_commit):
++                (committed_offset is None and high > start) or
++                (committed_offset is not None and committed_offset < captured_commit)):
+             raise RuntimeError(f'Writer commit regressed from baseline: {label}')
+         if committed_offset is not None and committed_offset > high:
+             raise RuntimeError(f'Writer commit exceeds broker high watermark: {label}')
+@@ -110,6 +84,7 @@ def writer_backlog(consumer, topics, deadline, baseline_partitions=None):
+             'broker_high_watermark_next_offset': high,
+             'writer_committed_next_offset': committed_offset,
+             'post_baseline_messages': high - start,
++            'commit_expired_at_idle_boundary': captured_commit is not None and committed_offset is None,
+             'lag': lag,
+             'status': 'no_new_records' if high == start else 'complete' if lag == 0 else 'writer_lag',
+         }
+@@ -160,6 +135,7 @@ def main():
      parser.add_argument('--outbox-path', default=OUTBOX_PATH)
-+    parser.add_argument('--baseline-path', default=os.getenv('COLLECTION_BASELINE_PATH'),
-+                        help='Active collection-baseline JSON (required)')
+     parser.add_argument('--baseline-path', default=os.getenv('COLLECTION_BASELINE_PATH'),
+                         help='Active collection-baseline JSON (required)')
++    parser.add_argument('--output', type=Path, help='Save a new drain report; refuses overwrite')
      args = parser.parse_args()
      if not math.isfinite(args.timeout) or args.timeout <= 0:
          parser.error('--timeout must be finite and positive')
-     if not Path(args.outbox_path).is_file():
+@@ -167,6 +143,8 @@ def main():
          parser.error('Outbox is missing: verify the data mount; do not assume it is empty')
-+    if not args.baseline_path:
-+        parser.error('--baseline-path or COLLECTION_BASELINE_PATH is required')
-+    topics = (TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC, TOPIC_OBSERVATIONS)
-+    try:
-+        baseline = load_baseline(args.baseline_path, topics, LAKEHOUSE_GROUP_ID)
-+    except (OSError, ValueError, json.JSONDecodeError) as exc:
-+        parser.error(f'Invalid baseline: {exc}')
-     from confluent_kafka import Consumer
-     # Inspect offsets only: never subscribe/join, consume, or commit in this command.
-     consumer = Consumer({'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS,
-@@ -86,9 +179,10 @@ def main():
-                          'enable.auto.offset.store': False})
+     if not args.baseline_path:
+         parser.error('--baseline-path or COLLECTION_BASELINE_PATH is required')
++    if args.output and args.output.exists():
++        parser.error('Drain report already exists; choose a new path')
+     topics = (TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC, TOPIC_OBSERVATIONS)
      try:
-         producer = RedpandaProducer(profile='critical', outbox_path=args.outbox_path)
--        topics = (TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC, TOPIC_OBSERVATIONS)
-         result = drain(producer, lambda deadline: writer_backlog(consumer,
--                       topics, deadline), args.timeout, allowed_topics=topics)
-+                       topics, deadline, baseline['partitions']),
-+                       args.timeout, allowed_topics=topics)
-+        result['baseline'] = {key: baseline[key] for key in ('path', 'sha256', 'captured_at_utc')}
+         baseline = load_baseline(args.baseline_path, topics, LAKEHOUSE_GROUP_ID)
+@@ -183,6 +161,12 @@ def main():
+                        topics, deadline, baseline['partitions']),
+                        args.timeout, allowed_topics=topics)
+         result['baseline'] = {key: baseline[key] for key in ('path', 'sha256', 'captured_at_utc')}
++        result['database_id'] = os.getenv('RESEARCH_DATABASE_ID', f'file:{Path(LAKEHOUSE_DB_PATH).resolve()}')
++        result['checked_at_utc'] = datetime.now(timezone.utc).isoformat()
++        if args.output:
++            args.output.parent.mkdir(parents=True, exist_ok=True)
++            with args.output.open('x', encoding='utf-8') as handle:
++                handle.write(json.dumps(result, indent=2) + '\n')
          print(json.dumps(result, indent=2))
      finally:
          consumer.close()
+diff --git a/scripts/export_research_dataset.py b/scripts/export_research_dataset.py
+index f5c517e..889e497 100644
+--- a/scripts/export_research_dataset.py
++++ b/scripts/export_research_dataset.py
+@@ -12,6 +12,9 @@ from lakehouse.migrations import VERSION
+ from research.observations import canonical_json
+ from research.protocol import PROTOCOL_VERSION, utc
+ from research.provenance import code_identity
++from research.collection_boundary import load_baseline, reconcile_storage
++from research.sessions import read_session_evidence, verify_request_links
++from config import TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC, TOPIC_OBSERVATIONS, LAKEHOUSE_GROUP_ID, OUTBOX_PATH
+ 
+ 
+ COLLECTION_CONFIG_DEFAULTS = {
+@@ -27,14 +30,35 @@ COLLECTION_CONFIG_DEFAULTS = {
+ }
+ 
+ 
+-def export_dataset(db_path, output_dir, cutoff):
++def export_dataset(db_path, output_dir, cutoff, *, baseline_path=None, drain_report_path=None,
++                   development=False, session_ledger_path=None):
+     cutoff = utc(cutoff)
++    if development and (baseline_path or drain_report_path):
++        raise ValueError('Choose development mode or a verified prospective export')
++    if not development and (not baseline_path or not drain_report_path):
++        raise ValueError('Prospective exports require baseline and drain report; use explicit development mode for pilot data')
++    baseline = None if development else load_baseline(
++        baseline_path, (TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC, TOPIC_OBSERVATIONS), LAKEHOUSE_GROUP_ID)
++    if baseline and cutoff < utc(baseline['captured_at_utc']):
++        raise ValueError('Export cutoff precedes the collection baseline')
++    database_path = str(Path(db_path).resolve())
++    database_id = os.getenv('RESEARCH_DATABASE_ID', f'file:{database_path}')
+     lake = LakehouseManager(db_path, read_only=True)
+     try:
+         rows = lake.query_research_as_of(cutoff)
++        candidates = len(rows)
++        storage_evidence = reconcile_storage(lake.conn, baseline, drain_report_path, database_id) if baseline else None
++        if baseline:
++            starts = baseline['partitions']
++            captured = utc(baseline['captured_at_utc'])
++            rows = [row for row in rows if
++                    row['kafka_offset'] >= starts[(row['kafka_topic'], row['kafka_partition'])]['start']
++                    and row['observed_at'] >= captured and row['available_at'] >= captured]
+         schema_version = lake.conn.execute(
+             'SELECT COALESCE(MAX(version),0) FROM lakehouse_migrations'
+         ).fetchone()[0]
++        if baseline and schema_version != VERSION:
++            raise ValueError('Prospective export requires the current storage schema')
+         total_versions, sealed_versions, unsealed_versions = lake.conn.execute('''
+             SELECT COUNT(*),
+                    COUNT(*) FILTER (WHERE available_at IS NOT NULL),
+@@ -43,6 +67,17 @@ def export_dataset(db_path, output_dir, cutoff):
+         ''').fetchone()
+     finally:
+         lake.close()
++    evidence = read_session_evidence(session_ledger_path) if session_ledger_path else None
++    if evidence is None and any(json.loads(row['snapshot']).get('request_context') for row in rows):
++        raise ValueError('Request-linked observations require --session-ledger evidence')
++    boundary_selected = len(rows)
++    invalid_runs = {run['run_id'] for run in evidence['sessions'] if run['invalidated']} if evidence else set()
++    if evidence is not None:
++        verify_request_links(rows, evidence)
++        rows = [row for row in rows if
++                (json.loads(row['snapshot']).get('collection_run') or {}).get('run_id') not in invalid_runs]
++    links = verify_request_links(rows, evidence) if evidence is not None else None
++    evidence_bytes = canonical_json(evidence) + '\n' if evidence is not None else None
+     rendered = ''.join(canonical_json({key: value.isoformat() if hasattr(value, 'isoformat') else value
+                                       for key, value in row.items()}) + '\n' for row in rows)
+     runs, unknown = {}, 0
+@@ -56,10 +91,23 @@ def export_dataset(db_path, output_dir, cutoff):
+         if run_id in runs and runs[run_id] != run:
+             raise ValueError(f'Conflicting collection provenance for run {run_id}')
+         runs[run_id] = run
+-    database_path = str(Path(db_path).resolve())
+     manifest = {'protocol': PROTOCOL_VERSION, 'cutoff': cutoff.isoformat(),
+                 'rows': len(rows), 'dataset_sha256': hashlib.sha256(rendered.encode('utf-8')).hexdigest(),
+-                'manifest_version': 2,
++                'manifest_version': 3,
++                'dataset_scope': 'development' if development else 'prospective_since_baseline',
++                'boundary': None if development else {
++                    **{key: baseline[key] for key in ('path','sha256','captured_at_utc')},
++                    'selection': 'first persisted version offset >= partition baseline AND observed_at >= baseline time AND sealed available_at <= cutoff',
++                    'eligible_versions_excluded_by_boundary': candidates - boundary_selected,
++                },
++                'storage_reconciliation': storage_evidence,
++                'session_evidence': None if evidence is None else {
++                    'file': 'collection-sessions.json',
++                    'sha256': hashlib.sha256(evidence_bytes.encode()).hexdigest(),
++                    'basis': 'operational ledger snapshot at export, not model input or cutoff-filtered features',
++                    'invalidated_run_ids': sorted(invalid_runs),
++                    'versions_excluded_from_invalidated_runs': boundary_selected - len(rows),
++                    **links},
+                 'exporter_provenance': {'code': code_identity(), 'configuration': {
+                     name: os.getenv(name, default)
+                     for name, default in COLLECTION_CONFIG_DEFAULTS.items()
+@@ -69,7 +117,7 @@ def export_dataset(db_path, output_dir, cutoff):
+                     'runs': [runs[key] for key in sorted(runs)],
+                     'versions_with_unknown_provenance': unknown,
+                 },
+-                'database': {'id': os.getenv('RESEARCH_DATABASE_ID', f'file:{database_path}'),
++                'database': {'id': database_id,
+                              'path': database_path, 'schema_version': schema_version,
+                              'expected_schema_version': VERSION,
+                              'total_research_versions': total_versions,
+@@ -85,13 +133,17 @@ def export_dataset(db_path, output_dir, cutoff):
+                                 'Collection runs describe first persisted versions, not every fetch or redelivery; Bronze retains wire evidence.',
+                                 'Declared revisions are operator assertions. Application file hashes identify collected code but do not archive it or pin dependencies.',
+                                 'Model versions, annotations and experiment results must be recorded separately.',
++                                'Drain reports and baseline are trusted local evidence; Kafka commits cannot prove source coverage or detect operator offset resets on their own.',
++                                'Prospective exports keep first-version identity: a pre-baseline version redelivered later stays excluded; a corrected post-baseline version may qualify.',
+                                 'A dirty worktree hash does not archive untracked source files. Freeze a clean commit before experiments.']}
+     output = Path(output_dir)
+     output.mkdir(parents=True, exist_ok=True)
+     # Never overwrite a frozen experiment artifact.
+-    if (output / 'dataset.jsonl').exists() or (output / 'manifest.json').exists():
++    if any((output / name).exists() for name in ('dataset.jsonl','manifest.json','collection-sessions.json')):
+         raise FileExistsError('Choose a new output directory for each snapshot')
+     (output / 'dataset.jsonl').write_text(rendered, encoding='utf-8', newline='\n')
++    if evidence_bytes is not None:
++        (output / 'collection-sessions.json').write_text(evidence_bytes, encoding='utf-8', newline='\n')
+     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+     return manifest
+ 
+@@ -101,8 +153,20 @@ def main():
+     parser.add_argument('--db-path', default=os.getenv('LAKEHOUSE_DB_PATH', 'data/lakehouse.duckdb'))
+     parser.add_argument('--output-dir', required=True)
+     parser.add_argument('--cutoff', required=True, help='Explicit timezone-aware ISO instant')
++    parser.add_argument('--baseline-path', default=os.getenv('COLLECTION_BASELINE_PATH'))
++    parser.add_argument('--drain-report', help='Successful saved drain report for this quiet snapshot')
++    parser.add_argument('--development', action='store_true', help='Explicit unverified development/pilot export')
++    parser.add_argument('--session-ledger', default=OUTBOX_PATH,
++                        help='Read-only shared SQLite collector ledger to archive with the snapshot')
+     args = parser.parse_args()
+-    print(json.dumps(export_dataset(args.db_path, args.output_dir, args.cutoff), indent=2))
++    baseline_path = None if args.development else args.baseline_path
++    try:
++        manifest = export_dataset(args.db_path, args.output_dir, args.cutoff,
++                                  baseline_path=baseline_path, drain_report_path=args.drain_report,
++                                  development=args.development, session_ledger_path=args.session_ledger)
++    except ValueError as exc:
++        parser.error(str(exc))
++    print(json.dumps(manifest, indent=2))
+ 
+ 
+ if __name__ == '__main__':
+diff --git a/scripts/inspect_collection_sessions.py b/scripts/inspect_collection_sessions.py
+new file mode 100644
+index 0000000..d39d506
+--- /dev/null
++++ b/scripts/inspect_collection_sessions.py
+@@ -0,0 +1,27 @@
++"""Read collector session/request evidence without changing its status."""
++import argparse
++import json
++
++from config import OUTBOX_PATH
++from research.sessions import read_session_evidence, invalidate_session
++from utils.outbox import DeliveryOutbox
++from pathlib import Path
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--ledger', default=OUTBOX_PATH)
++    parser.add_argument('--invalidate-run', help='Append an exclusion for an already terminated faulty collection run')
++    parser.add_argument('--reason', help='Required concrete reason for the research exclusion')
++    args = parser.parse_args()
++    if bool(args.invalidate_run) != bool(args.reason):
++        parser.error('--invalidate-run and --reason must be supplied together')
++    if args.invalidate_run:
++        if not Path(args.ledger).is_file():
++            parser.error('Ledger is missing')
++        invalidate_session(DeliveryOutbox(args.ledger), args.invalidate_run, args.reason)
++    print(json.dumps(read_session_evidence(args.ledger), indent=2))
++
++
++if __name__ == '__main__':
++    main()
 diff --git a/tests/test_checkpoint1_delivery.py b/tests/test_checkpoint1_delivery.py
-index 17c8dae..6ff6b32 100644
+index 6ff6b32..f9edd38 100644
 --- a/tests/test_checkpoint1_delivery.py
 +++ b/tests/test_checkpoint1_delivery.py
-@@ -8,7 +8,7 @@ from types import SimpleNamespace
- from unittest.mock import MagicMock, patch
- 
- from research.provenance import code_identity
--from scripts.drain_delivery import drain, writer_backlog
-+from scripts.drain_delivery import drain, load_baseline, writer_backlog
- from tests.test_research_pipeline import observation, message, T
- from tests import test_research_pipeline as research_tests
- from scripts.export_research_dataset import export_dataset
-@@ -45,7 +45,7 @@ class TestDrain(unittest.TestCase):
-             received.append(kw['value'])
-             kw['on_delivery'](None, None)
-         second._producer.produce.side_effect = acknowledge
--        result = drain(second, lambda _: {'topic:0': 0}, timeout=10)
-+        result = drain(second, lambda _: {'topic:0': 0}, timeout=30)
-         self.assertTrue(result['drained'])
-         self.assertEqual(received, [f'original-{i}'.encode() for i in range(600)])
- 
-@@ -80,6 +80,80 @@ class TestDrain(unittest.TestCase):
-         consumer.subscribe.assert_not_called()
-         consumer.commit.assert_not_called()
- 
-+    def test_baseline_allows_newly_empty_topic_without_historical_commit(self):
+@@ -201,7 +201,7 @@ class TestProvenance(unittest.TestCase):
+                              T+timedelta(minutes=20))
+             fixture.lake.close()
+             with patch.dict('os.environ', {'TOPIC_RSS': 'exporter-topic', 'COLLECTION_CODE_REVISION': 'wrong'}):
+-                manifest = export_dataset(fixture.path, Path(fixture.tmp.name)/'export', T+timedelta(hours=1))
++                manifest = export_dataset(fixture.path, Path(fixture.tmp.name)/'export', T+timedelta(hours=1), development=True)
+             self.assertEqual(manifest['collection_provenance']['runs'], [run])
+             self.assertEqual(manifest['collection_provenance']['versions_with_unknown_provenance'], 0)
+             self.assertEqual(manifest['exporter_provenance']['configuration']['TOPIC_RSS'], 'exporter-topic')
+diff --git a/tests/test_collection_boundary.py b/tests/test_collection_boundary.py
+new file mode 100644
+index 0000000..ceb8869
+--- /dev/null
++++ b/tests/test_collection_boundary.py
+@@ -0,0 +1,171 @@
++"""Do not confuse idle broker state with stored evidence or prospective data."""
++import hashlib
++import json
++import os
++import tempfile
++import time
++import unittest
++from datetime import timedelta
++from pathlib import Path
++from types import SimpleNamespace
++from unittest.mock import MagicMock, patch
++
++from config import TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC, TOPIC_OBSERVATIONS, LAKEHOUSE_GROUP_ID
++from lakehouse.db import LakehouseManager
++from lakehouse.records import KafkaEnvelope
++from scripts.drain_delivery import writer_backlog
++from scripts.export_research_dataset import export_dataset
++from tests.test_research_pipeline import T, observation
++
++TOPICS = (TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC, TOPIC_OBSERVATIONS)
++
++
++class TestExpiredCommits(unittest.TestCase):
++    def test_expired_commit_at_unchanged_boundary_passes_but_new_messages_fail(self):
 +        consumer = MagicMock()
-+        consumer.list_topics.return_value.topics = {
-+            'topic': SimpleNamespace(error=None, partitions={0: None})}
-+        consumer.committed.return_value = [
-+            SimpleNamespace(topic='topic', partition=0, offset=-1001, error=None)]
-+        consumer.get_watermark_offsets.return_value = (5, 5)
-+        baseline = {('topic', 0): {'start': 5, 'committed_at_capture': None}}
++        consumer.list_topics.return_value.topics = {'topic': SimpleNamespace(error=None, partitions={0: None})}
++        consumer.committed.return_value = [SimpleNamespace(topic='topic', partition=0, offset=-1001, error=None)]
++        baseline = {('topic', 0): {'start': 150, 'committed_at_capture': 150}}
++        consumer.get_watermark_offsets.return_value = (150, 150)
 +        progress = writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
-+        self.assertEqual(progress['topic:0']['status'], 'no_new_records')
 +        self.assertEqual(progress['topic:0']['lag'], 0)
++        self.assertTrue(progress['topic:0']['commit_expired_at_idle_boundary'])
++        consumer.get_watermark_offsets.return_value = (150, 151)
++        with self.assertRaises(RuntimeError):
++            writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
++        # Even when retained data disappears, no new records can be assumed complete.
++        consumer.get_watermark_offsets.return_value = (151, 151)
++        with self.assertRaises(RuntimeError):
++            writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
++        consumer.subscribe.assert_not_called()
++        consumer.commit.assert_not_called()
 +
-+    def test_baseline_reports_complete_post_baseline_range(self):
++    def test_unexpected_or_duplicate_commit_partitions_fail(self):
 +        consumer = MagicMock()
-+        consumer.list_topics.return_value.topics = {
-+            'topic': SimpleNamespace(error=None, partitions={0: None})}
-+        consumer.committed.return_value = [
-+            SimpleNamespace(topic='topic', partition=0, offset=8, error=None)]
-+        consumer.get_watermark_offsets.return_value = (5, 8)
-+        baseline = {('topic', 0): {'start': 5, 'committed_at_capture': None}}
-+        progress = writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
-+        self.assertEqual(progress['topic:0']['post_baseline_messages'], 3)
-+        self.assertEqual(progress['topic:0']['status'], 'complete')
++        consumer.list_topics.return_value.topics = {'topic': SimpleNamespace(error=None, partitions={0: None})}
++        for entries in ([], [SimpleNamespace(topic='wrong', partition=0)],
++                        [SimpleNamespace(topic='topic', partition=0)]*2):
++            consumer.committed.return_value = entries
++            with self.assertRaisesRegex(RuntimeError, 'partition offset response'):
++                writer_backlog(consumer, ['topic'], time.monotonic()+5)
 +
-+    def test_baseline_rejects_lag_retention_and_partition_changes(self):
-+        consumer = MagicMock()
-+        consumer.list_topics.return_value.topics = {
-+            'topic': SimpleNamespace(error=None, partitions={0: None})}
-+        baseline = {('topic', 0): {'start': 5, 'committed_at_capture': None}}
-+        consumer.committed.return_value = [
-+            SimpleNamespace(topic='topic', partition=0, offset=6, error=None)]
-+        consumer.get_watermark_offsets.return_value = (5, 8)
-+        progress = writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
-+        self.assertEqual(progress['topic:0']['status'], 'writer_lag')
-+        self.assertEqual(progress['topic:0']['lag'], 2)
-+        consumer.get_watermark_offsets.return_value = (7, 8)
-+        with self.assertRaisesRegex(RuntimeError, 'Retention overtook'):
-+            writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
-+        consumer.list_topics.return_value.topics['topic'].partitions = {0: None, 1: None}
-+        with self.assertRaisesRegex(RuntimeError, 'partition set changed'):
-+            writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
 +
-+    def test_baseline_rejects_offset_or_commit_regression(self):
-+        consumer = MagicMock()
-+        consumer.list_topics.return_value.topics = {
-+            'topic': SimpleNamespace(error=None, partitions={0: None})}
-+        baseline = {('topic', 0): {'start': 5, 'committed_at_capture': 5}}
-+        consumer.committed.return_value = [
-+            SimpleNamespace(topic='topic', partition=0, offset=4, error=None)]
-+        consumer.get_watermark_offsets.return_value = (0, 5)
-+        with self.assertRaisesRegex(RuntimeError, 'commit regressed'):
-+            writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
-+        consumer.committed.return_value[0].offset = 5
-+        consumer.get_watermark_offsets.return_value = (0, 4)
-+        with self.assertRaisesRegex(RuntimeError, 'watermark regressed'):
-+            writer_backlog(consumer, ['topic'], time.monotonic()+5, baseline)
++class TestProspectiveExport(unittest.TestCase):
++    def setUp(self):
++        self.tmp = tempfile.TemporaryDirectory()
++        self.root = Path(self.tmp.name)
++        self.db = self.root/'lake.duckdb'
++        self.lake = LakehouseManager(str(self.db))
++        self.baseline = self.root/'baseline.json'
++        self.report = self.root/'drain.json'
++        self.env = patch.dict(os.environ, {'RESEARCH_DATABASE_ID': f'file:{self.db.resolve()}'})
++        self.env.start()
 +
-+    def test_load_baseline_requires_active_matching_group_and_topics(self):
-+        path = Path(self.tmp.name) / 'baseline.json'
-+        document = {
-+            'kind': 'verified_collection_baseline_v1',
-+            'captured_at_utc': '2026-09-28T08:46:55Z',
-+            'activation_gate': {'active': True},
-+            'kafka': {'writer_group': 'writer', 'partitions': [{
-+                'topic': 'topic', 'partition': 0, 'post_baseline_start_offset': 5,
-+                'writer_committed_next_offset': None}]}}
-+        path.write_text(json.dumps(document))
-+        loaded = load_baseline(path, ['topic'], 'writer')
-+        self.assertEqual(loaded['partitions'][('topic', 0)]['start'], 5)
-+        document['activation_gate']['active'] = False
-+        path.write_text(json.dumps(document))
-+        with self.assertRaisesRegex(ValueError, 'not active'):
-+            load_baseline(path, ['topic'], 'writer')
++    def tearDown(self):
++        self.lake.close()
++        self.env.stop()
++        self.tmp.cleanup()
 +
-     def test_collection_metadata_survives_staging_and_is_created_once(self):
-         producer = self.producer()
-         fields = observation().model_dump()
++    def write(self, obs, offset, minute):
++        with patch('lakehouse.db.datetime') as clock:
++            clock.now.return_value = T+timedelta(minutes=minute)
++            self.lake.write_message_batch([KafkaEnvelope(TOPIC_OBSERVATIONS, 0, offset, obs.to_json_bytes())],
++                                         {TOPIC_OBSERVATIONS: 'RESEARCH'})
++
++    def evidence(self, start=1, end=5):
++        identity = f'file:{self.db.resolve()}'
++        document = {'kind': 'verified_collection_baseline_v1', 'activation_gate': {'active': True},
++                    'captured_at_utc': (T+timedelta(minutes=15)).isoformat(),
++                    'duckdb': {'database_id': identity},
++                    'kafka': {'writer_group': LAKEHOUSE_GROUP_ID, 'partitions': [
++                        {'topic': topic, 'partition': 0, 'post_baseline_start_offset': start if topic == TOPIC_OBSERVATIONS else 0,
++                         'writer_committed_next_offset': None} for topic in TOPICS]}}
++        self.baseline.write_text(json.dumps(document))
++        self.report.write_text(json.dumps({'drained': True, 'pending': 0, 'database_id': identity,
++            'baseline': {'sha256': hashlib.sha256(self.baseline.read_bytes()).hexdigest()},
++            'writer_progress': {f'{topic}:0': {'baseline_next_offset': start if topic == TOPIC_OBSERVATIONS else 0,
++                'broker_high_watermark_next_offset': end if topic == TOPIC_OBSERVATIONS else 0,
++                'writer_committed_next_offset': end if topic == TOPIC_OBSERVATIONS else None,
++                'lag': 0} for topic in TOPICS}}))
++
++    def populate(self):
++        self.write(observation(), 0, 10)
++        # Redelivery keeps the first version's old transport coordinates and observation time.
++        self.write(observation(observed_at=T+timedelta(minutes=16)), 1, 20)
++        self.write(observation('corrected headline', observed_at=T+timedelta(minutes=16)), 2, 20)
++        self.write(observation('old delayed headline'), 3, 20)
++        self.write(observation('after cutoff', observed_at=T+timedelta(minutes=30)), 4, 31)
++        self.evidence()
++
++    def export(self):
++        self.lake.close()
++        return export_dataset(str(self.db), self.root/'export', T+timedelta(minutes=25),
++                              baseline_path=self.baseline, drain_report_path=self.report)
++
++    def test_offset_time_redelivery_and_cutoff_boundaries(self):
++        self.populate()
++        manifest = self.export()
++        rows = [json.loads(line) for line in (self.root/'export/dataset.jsonl').read_text().splitlines()]
++        self.assertEqual([row['title'] for row in rows], ['corrected headline'])
++        self.assertEqual(manifest['boundary']['eligible_versions_excluded_by_boundary'], 2)
++        self.assertEqual(manifest['dataset_scope'], 'prospective_since_baseline')
++        self.assertEqual(manifest['storage_reconciliation']['ranges'][-1]['bronze_rows'], 4)
++
++    def test_explicit_mode_and_missing_evidence_rejected_without_output(self):
++        self.lake.close()
++        with self.assertRaisesRegex(ValueError, 'require baseline'):
++            export_dataset(str(self.db), self.root/'export', T)
++        self.assertFalse((self.root/'export').exists())
++
++    def test_offset_advance_does_not_hide_missing_bronze_or_outcome_or_version(self):
++        for table, condition in (
++            ('bronze_events_raw', 'kafka_offset=2'),
++            ('lakehouse_message_outcomes', 'kafka_offset=2'),
++            ('research_observations', "title='corrected headline'")):
++            with self.subTest(table=table):
++                self.populate()
++                self.lake.conn.execute(f'DELETE FROM {table} WHERE {condition}')
++                with self.assertRaisesRegex(ValueError, 'Stored delivery range is incomplete'):
++                    self.export()
++                self.assertFalse((self.root/'export').exists())
++                self.lake = LakehouseManager(str(self.db))
++                for name in ('research_observations', 'lakehouse_message_outcomes', 'bronze_events_raw'):
++                    self.lake.conn.execute(f'DELETE FROM {name}')
++
++    def test_failure_pending_hash_database_and_stale_report_fail(self):
++        self.populate()
++        self.lake.close()
++        original = json.loads(self.report.read_text())
++        cases = ({'drained': False}, {'pending': 1}, {'baseline': {'sha256': 'wrong'}},
++                 {'database_id': 'wrong'})
++        for changes in cases:
++            with self.subTest(changes=changes):
++                self.report.write_text(json.dumps({**original, **changes}))
++                with self.assertRaises(ValueError):
++                    self.export()
++        self.report.write_text(json.dumps(original))
++        self.lake = LakehouseManager(str(self.db))
++        self.write(observation('new since report', observed_at=T+timedelta(minutes=35)), 5, 36)
++        with self.assertRaisesRegex(ValueError, 'stale'):
++            self.export()
++
++    def test_no_post_baseline_records_gives_empty_export_and_preserves_data(self):
++        self.write(observation(), 0, 10)
++        self.evidence(start=1, end=1)
++        manifest = self.export()
++        self.assertEqual(manifest['rows'], 0)
++        self.assertEqual(manifest['database']['total_research_versions'], 1)
++        self.assertEqual((self.root/'export/dataset.jsonl').read_text(), '')
++
++    def test_exact_baseline_and_cutoff_are_inclusive_and_old_source_time_is_allowed(self):
++        self.write(observation(), 0, 10)
++        self.write(observation('at boundary', observed_at=T+timedelta(minutes=15)), 1, 15)
++        self.evidence(start=1, end=2)
++        self.lake.close()
++        manifest = export_dataset(str(self.db), self.root/'export', T+timedelta(minutes=15),
++                                  baseline_path=self.baseline, drain_report_path=self.report)
++        self.assertEqual(manifest['rows'], 1)
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/tests/test_collection_sessions.py b/tests/test_collection_sessions.py
+new file mode 100644
+index 0000000..8a7667d
+--- /dev/null
++++ b/tests/test_collection_sessions.py
+@@ -0,0 +1,264 @@
++"""Request failures, restart evidence, content identity and archived traceability."""
++import hashlib
++import json
++import subprocess
++import sys
++import tempfile
++import unittest
++import uuid
++from datetime import datetime, timedelta, timezone
++from pathlib import Path
++from types import SimpleNamespace
++from unittest.mock import MagicMock, patch
++
++import requests
++
++from lakehouse.db import LakehouseManager
++from lakehouse.records import KafkaEnvelope
++from research.observations import SourceObservation, make_observation
++from research.sessions import CollectionSession, read_session_evidence
++from research.sessions import verify_request_links
++from research.sessions import invalidate_session
++from scripts.export_research_dataset import export_dataset
++from utils.outbox import DeliveryOutbox
++from utils.kafka_producer import RedpandaProducer
++from utils.redis_cache import DedupResult
++from workers import gdelt_worker, rss_worker
++
++
++class TestSessionLedger(unittest.TestCase):
++    def setUp(self):
++        self.tmp = tempfile.TemporaryDirectory()
++        self.path = str(Path(self.tmp.name) / 'outbox.sqlite3')
++        self.outbox = DeliveryOutbox(self.path)
++        self.session = None
++
++    def tearDown(self):
++        if self.session:
++            self.session.close('test_complete')
++        self.tmp.cleanup()
++
++    def start(self):
++        run = {'run_id': str(uuid.uuid4()), 'started_at': datetime.now(timezone.utc).isoformat()}
++        from config import TOPIC_RSS
++        self.session = CollectionSession(self.outbox, run, TOPIC_RSS, {'feed': 'fixture'})
++        return self.session
++
++    def test_second_collector_fails_without_changing_owner(self):
++        session = self.start()
++        with self.assertRaisesRegex(RuntimeError, 'Another collector'):
++            self.start()
++        evidence = read_session_evidence(self.path)
++        self.assertEqual(len(evidence['sessions']), 1)
++        self.assertEqual(evidence['sessions'][0]['status'], 'unfinished')
++        self.assertEqual(evidence['session_events'], [])
++        session.close()
++
++    def test_process_death_keeps_unfinished_request_and_restart_appends_interruption(self):
++        script = '''import os,sys,uuid
++from datetime import datetime,timezone
++from utils.outbox import DeliveryOutbox
++from config import TOPIC_RSS
++from research.sessions import CollectionSession
++s=CollectionSession(DeliveryOutbox(sys.argv[1]),{'run_id':str(uuid.uuid4()),'started_at':datetime.now(timezone.utc).isoformat()},TOPIC_RSS,{})
++s.begin_request('fixture',{})
++os._exit(0)
++'''
++        subprocess.run([sys.executable, '-c', script, self.path], check=True, timeout=30)
++        first = read_session_evidence(self.path)
++        self.assertEqual(first['sessions'][0]['status'], 'unfinished')
++        self.assertEqual(first['requests'][0]['outcome'], 'unfinished')
++        self.start().close('single_cycle_complete')
++        recovered = read_session_evidence(self.path)
++        self.assertEqual([s['status'] for s in recovered['sessions']], ['interrupted', 'closed'])
++        self.assertIn('actual stop time unknown', recovered['session_events'][0]['details']['reason'])
++        self.assertEqual(recovered['requests'][0]['outcome'], 'unfinished')
++
++    def test_closed_session_survives_and_request_result_cannot_be_overwritten(self):
++        session = self.start()
++        request_id = session.begin_request('fixture', {'query': 'inflation'})
++        session.finish_request(request_id, 'empty', http_status=200, item_count=0)
++        with self.assertRaises(Exception):
++            session.finish_request(request_id, 'failed', error='overwrite attempt')
++        session.close('SIGTERM')
++        evidence = read_session_evidence(self.path)
++        self.assertEqual(evidence['requests'][0]['outcome'], 'empty')
++        self.assertEqual(evidence['sessions'][0]['status'], 'closed')
++        self.assertEqual(evidence['session_events'][0]['details']['reason'], 'SIGTERM')
++
++    def test_request_context_does_not_change_content_hash_and_old_payload_still_validates(self):
++        fields = dict(source='RSS', article_id='a', title='Inflation falls', url='https://example.com/a',
++                      source_item={'title': 'Inflation falls'}, title_provenance='source_feed')
++        first = make_observation(**fields)
++        repeated = make_observation(**fields, request_context={'run_id': 'new', 'request_id': 'new'})
++        self.assertEqual(first.id, repeated.id)
++        old = first.model_dump(mode='json')
++        del old['request_context']
++        self.assertEqual(SourceObservation.model_validate(old).id, first.id)
++
++    def test_export_archives_ledger_and_rejects_missing_trace_without_writing_output(self):
++        session = self.start()
++        request_id = session.begin_request('https://example.com/rss', {'feed_name': 'fixture'})
++        session.finish_request(request_id, 'success', http_status=200, item_count=1)
++        obs = make_observation(source='RSS', article_id='a', title='Inflation falls',
++                               url='https://example.com/a', source_item={'title': 'Inflation falls'},
++                               title_provenance='source_feed', collection_run=session.run,
++                               request_context=session.context(request_id, 'example.com'))
++        db = str(Path(self.tmp.name) / 'lake.duckdb')
++        lake = LakehouseManager(db)
++        lake.write_message_batch([KafkaEnvelope('observations', 0, 0, obs.to_json_bytes())],
++                                 {'observations': 'RESEARCH'})
++        lake.close()
++        session.close()
++        cutoff = datetime.now(timezone.utc) + timedelta(seconds=1)
++        out = Path(self.tmp.name) / 'export'
++        manifest = export_dataset(db, out, cutoff, development=True, session_ledger_path=self.path)
++        archived = out / 'collection-sessions.json'
++        self.assertEqual(manifest['session_evidence']['sha256'], hashlib.sha256(archived.read_bytes()).hexdigest())
++        self.assertEqual(manifest['session_evidence']['linked_versions'], 1)
++        stored_rows = [json.loads((out/'dataset.jsonl').read_text().splitlines()[0])]
++        wrong_evidence = read_session_evidence(self.path)
++        wrong_evidence['requests'][0]['topic'] = 'wrong-topic'
++        with self.assertRaisesRegex(ValueError, 'source differs'):
++            verify_request_links(stored_rows, wrong_evidence)
++        with self.assertRaisesRegex(ValueError, 'require --session-ledger'):
++            export_dataset(db, Path(self.tmp.name)/'missing', cutoff, development=True)
++        self.assertFalse((Path(self.tmp.name)/'missing').exists())
++        wrong = str(Path(self.tmp.name) / 'wrong.sqlite3')
++        DeliveryOutbox(wrong)
++        with self.assertRaisesRegex(ValueError, 'missing or inconsistent'):
++            export_dataset(db, Path(self.tmp.name)/'wrong', cutoff, development=True, session_ledger_path=wrong)
++        invalidate_session(self.outbox, session.run['run_id'], 'Fixture collector produced parser artifacts')
++        excluded = export_dataset(db, Path(self.tmp.name)/'excluded', cutoff,
++                                  development=True, session_ledger_path=self.path)
++        self.assertEqual(excluded['rows'], 0)
++        self.assertEqual(excluded['session_evidence']['versions_excluded_from_invalidated_runs'], 1)
++        lake = LakehouseManager(db, read_only=True)
++        try:
++            self.assertEqual(len(lake.query_research_as_of(cutoff)), 1)
++        finally:
++            lake.close()
++
++    def test_active_session_cannot_be_invalidated(self):
++        session = self.start()
++        with self.assertRaisesRegex(ValueError, 'Stop and record termination'):
++            invalidate_session(self.outbox, session.run['run_id'], 'fixture')
++
++
++class TestSourceOutcomes(unittest.TestCase):
++    def setUp(self):
++        self.tmp = tempfile.TemporaryDirectory()
++        with patch.object(RedpandaProducer, '_init_producer'):
++            self.producer = RedpandaProducer(outbox_path=str(Path(self.tmp.name)/'outbox.sqlite3'))
++        self.producer._is_confluent = True
++        self.producer._producer = MagicMock()
++        self.observations = []
++
++        def ack(**kwargs):
++            from config import TOPIC_OBSERVATIONS
++            if kwargs['topic'] == TOPIC_OBSERVATIONS:
++                self.observations.append(SourceObservation.model_validate_json(kwargs['value']))
++            kwargs['on_delivery'](None, None)
++        self.producer._producer.produce.side_effect = ack
++        self.dedup = MagicMock()
++        self.dedup.check_dedup_result.return_value = DedupResult(is_exact=True)
++
++    def tearDown(self):
++        self.producer.close_session('test_complete')
++        self.tmp.cleanup()
++
++    def test_rss_http_bytes_preserve_original_url_parser_identity(self):
++        from feedparser.api import http
++        url = 'https://example.com/news/feed.xml'
++        body = b'''<rss version="2.0"><channel><title>Economy</title><item>
++            <title>Inflation falls</title><link>story.html</link>
++            <description>&lt;a href="detail.html"&gt;Details&lt;/a&gt;</description>
++            </item></channel></rss>'''
++
++        def get(*args):
++            args[-1]['href'] = url
++            args[-1]['headers'] = {'content-type': 'application/rss+xml'}
++            return body
++
++        with patch.object(http, 'get', side_effect=get):
++            original = rss_worker.feedparser.parse(url)
++        response = SimpleNamespace(url=url, content=body, headers={'Content-Type': 'application/rss+xml'})
++        captured = rss_worker.parse_feed_response(response)
++        self.assertEqual(original.entries, captured.entries)
++        self.assertEqual(captured.entries[0].title_detail.base, url)
++        self.assertEqual(captured.entries[0].link, 'https://example.com/news/story.html')
++
++    def test_rss_distinguishes_valid_empty_http_failure_and_html_response(self):
++        ok = MagicMock(status_code=200, content=b'<rss version="2.0"><channel><title>x</title></channel></rss>',
++                       url='https://example.com/rss')
++        bad = MagicMock(status_code=503)
++        bad.raise_for_status.side_effect = requests.HTTPError('503', response=bad)
++        html = MagicMock(status_code=200, content=b'<html>Unavailable</html>', url='https://example.com/html')
++        feeds = [{'name': str(n), 'url': f'https://example.com/{n}'} for n in range(3)]
++        with patch.object(rss_worker, 'MACRO_FEEDS', feeds), \
++             patch.object(rss_worker.requests, 'get', side_effect=[ok, bad, html]):
++            result = rss_worker.run_rss_fetch_cycle(self.producer, self.dedup)
++        evidence = read_session_evidence(self.producer.outbox.path)
++        self.assertEqual([r['outcome'] for r in evidence['requests']], ['empty','failed','failed'])
++        self.assertEqual(result['errors'], 2)
++        self.assertEqual(self.observations, [])
++
++    def test_gdelt_empty_is_success_not_fallback(self):
++        response = MagicMock(status_code=200)
++        response.json.return_value = {'articles': []}
++        with patch.object(gdelt_worker.requests, 'get', return_value=response) as get:
++            stats = gdelt_worker.run_gdelt_fetch_cycle(self.producer, self.dedup)
++        self.assertEqual(stats['errors'], 0)
++        get.assert_called_once()
++        evidence = read_session_evidence(self.producer.outbox.path)
++        self.assertEqual(evidence['requests'][0]['outcome'], 'empty')
++
++    def test_all_429_attempts_remain_failures_even_when_gkg_is_available(self):
++        rate = MagicMock(status_code=429, text='Rate limit')
++        rate.raise_for_status.side_effect = requests.HTTPError('429', response=rate)
++        with patch.object(gdelt_worker.requests, 'get', return_value=rate), \
++             patch.object(gdelt_worker.time, 'sleep'), \
++             patch.object(gdelt_worker, 'run_gdelt_raw_stream_cycle', side_effect=lambda p,d,s: p.finish_cycle(gdelt_worker.TOPIC_GDELT,s)):
++            stats = gdelt_worker.run_gdelt_fetch_cycle(self.producer, self.dedup)
++        evidence = read_session_evidence(self.producer.outbox.path)
++        self.assertEqual(len(evidence['requests']), 3)
++        self.assertTrue(all(r['outcome'] == 'failed' and r['http_status'] == 429 for r in evidence['requests']))
++        self.assertEqual(stats['errors'], 3)
++
++    def test_malformed_doc_response_is_not_mislabeled_as_rate_limit(self):
++        response = MagicMock(status_code=200, text='not json')
++        response.json.side_effect = ValueError('Malformed JSON')
++        with patch.object(gdelt_worker.requests, 'get', return_value=response), \
++             patch.object(gdelt_worker, 'run_gdelt_raw_stream_cycle', side_effect=lambda p,d,s: p.finish_cycle(gdelt_worker.TOPIC_GDELT,s)):
++            gdelt_worker.run_gdelt_fetch_cycle(self.producer, self.dedup)
++        row = read_session_evidence(self.producer.outbox.path)['requests'][0]
++        self.assertEqual((row['outcome'], row['http_status']), ('failed', 200))
++        self.assertIn('Malformed JSON', row['error'])
++
++    def test_lifecycle_records_planned_signal_and_startup_exception(self):
++        import signal
++        from utils import collector_lifecycle as lifecycle
++
++        def cycle(producer, dedup):
++            signal.raise_signal(signal.SIGTERM)
++            return {'fetched': 0}
++
++        with patch.object(sys, 'argv', ['collector']), \
++             patch.object(lifecycle, 'RedpandaProducer', return_value=self.producer), \
++             patch.object(lifecycle, 'RedisDeduplicator', return_value=self.dedup):
++            lifecycle.run_collector('test', 'rss', 10, {}, cycle)
++        evidence = read_session_evidence(self.producer.outbox.path)
++        self.assertEqual([e['kind'] for e in evidence['session_events']], ['stop_requested', 'closed'])
++        self.assertEqual(evidence['session_events'][-1]['details']['reason'], 'SIGTERM')
++        self.producer.session = None
++        with patch.object(sys, 'argv', ['collector','--once']), \
++             patch.object(lifecycle, 'RedpandaProducer', return_value=self.producer), \
++             patch.object(lifecycle, 'RedisDeduplicator', side_effect=RuntimeError('startup failure')):
++            with self.assertRaisesRegex(RuntimeError, 'startup failure'):
++                lifecycle.run_collector('test', 'rss', 10, {}, cycle)
++        evidence = read_session_evidence(self.producer.outbox.path)
++        self.assertEqual(evidence['sessions'][-1]['status'], 'failed')
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/tests/test_research_pipeline.py b/tests/test_research_pipeline.py
+index ef5b69e..3bbcf57 100644
+--- a/tests/test_research_pipeline.py
++++ b/tests/test_research_pipeline.py
+@@ -118,8 +118,8 @@ class TestResearchStorage(unittest.TestCase):
+         # Close the writer before an independent read-only connection.
+         self.lake.close()
+         a, b = Path(self.tmp.name)/'a', Path(self.tmp.name)/'b'
+-        first = export_dataset(self.path, a, T+timedelta(hours=1))
+-        second = export_dataset(self.path, b, T+timedelta(hours=1))
++        first = export_dataset(self.path, a, T+timedelta(hours=1), development=True)
++        second = export_dataset(self.path, b, T+timedelta(hours=1), development=True)
+         self.assertEqual(first['dataset_sha256'], second['dataset_sha256'])
+         self.assertEqual(first['rows'], 1)
+         self.assertEqual(first['database']['schema_version'], 5)
+@@ -130,7 +130,7 @@ class TestResearchStorage(unittest.TestCase):
+         self.assertEqual(first['collection_provenance']['versions_with_unknown_provenance'], 1)
+         self.assertEqual(first['collection_provenance']['runs'], [])
+         with self.assertRaises(FileExistsError):
+-            export_dataset(self.path, a, T+timedelta(hours=1))
++            export_dataset(self.path, a, T+timedelta(hours=1), development=True)
+ 
+     def test_pilot_export_and_audit_share_eligibility(self):
+         self.lake.write_message_batch([
+diff --git a/tests/test_worker_handoff.py b/tests/test_worker_handoff.py
+index 08b2a7a..8d73a43 100644
+--- a/tests/test_worker_handoff.py
++++ b/tests/test_worker_handoff.py
+@@ -35,12 +35,13 @@ class TestWorkerHandoff(unittest.TestCase):
+             semantic_score=.91)
+ 
+     def tearDown(self):
++        self.producer.close_session('test_complete')
+         self.tmp.cleanup()
+ 
+     def rss_fixture(self):
+         entry = SimpleNamespace(title='Tesla beats earnings estimates', link='https://example.com/news',
+                                 summary='Tesla earnings', published_parsed=datetime.now(timezone.utc).timetuple())
+-        return SimpleNamespace(bozo=False, entries=[entry])
++        return SimpleNamespace(bozo=False, version='rss20', entries=[entry])
+ 
+     def assert_handoff(self, stats):
+         self.assertEqual(stats['queued'], 1)
+@@ -55,6 +56,8 @@ class TestWorkerHandoff(unittest.TestCase):
+ 
+     def test_rss_worker_serializes_public_fields_and_reports_acknowledgements(self):
+         with patch.object(rss_worker, 'MACRO_FEEDS', [{'name': 'test', 'url': 'https://example.com/rss'}]), \
++             patch.object(rss_worker.requests, 'get', return_value=SimpleNamespace(
++                 status_code=200, content=b'fixture', url='https://example.com/rss', raise_for_status=lambda: None)), \
+              patch.object(rss_worker.feedparser, 'parse', return_value=self.rss_fixture()):
+             stats = rss_worker.run_rss_fetch_cycle(self.producer, self.dedup)
+         self.assert_handoff(stats)
+@@ -82,6 +85,8 @@ class TestWorkerHandoff(unittest.TestCase):
+     def test_source_version_is_captured_even_when_live_exact_dedup_suppresses_it(self):
+         self.dedup.check_dedup_result.return_value = DedupResult(is_exact=True)
+         with patch.object(rss_worker, 'MACRO_FEEDS', [{'name': 'test', 'url': 'https://example.com/rss'}]), \
++             patch.object(rss_worker.requests, 'get', return_value=SimpleNamespace(
++                 status_code=200, content=b'fixture', url='https://example.com/rss', raise_for_status=lambda: None)), \
+              patch.object(rss_worker.feedparser, 'parse', return_value=self.rss_fixture()):
+             stats = rss_worker.run_rss_fetch_cycle(self.producer, self.dedup)
+         self.assertEqual(stats['duplicates'], 1)
+@@ -95,7 +100,7 @@ class TestWorkerHandoff(unittest.TestCase):
+         with zipfile.ZipFile(payload, 'w') as archive:
+             archive.writestr('fixture.gkg.csv', 'id\t20260901140000\t1\texample.com\thttps://example.com/synthetic-slug\t\t\tECON_INFLATION\n')
+         manifest = MagicMock(status_code=200, text='1 hash http://example.com/fixture.gkg.csv.zip')
+-        response = MagicMock(content=payload.getvalue())
++        response = MagicMock(status_code=200, content=payload.getvalue())
+         stats = {'fetched':0, 'duplicates':0, 'published':0, 'queued':0, 'errors':0, '_delivery_start':0}
+         with patch.object(gdelt_worker.requests, 'get', side_effect=[manifest, response]):
+             result = gdelt_worker.run_gdelt_raw_stream_cycle(self.producer, self.dedup, stats)
+@@ -107,6 +112,8 @@ class TestWorkerHandoff(unittest.TestCase):
+ 
+     def test_source_cycle_evidence_survives_outbox_delivery(self):
+         with patch.object(rss_worker, 'MACRO_FEEDS', [{'name': 'test', 'url': 'https://example.com/rss'}]), \
++             patch.object(rss_worker.requests, 'get', return_value=SimpleNamespace(
++                 status_code=200, content=b'fixture', url='https://example.com/rss', raise_for_status=lambda: None)), \
+              patch.object(rss_worker.feedparser, 'parse', return_value=self.rss_fixture()):
+             rss_worker.run_rss_fetch_cycle(self.producer, self.dedup)
+         with self.producer.outbox.connect() as conn:
+@@ -116,6 +123,8 @@ class TestWorkerHandoff(unittest.TestCase):
+ 
+     def test_local_staging_failure_releases_dedup_reservation(self):
+         with patch.object(rss_worker, 'MACRO_FEEDS', [{'name': 'test', 'url': 'https://example.com/rss'}]), \
++             patch.object(rss_worker.requests, 'get', return_value=SimpleNamespace(
++                 status_code=200, content=b'fixture', url='https://example.com/rss', raise_for_status=lambda: None)), \
+              patch.object(rss_worker.feedparser, 'parse', return_value=self.rss_fixture()), \
+              patch.object(self.producer.outbox, 'enqueue', side_effect=OSError('Disk full')):
+             stats = rss_worker.run_rss_fetch_cycle(self.producer, self.dedup)
+diff --git a/utils/collector_lifecycle.py b/utils/collector_lifecycle.py
+new file mode 100644
+index 0000000..4dacb10
+--- /dev/null
++++ b/utils/collector_lifecycle.py
+@@ -0,0 +1,60 @@
++"""Bounded collector runs with explicit normal and interrupted-session evidence."""
++import argparse
++import logging
++import math
++import signal
++import time
++
++from utils.kafka_producer import RedpandaProducer
++from utils.redis_cache import RedisDeduplicator
++
++
++def run_collector(description, topic, interval, source_config, cycle):
++    parser = argparse.ArgumentParser(description=description)
++    parser.add_argument('--once', action='store_true')
++    parser.add_argument('--duration-seconds', type=float, help='Stop normally after this observation window')
++    args = parser.parse_args()
++    if args.duration_seconds is not None and (args.duration_seconds <= 0 or not math.isfinite(args.duration_seconds)):
++        parser.error('--duration-seconds must be positive')
++    producer = RedpandaProducer(profile='fast')
++    session = producer.start_session(topic, {
++        **source_config, 'lifecycle': {'once': args.once, 'duration_seconds': args.duration_seconds}})
++    stop_reason = None
++    failed = True
++    deadline = time.monotonic() + args.duration_seconds if args.duration_seconds else None
++    log = logging.getLogger(description)
++
++    def stop(signum, frame):
++        nonlocal stop_reason
++        if stop_reason is None:
++            stop_reason = signal.Signals(signum).name
++            session.event('stop_requested', reason=stop_reason)
++
++    previous = {sig: signal.signal(sig, stop) for sig in (signal.SIGINT, signal.SIGTERM)}
++    try:
++        dedup = RedisDeduplicator()
++        if not dedup.ping():
++            session.event('dependency_warning', dependency='Redis', reason='unreachable')
++            log.warning('Redis is unreachable')
++        while stop_reason is None:
++            if deadline is not None and time.monotonic() >= deadline:
++                stop_reason = 'duration_elapsed'
++                break
++            stats = cycle(producer, dedup)
++            log.info('Cycle finished: %s', stats)
++            if args.once:
++                stop_reason = 'single_cycle_complete'
++                break
++            sleep_until = time.monotonic() + interval
++            if deadline is not None:
++                sleep_until = min(sleep_until, deadline)
++            while stop_reason is None and time.monotonic() < sleep_until:
++                time.sleep(max(0, min(1, sleep_until - time.monotonic())))
++        producer.flush(timeout=5)
++        failed = False
++    finally:
++        try:
++            producer.close_session(stop_reason or 'unhandled_exception', failed=failed)
++        finally:
++            for sig, handler in previous.items():
++                signal.signal(sig, handler)
+diff --git a/utils/kafka_producer.py b/utils/kafka_producer.py
+index 44e5385..b4de475 100644
+--- a/utils/kafka_producer.py
++++ b/utils/kafka_producer.py
+@@ -40,6 +40,7 @@ class RedpandaProducer:
+         self._delivery_counts = Counter()
+         self._state_lock = threading.RLock()
+         self._collection_run = None
++        self.session = None
+ 
+         # Build configuration based on profile
+         base_config = {
+@@ -115,6 +116,18 @@ class RedpandaProducer:
+             raise OSError('Research observation could not be durably staged')
+         return observation
+ 
++    def start_session(self, topic, source_config):
++        from research.provenance import collection_run
++        from research.sessions import CollectionSession
++        if self.session is None:
++            self._collection_run = collection_run(self.bootstrap_servers, self.profile)
++            self.session = CollectionSession(self.outbox, self._collection_run, topic, source_config)
++        return self.session
++
++    def close_session(self, reason='normal', failed=False):
++        if self.session is not None:
++            self.session.close(reason, failed)
++
+     def _finish_delivery(self, topic, event_id, error=None):
+         with self._state_lock:
+             if error is None:
+diff --git a/utils/outbox.py b/utils/outbox.py
+index 7531008..7783dab 100644
+--- a/utils/outbox.py
++++ b/utils/outbox.py
+@@ -18,6 +18,20 @@ class DeliveryOutbox:
+             conn.execute('''CREATE TABLE IF NOT EXISTS source_cycles (
+                 cycle_id TEXT PRIMARY KEY, topic TEXT NOT NULL,
+                 started_at TEXT, finished_at TEXT NOT NULL, statistics TEXT NOT NULL)''')
++            conn.execute('''CREATE TABLE IF NOT EXISTS collection_sessions (
++                run_id TEXT PRIMARY KEY, topic TEXT NOT NULL, started_at TEXT NOT NULL,
++                provenance TEXT NOT NULL, source_configuration TEXT NOT NULL)''')
++            conn.execute('''CREATE TABLE IF NOT EXISTS session_events (
++                event_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, recorded_at TEXT NOT NULL,
++                kind TEXT NOT NULL, details TEXT NOT NULL)''')
++            conn.execute('''CREATE TABLE IF NOT EXISTS source_requests (
++                request_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, topic TEXT NOT NULL,
++                started_at TEXT NOT NULL, endpoint TEXT NOT NULL, configuration TEXT NOT NULL)''')
++            conn.execute('''CREATE TABLE IF NOT EXISTS source_request_results (
++                request_id TEXT PRIMARY KEY, finished_at TEXT NOT NULL, outcome TEXT NOT NULL,
++                http_status INTEGER, item_count INTEGER, error TEXT, details TEXT NOT NULL)''')
++            conn.execute('CREATE INDEX IF NOT EXISTS collection_sessions_topic ON collection_sessions(topic)')
++            conn.execute('CREATE INDEX IF NOT EXISTS session_events_run ON session_events(run_id)')
+ 
+     def record_cycle(self, topic, started_at, finished_at, statistics):
+         with self.connect() as conn:
+diff --git a/workers/gdelt_worker.py b/workers/gdelt_worker.py
+index 22e7be6..8337e16 100644
+--- a/workers/gdelt_worker.py
++++ b/workers/gdelt_worker.py
+@@ -1,11 +1,9 @@
+-import sys
+ import time
+ import hashlib
+ import logging
+-import signal
+-import argparse
+ from datetime import datetime, timezone
+ import requests
++from urllib.parse import urlsplit
+ 
+ from config import (
+     TOPIC_GDELT,
+@@ -45,6 +43,8 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator)
+     stats = {"fetched": 0, "duplicates": 0, "published": 0, "queued": 0, "errors": 0}
+     stats["_delivery_start"] = producer.delivered_count(TOPIC_GDELT)
+     stats['_cycle_started_at'] = datetime.now(timezone.utc).isoformat()
++    session = producer.start_session(TOPIC_GDELT, {'endpoint': GDELT_DOC_API, 'query': MACRO_QUERY,
++                                                 'maxrecords': 50, 'fallback': 'GKG audit only'})
+     producer.retry_pending(TOPIC_GDELT)
+ 
+     params = {
+@@ -57,8 +57,11 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator)
+ 
+     logger.info(f"Querying GDELT DOC 2.0 API with query: {MACRO_QUERY}...")
+     max_retries = 3
+-    resp = None
++    articles = None
+     for attempt in range(1, max_retries + 1):
++        request_id = session.begin_request(GDELT_DOC_API, {'params': params, 'attempt': attempt,
++                                                         'timeout_seconds': 15})
++        r = None
+         try:
+             r = requests.get(
+                 GDELT_DOC_API,
+@@ -66,30 +69,36 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator)
+                 headers={"User-Agent": "FinancialIngestionWorker/1.0"},
+                 timeout=15.0
+             )
+-            if r.status_code == 429:
+-                logger.warning(f"GDELT rate limit (429) hit. Waiting 6 seconds before retry {attempt}/{max_retries}...")
+-                time.sleep(6.0)
+-                continue
+-            if r.status_code != 200:
+-                logger.warning(f"GDELT API returned status {r.status_code}: {r.text[:200]}")
+-                stats["errors"] += 1
+-                return producer.finish_cycle(TOPIC_GDELT, stats)
+-            resp = r
+-            break
++            r.raise_for_status()
++            data = r.json()
++            if not isinstance(data, dict) or not isinstance(data.get('articles'), list):
++                raise ValueError('GDELT response requires an articles list')
++            if not all(isinstance(art, dict) for art in data['articles']):
++                raise ValueError('GDELT articles must be objects')
++            articles = data['articles']
+         except Exception as e:
+-            if attempt == max_retries:
+-                logger.error(f"Error querying GDELT API: {e}")
+-                stats["errors"] += 1
+-                return producer.finish_cycle(TOPIC_GDELT, stats)
+-            time.sleep(3.0)
++            status = r.status_code if r is not None else None
++            session.finish_request(request_id, 'failed', http_status=status,
++                                   error=f'{type(e).__name__}: {e}',
++                                   response_excerpt=r.text[:200] if r is not None else None)
++            stats['errors'] += 1
++            logger.warning('GDELT DOC attempt %s/%s failed (HTTP %s): %s', attempt, max_retries, status, e)
++            # Retrying permanent HTTP errors will not help. Preserve the failure
++            # and the separate fallback outcome, rather than relabeling as 429.
++            if status is not None and status not in (429, 500, 502, 503, 504):
++                break
++            if attempt < max_retries:
++                time.sleep(6 if status == 429 else 3)
++        else:
++            session.finish_request(request_id, 'success' if articles else 'empty',
++                                   http_status=r.status_code, item_count=len(articles))
++            break
+ 
+-    if resp is None or not (resp_text := resp.text.strip()).startswith(("{", "[")):
+-        logger.warning("GDELT DOC 2.0 API is rate-limited (HTTP 429). Falling back to GDELT 15-minute Realtime GKG Stream...")
++    if articles is None:
++        logger.warning('GDELT DOC unavailable; trying GKG as separate audit-only coverage')
+         return run_gdelt_raw_stream_cycle(producer, dedup, stats)
+ 
+     try:
+-        data = resp.json()
+-        articles = data.get("articles", [])
+         stats["fetched"] = len(articles)
+         logger.info(f"Retrieved {len(articles)} articles from GDELT.")
+ 
+@@ -108,6 +117,7 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator)
+                 source='GDELT', article_id=event_id, title=title, url=url,
+                 source_item=art, title_provenance='source_api',
+                 source_time=None if provenance == 'ingestion_fallback' else source_time,
++                request_context=session.context(request_id, art.get('domain') or urlsplit(url).hostname),
+                 source_time_kind='gdelt_seendate', source_time_raw=seendate or None)
+ 
+             # Extract entities BEFORE dedup: Tier 3's entity gate needs them
+@@ -160,6 +170,7 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator)
+                 stats["errors"] += 1
+ 
+     except Exception as e:
++        session.event('processing_error', request_id=request_id, error=f'{type(e).__name__}: {e}')
+         logger.error(f"Error processing GDELT response: {e}")
+         stats["errors"] += 1
+ 
+@@ -169,22 +180,24 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator)
+ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator, stats: dict) -> dict:
+     """
+     Fallback Ingestion from GDELT 15-minute Realtime GKG Stream.
+-    This endpoint (http://data.gdeltproject.org/gdeltv2/lastupdate.txt) is updated
+-    every 15 minutes and is never blocked by IP rate-limits.
++    Synthetic GKG titles are audit only. Requests may fail independently of DOC.
+     """
+     import io
+     import zipfile
+ 
+-    GDELT_LASTUPDATE_URL = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt"
++    GDELT_LASTUPDATE_URL = "https://data.gdeltproject.org/gdeltv2/lastupdate.txt"
+     ECON_THEMES = ["ECON_", "INFLATION", "CENTRAL_BANK", "EPU_ECONOMY", "WB_1104_MACROECONOMIC", "UNEMPLOYMENT"]
+ 
++    session = producer.start_session(TOPIC_GDELT, {'endpoint': GDELT_DOC_API, 'query': MACRO_QUERY,
++                                                 'maxrecords': 50, 'fallback': 'GKG audit only'})
++    request_id = session.begin_request(GDELT_LASTUPDATE_URL, {'purpose': 'GKG manifest', 'timeout_seconds': 10})
++    request_finished = False
++    status = None
+     try:
+         logger.info(f"Fetching GDELT Realtime manifest from {GDELT_LASTUPDATE_URL}...")
+         resp = requests.get(GDELT_LASTUPDATE_URL, timeout=10.0)
+-        if resp.status_code != 200:
+-            logger.error(f"Failed to fetch GDELT lastupdate.txt: HTTP {resp.status_code}")
+-            stats["errors"] += 1
+-            return producer.finish_cycle(TOPIC_GDELT, stats)
++        status = resp.status_code
++        resp.raise_for_status()
+ 
+         # Lines format: <size> <md5> <url>
+         lines = resp.text.strip().split("\n")
+@@ -196,12 +209,22 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
+                 break
+ 
+         if not gkg_url:
+-            logger.error("Could not locate GKG file in GDELT lastupdate.txt")
+-            stats["errors"] += 1
+-            return producer.finish_cycle(TOPIC_GDELT, stats)
++            raise ValueError('Could not locate GKG file in manifest')
++
++        session.finish_request(request_id, 'success', http_status=status, item_count=len(lines))
++        request_finished = True
++        manifest_request_id = request_id
++        request_id = session.begin_request(gkg_url, {'purpose': 'GKG audit only',
++                                                    'manifest_request_id': manifest_request_id,
++                                                    'max_captured': 50, 'themes': ECON_THEMES,
++                                                    'timeout_seconds': 30})
++        request_finished = False
++        status = None
+ 
+         logger.info(f"Downloading GDELT Realtime GKG batch: {gkg_url}...")
+         zip_resp = requests.get(gkg_url, timeout=30.0)
++        status = zip_resp.status_code
++        zip_resp.raise_for_status()
+         z = zipfile.ZipFile(io.BytesIO(zip_resp.content))
+         fname = z.namelist()[0]
+ 
+@@ -235,6 +258,7 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
+                 producer.capture_observation(
+                     source='GDELT', article_id=event_id, title=title, url=url,
+                     source_item={'gkg_row': line_str, 'batch': fname},
++                    request_context=session.context(request_id, urlsplit(url).hostname),
+                     title_provenance='url_slug', source_time_kind='gkg_batch_time',
+                     source_time_raw=date_str or None)
+ 
+@@ -245,9 +269,15 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
+                     break
+ 
+         stats['research_captured'] = captured
++        session.finish_request(request_id, 'success' if captured else 'empty', http_status=status,
++                               item_count=captured, capped=captured >= max_batch,
++                               count_basis='selected economic rows, not total archive rows')
++        request_finished = True
+         logger.info('Captured %s GKG observations for audit only', captured)
+ 
+     except Exception as e:
++        if not request_finished:
++            session.finish_request(request_id, 'failed', http_status=status, error=f'{type(e).__name__}: {e}')
+         logger.error(f"Error in GDELT raw stream cycle: {e}")
+         stats["errors"] += 1
+ 
+@@ -255,45 +285,9 @@ def run_gdelt_raw_stream_cycle(producer: RedpandaProducer, dedup: RedisDeduplica
+ 
+ 
+ def main():
+-    parser = argparse.ArgumentParser(description="GDELT DOC 2.0 Ingestion Worker")
+-    parser.add_argument("--once", action="store_true", help="Run a single fetch cycle and exit")
+-    args = parser.parse_args()
+-
+-    producer = RedpandaProducer(profile="fast")
+-    dedup = RedisDeduplicator()
+-
+-    if not dedup.ping():
+-        logger.warning("Redis is currently not reachable.")
+-
+-    stop_requested = False
+-
+-    def handle_signal(signum, frame):
+-        nonlocal stop_requested
+-        logger.info("Termination signal received. Shutting down GDELT Worker...")
+-        stop_requested = True
+-
+-    signal.signal(signal.SIGINT, handle_signal)
+-    signal.signal(signal.SIGTERM, handle_signal)
+-
+-    logger.info(f"GDELT Worker started (Topic: {TOPIC_GDELT}, Interval: {GDELT_POLL_INTERVAL_SECONDS}s)")
+-
+-    while not stop_requested:
+-        stats = run_gdelt_fetch_cycle(producer, dedup)
+-        logger.info(
+-            f"GDELT Cycle: Fetched={stats['fetched']}, Duplicates={stats['duplicates']}, "
+-            f"Published={stats['published']}, Errors={stats['errors']}"
+-        )
+-
+-        if args.once:
+-            break
+-
+-        for _ in range(GDELT_POLL_INTERVAL_SECONDS):
+-            if stop_requested:
+-                break
+-            time.sleep(1)
+-
+-    producer.flush(timeout=5.0)
+-    logger.info("GDELT Worker exited cleanly.")
++    from utils.collector_lifecycle import run_collector
++    run_collector('gdelt_worker', TOPIC_GDELT, GDELT_POLL_INTERVAL_SECONDS,
++                  {'endpoint': GDELT_DOC_API, 'query': MACRO_QUERY, 'maxrecords': 50, 'fallback': 'GKG audit only'}, run_gdelt_fetch_cycle)
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/workers/rss_worker.py b/workers/rss_worker.py
+index ffe2183..c896551 100644
+--- a/workers/rss_worker.py
++++ b/workers/rss_worker.py
+@@ -1,12 +1,11 @@
+-import sys
+-import time
+ import hashlib
+ import re
+ import logging
+-import signal
+-import argparse
+ from datetime import datetime, timezone
+ import feedparser
++from feedparser.exceptions import NonXMLContentType, CharacterEncodingOverride
++import requests
++from urllib.parse import urlsplit, urljoin
+ 
+ from config import (
+     TOPIC_RSS,
+@@ -80,25 +79,51 @@ def parse_published_time_with_provenance(entry):
+     return datetime.now(timezone.utc), 'ingestion_fallback'
+ 
+ 
++def parse_feed_response(response):
++    # Preserve the final response URL/headers that feedparser's URL-fetch path
++    # would supply. Otherwise relative links and title_detail.base change, which
++    # manufactures content versions even when the publisher changed nothing.
++    headers = {key.lower(): value for key, value in getattr(response, 'headers', {}).items()}
++    headers['content-location'] = urljoin(response.url, headers.get('content-location') or response.url)
++    return feedparser.parse(response.content, response_headers=headers)
++
++
+ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) -> dict:
+     """Fetches all feeds, deduplicates, and publishes new items to Redpanda."""
+     stats = {"fetched": 0, "duplicates": 0, "published": 0, "queued": 0, "errors": 0}
+     stats["_delivery_start"] = producer.delivered_count(TOPIC_RSS)
+     stats['_cycle_started_at'] = datetime.now(timezone.utc).isoformat()
++    session = producer.start_session(TOPIC_RSS, {'feeds': MACRO_FEEDS})
+     producer.retry_pending(TOPIC_RSS)
+ 
+     for feed_info in MACRO_FEEDS:
+         feed_name = feed_info["name"]
+         feed_url = feed_info["url"]
+         logger.info(f"Polling feed: {feed_name}...")
+-
++        request_id = session.begin_request(feed_url, {'feed_name': feed_name, 'timeout_seconds': 15})
++        request_finished = False
+         try:
+-            feed = feedparser.parse(feed_url)
+-            if feed.bozo and not feed.entries:
+-                logger.warning(f"Failed to parse feed {feed_name}: {feed.bozo_exception}")
++            response = requests.get(feed_url, timeout=15,
++                                    headers={'User-Agent': 'FinancialIngestionWorker/1.0'})
++            response.raise_for_status()
++            feed = parse_feed_response(response)
++            fatal_empty_parse = (feed.bozo and not feed.entries and not isinstance(
++                getattr(feed, 'bozo_exception', None), (NonXMLContentType, CharacterEncodingOverride)))
++            if fatal_empty_parse or not feed.version:
++                logger.warning('Failed to parse feed %s: %s', feed_name,
++                               getattr(feed, 'bozo_exception', 'Unrecognized feed'))
++                session.finish_request(request_id, 'failed', http_status=response.status_code,
++                                       error=str(getattr(feed, 'bozo_exception', 'Unrecognized feed')))
++                request_finished = True
+                 stats['errors'] += 1
+                 continue
+ 
++            session.finish_request(request_id, 'success' if feed.entries else 'empty',
++                                   http_status=response.status_code, item_count=len(feed.entries),
++                                   parse_warning=str(feed.bozo_exception) if feed.bozo else None,
++                                   response_url=response.url)
++            request_finished = True
++
+             for entry in feed.entries:
+                 stats["fetched"] += 1
+                 link = getattr(entry, "link", "")
+@@ -118,6 +143,7 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
+                     source_item=raw_item, title_provenance='source_feed',
+                     source_time=None if pub_time_provenance == 'ingestion_fallback' else pub_time,
+                     source_time_kind=pub_time_provenance,
++                    request_context=session.context(request_id, urlsplit(link).hostname),
+                     source_time_raw=str(raw_item.get('published') or raw_item.get('updated') or '') or None)
+ 
+                 # Parse snippet and extract entities BEFORE dedup:
+@@ -167,6 +193,11 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
+                     stats["errors"] += 1
+ 
+         except Exception as e:
++            if not request_finished:
++                session.finish_request(request_id, 'failed', error=f'{type(e).__name__}: {e}',
++                                       http_status=getattr(getattr(e, 'response', None), 'status_code', None))
++            else:
++                session.event('processing_error', request_id=request_id, error=f'{type(e).__name__}: {e}')
+             logger.error(f"Error fetching RSS feed {feed_name}: {e}")
+             stats["errors"] += 1
+ 
+@@ -174,46 +205,9 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
+ 
+ 
+ def main():
+-    parser = argparse.ArgumentParser(description="Macro RSS Ingestion Worker")
+-    parser.add_argument("--once", action="store_true", help="Run a single fetch cycle and exit")
+-    args = parser.parse_args()
+-
+-    producer = RedpandaProducer(profile="fast")
+-    dedup = RedisDeduplicator()
+-
+-    if not dedup.ping():
+-        logger.warning("Redis is currently not reachable. Deduplication will operate in memory-only fallback or retry on reconnect.")
+-
+-    stop_requested = False
+-
+-    def handle_signal(signum, frame):
+-        nonlocal stop_requested
+-        logger.info("Termination signal received. Shutting down RSS Worker...")
+-        stop_requested = True
+-
+-    signal.signal(signal.SIGINT, handle_signal)
+-    signal.signal(signal.SIGTERM, handle_signal)
+-
+-    logger.info(f"RSS Ingestion Worker started (Topic: {TOPIC_RSS}, Interval: {RSS_POLL_INTERVAL_SECONDS}s)")
+-
+-    while not stop_requested:
+-        stats = run_rss_fetch_cycle(producer, dedup)
+-        logger.info(
+-            f"Cycle finished: Fetched={stats['fetched']}, Duplicates={stats['duplicates']}, "
+-            f"Published={stats['published']}, Errors={stats['errors']}"
+-        )
+-
+-        if args.once:
+-            break
+-
+-        # Sleep with periodic checks for termination
+-        for _ in range(RSS_POLL_INTERVAL_SECONDS):
+-            if stop_requested:
+-                break
+-            time.sleep(1)
+-
+-    producer.flush(timeout=5.0)
+-    logger.info("RSS Ingestion Worker exited cleanly.")
++    from utils.collector_lifecycle import run_collector
++    run_collector('rss_worker', TOPIC_RSS, RSS_POLL_INTERVAL_SECONDS,
++                  {'feeds': MACRO_FEEDS}, run_rss_fetch_cycle)
+ 
+ 
+ if __name__ == "__main__":

@@ -1,0 +1,38 @@
+{
+  "status": "valid_corrected_capture_development_evidence",
+  "title": "The 2029 tipping point: Western populations are about to start shrinking, piling pressure on public finances",
+  "url": "https://www.cnbc.com/2026/10/05/aging-population-moodys-public-finances.html",
+  "source": "RSS",
+  "version_id": "6a20838e0a78b624a065de3c8f66ce08d93d237546e0c1c8a10476253c1bad39",
+  "source_time": "2026-10-05T05:00:01+00:00",
+  "observed_at": "2026-10-06T03:37:13.876974+00:00",
+  "available_at": "2026-10-06T03:37:16.979632+00:00",
+  "transport": {
+    "kafka_topic": "financial.research.observations",
+    "kafka_partition": 0,
+    "kafka_offset": 343
+  },
+  "request": {
+    "configuration": {
+      "feed_name": "CNBC Economy",
+      "timeout_seconds": 15
+    },
+    "details": {
+      "parse_warning": null,
+      "response_url": "https://www.cnbc.com/id/20910258/device/rss/rss.html"
+    },
+    "endpoint": "https://www.cnbc.com/id/20910258/device/rss/rss.html",
+    "error": null,
+    "finished_at": "2026-10-06T03:37:13.857891+00:00",
+    "http_status": 200,
+    "item_count": 30,
+    "outcome": "success",
+    "request_id": "74840a36-f8aa-49dd-8d9d-e1e999248f79",
+    "run_id": "bd6c214d-6b32-4928-af63-b990260f2cde",
+    "started_at": "2026-10-06T03:37:13.321680+00:00",
+    "topic": "financial.news.rss"
+  },
+  "run_id": "bd6c214d-6b32-4928-af63-b990260f2cde",
+  "snapshot_directory": "/app/data/research/checkpoint2-corrected-20261006-snapshot",
+  "paper_ready": false
+}

@@ -40,6 +40,7 @@ class RedpandaProducer:
         self._delivery_counts = Counter()
         self._state_lock = threading.RLock()
         self._collection_run = None
+        self.session = None
 
         # Build configuration based on profile
         base_config = {
@@ -114,6 +115,18 @@ class RedpandaProducer:
         if not self.produce_event(TOPIC_OBSERVATIONS, observation):
             raise OSError('Research observation could not be durably staged')
         return observation
+
+    def start_session(self, topic, source_config):
+        from research.provenance import collection_run
+        from research.sessions import CollectionSession
+        if self.session is None:
+            self._collection_run = collection_run(self.bootstrap_servers, self.profile)
+            self.session = CollectionSession(self.outbox, self._collection_run, topic, source_config)
+        return self.session
+
+    def close_session(self, reason='normal', failed=False):
+        if self.session is not None:
+            self.session.close(reason, failed)
 
     def _finish_delivery(self, topic, event_id, error=None):
         with self._state_lock:

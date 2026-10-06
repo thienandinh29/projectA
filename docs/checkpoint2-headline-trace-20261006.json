@@ -1,0 +1,39 @@
+{
+  "status": "invalid_for_research",
+  "reason": "Faulty smoke run omitted RSS response base URL and manufactured a content version. Retained as debugging evidence only; use checkpoint2-corrected-headline-trace-20261006.json for the corrected capture.",
+  "title": "Ennis (EBF) Grows Sales but Earns Less. Are Legal Items Hiding a Better Business?",
+  "url": "https://finance.yahoo.com/markets/stocks/articles/ennis-ebf-grows-sales-earns-015226342.html",
+  "source": "RSS",
+  "version_id": "a7d3a791d56848ef4b423aafe58040f26b1b5a135b868d083c8078194a2c6bfb",
+  "source_time": "2026-09-23T01:52:26+00:00",
+  "observed_at": "2026-10-06T03:27:40.107804+00:00",
+  "available_at": "2026-10-06T03:27:42.415192+00:00",
+  "transport": {
+    "kafka_topic": "financial.research.observations",
+    "kafka_partition": 0,
+    "kafka_offset": 150
+  },
+  "request": {
+    "configuration": {
+      "feed_name": "Yahoo Finance Economy",
+      "timeout_seconds": 15
+    },
+    "details": {
+      "parse_warning": null,
+      "response_url": "https://finance.yahoo.com/news/rssindex"
+    },
+    "endpoint": "https://finance.yahoo.com/news/rssindex",
+    "error": null,
+    "finished_at": "2026-10-06T03:27:39.824243+00:00",
+    "http_status": 200,
+    "item_count": 49,
+    "outcome": "success",
+    "request_id": "251ab45e-508f-4613-af97-954f9070bfd3",
+    "run_id": "7f71934f-704d-4025-8f30-f78adf0fb5e6",
+    "started_at": "2026-10-06T03:27:38.417707+00:00",
+    "topic": "financial.news.rss"
+  },
+  "run_id": "7f71934f-704d-4025-8f30-f78adf0fb5e6",
+  "database_id": "docker-volume:ingestion-data:/app/data/lakehouse.duckdb",
+  "snapshot_directory": "/app/data/research/checkpoint2-smoke-20261006-snapshot"
+}

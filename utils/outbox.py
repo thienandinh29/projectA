@@ -18,6 +18,20 @@ class DeliveryOutbox:
             conn.execute('''CREATE TABLE IF NOT EXISTS source_cycles (
                 cycle_id TEXT PRIMARY KEY, topic TEXT NOT NULL,
                 started_at TEXT, finished_at TEXT NOT NULL, statistics TEXT NOT NULL)''')
+            conn.execute('''CREATE TABLE IF NOT EXISTS collection_sessions (
+                run_id TEXT PRIMARY KEY, topic TEXT NOT NULL, started_at TEXT NOT NULL,
+                provenance TEXT NOT NULL, source_configuration TEXT NOT NULL)''')
+            conn.execute('''CREATE TABLE IF NOT EXISTS session_events (
+                event_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, recorded_at TEXT NOT NULL,
+                kind TEXT NOT NULL, details TEXT NOT NULL)''')
+            conn.execute('''CREATE TABLE IF NOT EXISTS source_requests (
+                request_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, topic TEXT NOT NULL,
+                started_at TEXT NOT NULL, endpoint TEXT NOT NULL, configuration TEXT NOT NULL)''')
+            conn.execute('''CREATE TABLE IF NOT EXISTS source_request_results (
+                request_id TEXT PRIMARY KEY, finished_at TEXT NOT NULL, outcome TEXT NOT NULL,
+                http_status INTEGER, item_count INTEGER, error TEXT, details TEXT NOT NULL)''')
+            conn.execute('CREATE INDEX IF NOT EXISTS collection_sessions_topic ON collection_sessions(topic)')
+            conn.execute('CREATE INDEX IF NOT EXISTS session_events_run ON session_events(run_id)')
 
     def record_cycle(self, topic, started_at, finished_at, statistics):
         with self.connect() as conn:

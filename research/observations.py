@@ -36,12 +36,13 @@ class SourceObservation(BaseModel):
     content_hash: str
     schema_version: Literal['research-v1'] = 'research-v1'
     collection_run: dict[str, Any] | None = None
+    request_context: dict[str, Any] | None = None
 
     @model_validator(mode='after')
     def verify_identity(self):
         if not self.article_id.strip():
             raise ValueError('article_id must not be blank')
-        material = self.model_dump(mode='json', exclude={'id', 'observed_at', 'content_hash', 'collection_run'})
+        material = self.model_dump(mode='json', exclude={'id', 'observed_at', 'content_hash', 'collection_run', 'request_context'})
         digest = version_hash(material)
         if self.content_hash != digest or self.id != digest:
             raise ValueError('Observation content hash or version ID mismatch')
@@ -59,7 +60,7 @@ class SourceObservation(BaseModel):
 
 def make_observation(*, source, article_id, title, url, source_item,
                      title_provenance, source_time=None, source_time_kind='unknown',
-                     source_time_raw=None, observed_at=None, collection_run=None):
+                     source_time_raw=None, observed_at=None, collection_run=None, request_context=None):
     # Parsed source items, not a claim of original HTTP response-byte capture.
     item = json.loads(json.dumps(source_item, default=str, ensure_ascii=False, allow_nan=False))
     values = dict(kind='source_observation_v1', article_id=article_id, source=source,
@@ -70,7 +71,7 @@ def make_observation(*, source, article_id, title, url, source_item,
     digest = version_hash(values)
     return SourceObservation(id=digest, content_hash=digest,
                              observed_at=observed_at or datetime.now(timezone.utc),
-                             collection_run=collection_run, **values)
+                             collection_run=collection_run, request_context=request_context, **values)
 
 
 # The legacy sample is explicitly a labeling pilot, not historical evidence.

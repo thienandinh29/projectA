@@ -1,51 +1,21 @@
 """Retry staged delivery without fetching feeds; wait for durable writer commits.
 
-Stop ALL collectors first and leave the writer running. Exit 0 is a delivery
-boundary, not a payload-quality or research-readiness certificate.
+Stop ALL collectors first. Keep the writer running when deliveries remain;
+an unchanged idle boundary can be inspected with the writer stopped. Exit 0
+verifies transport progress; prospective export separately reconciles storage.
 """
 import argparse
-import hashlib
 import json
 import math
 import os
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
-from config import (OUTBOX_PATH, KAFKA_BOOTSTRAP_SERVERS, LAKEHOUSE_GROUP_ID,
+from config import (OUTBOX_PATH, KAFKA_BOOTSTRAP_SERVERS, LAKEHOUSE_GROUP_ID, LAKEHOUSE_DB_PATH,
                     TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC, TOPIC_OBSERVATIONS)
 from utils.kafka_producer import RedpandaProducer
-
-
-def load_baseline(path, topics, writer_group):
-    path = Path(path)
-    raw = path.read_bytes()
-    document = json.loads(raw)
-    if document.get('kind') != 'verified_collection_baseline_v1':
-        raise ValueError('Baseline kind is not active and supported')
-    if document.get('activation_gate', {}).get('active') is not True:
-        raise ValueError('Baseline activation gate is not active')
-    kafka = document.get('kafka', {})
-    if kafka.get('writer_group') != writer_group:
-        raise ValueError('Baseline writer group does not match configured writer group')
-    configured_topics = set(topics)
-    partitions = {}
-    for item in kafka.get('partitions', []):
-        key = (item.get('topic'), item.get('partition'))
-        start = item.get('post_baseline_start_offset')
-        committed = item.get('writer_committed_next_offset')
-        if key in partitions:
-            raise ValueError(f'Duplicate baseline partition: {key}')
-        if key[0] not in configured_topics or not isinstance(key[1], int) or key[1] < 0:
-            raise ValueError(f'Invalid baseline partition: {key}')
-        if not isinstance(start, int) or start < 0:
-            raise ValueError(f'Invalid baseline start offset: {key}')
-        if committed is not None and (not isinstance(committed, int) or committed < 0):
-            raise ValueError(f'Invalid baseline committed offset: {key}')
-        partitions[key] = {'start': start, 'committed_at_capture': committed}
-    if {topic for topic, _ in partitions} != configured_topics:
-        raise ValueError('Baseline topics do not match configured topics')
-    return {'path': str(path), 'sha256': hashlib.sha256(raw).hexdigest(),
-            'captured_at_utc': document.get('captured_at_utc'), 'partitions': partitions}
+from research.collection_boundary import load_baseline
 
 
 def writer_backlog(consumer, topics, deadline, baseline_partitions=None):
@@ -71,6 +41,9 @@ def writer_backlog(consumer, topics, deadline, baseline_partitions=None):
         raise RuntimeError(f'Kafka partition set changed; missing={missing}, added={added}')
     committed = consumer.committed(partitions, timeout=budget())
     progress = {}
+    returned = [(p.topic, p.partition) for p in committed]
+    if len(returned) != len(actual) or set(returned) != actual:
+        raise RuntimeError('Incomplete or unexpected partition offset response')
     for p in committed:
         if p.error:
             raise RuntimeError(str(p.error))
@@ -92,7 +65,8 @@ def writer_backlog(consumer, topics, deadline, baseline_partitions=None):
         if high < start:
             raise RuntimeError(f'Broker high watermark regressed before baseline: {label}')
         if captured_commit is not None and (
-                committed_offset is None or committed_offset < captured_commit):
+                (committed_offset is None and high > start) or
+                (committed_offset is not None and committed_offset < captured_commit)):
             raise RuntimeError(f'Writer commit regressed from baseline: {label}')
         if committed_offset is not None and committed_offset > high:
             raise RuntimeError(f'Writer commit exceeds broker high watermark: {label}')
@@ -110,6 +84,7 @@ def writer_backlog(consumer, topics, deadline, baseline_partitions=None):
             'broker_high_watermark_next_offset': high,
             'writer_committed_next_offset': committed_offset,
             'post_baseline_messages': high - start,
+            'commit_expired_at_idle_boundary': captured_commit is not None and committed_offset is None,
             'lag': lag,
             'status': 'no_new_records' if high == start else 'complete' if lag == 0 else 'writer_lag',
         }
@@ -160,6 +135,7 @@ def main():
     parser.add_argument('--outbox-path', default=OUTBOX_PATH)
     parser.add_argument('--baseline-path', default=os.getenv('COLLECTION_BASELINE_PATH'),
                         help='Active collection-baseline JSON (required)')
+    parser.add_argument('--output', type=Path, help='Save a new drain report; refuses overwrite')
     args = parser.parse_args()
     if not math.isfinite(args.timeout) or args.timeout <= 0:
         parser.error('--timeout must be finite and positive')
@@ -167,6 +143,8 @@ def main():
         parser.error('Outbox is missing: verify the data mount; do not assume it is empty')
     if not args.baseline_path:
         parser.error('--baseline-path or COLLECTION_BASELINE_PATH is required')
+    if args.output and args.output.exists():
+        parser.error('Drain report already exists; choose a new path')
     topics = (TOPIC_RSS, TOPIC_GDELT, TOPIC_SEC, TOPIC_OBSERVATIONS)
     try:
         baseline = load_baseline(args.baseline_path, topics, LAKEHOUSE_GROUP_ID)
@@ -183,6 +161,12 @@ def main():
                        topics, deadline, baseline['partitions']),
                        args.timeout, allowed_topics=topics)
         result['baseline'] = {key: baseline[key] for key in ('path', 'sha256', 'captured_at_utc')}
+        result['database_id'] = os.getenv('RESEARCH_DATABASE_ID', f'file:{Path(LAKEHOUSE_DB_PATH).resolve()}')
+        result['checked_at_utc'] = datetime.now(timezone.utc).isoformat()
+        if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            with args.output.open('x', encoding='utf-8') as handle:
+                handle.write(json.dumps(result, indent=2) + '\n')
         print(json.dumps(result, indent=2))
     finally:
         consumer.close()

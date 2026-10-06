@@ -41,6 +41,10 @@ Prospective completeness begins at the active topic/partition boundary in
 `docs/collection-baseline-20260928T084655Z.json`. Earlier records remain available
 for development but are excluded from the final evaluation cohort because their
 complete Kafka delivery history cannot be established.
+Prospective exports enforce this boundary using both first-version transport
+coordinates and observation/availability times, then reconcile saved drain ranges
+against stored raw deliveries and outcomes. Development exports require an
+explicit mode and cannot be mistaken for the prospective cohort.
 
 ## 2. Complete provenance and session evidence
 
@@ -51,6 +55,12 @@ complete Kafka delivery history cannot be established.
 - Preserve source, observation, and durable-availability timestamps separately.
 - Retain duplicate observations and corrected versions before study filtering.
 - Detect interrupted sessions and record planned shutdowns.
+
+RSS/GDELT now record append-only sessions and per-request outcomes in the shared
+delivery SQLite ledger. Observation request links travel to Bronze and research
+snapshots; exports archive and validate the ledger. Legacy rows have unknown
+request context. Interrupted-session detection records restart time, not an
+invented stop time. Real source coverage must still pass the live-session gate.
 
 Gate: one headline can be traced from source attempt through delivery, immutable
 content version, durable availability, and exported research row.

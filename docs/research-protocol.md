@@ -83,7 +83,7 @@ Never run two writers against this DuckDB file.
 Run regression and configuration checks before collection:
 
 ```powershell
-python -m unittest tests.test_checkpoint1_delivery tests.test_delivery_recovery tests.test_research_pipeline tests.test_worker_handoff tests.test_storage tests.test_writer tests.test_data_readiness tests.test_pit_leakage -q
+python -m unittest tests.test_collection_sessions tests.test_collection_boundary tests.test_checkpoint1_delivery tests.test_delivery_recovery tests.test_research_pipeline tests.test_worker_handoff tests.test_storage tests.test_writer tests.test_data_readiness tests.test_pit_leakage -q
 docker compose --profile workers --profile tools config --quiet
 docker compose --profile workers --profile tools build lakehouse-writer worker-rss worker-gdelt research-tools
 if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
@@ -96,9 +96,44 @@ docker compose --profile workers up -d --build lakehouse-writer worker-rss worke
 docker compose --profile workers logs --tail 50 lakehouse-writer worker-rss worker-gdelt
 ```
 
-The writer consumes `financial.research.observations`. Source-cycle, request,
-coverage, and interruption evidence is completed in Checkpoint 2. Scheduled
-live-session validation is completed in Checkpoint 3.
+The writer consumes `financial.research.observations`. RSS and GDELT save session
+and request evidence in the shared delivery SQLite ledger. SEC session evidence
+is outside the current Paper 1 headline-source milestone. Scheduled live-session
+validation is completed in Checkpoint 3.
+
+For a bounded two-hour session, start only the writer, then run the collectors
+without their automatic restart policy. The duration limits starting new cycles;
+an in-progress bounded HTTP request/cycle may finish after that time.
+
+```powershell
+docker compose --profile workers up -d lakehouse-writer
+docker compose --profile workers run -d --no-deps --name paper1-rss-session worker-rss python -m workers.rss_worker --duration-seconds 7200
+docker compose --profile workers run -d --no-deps --name paper1-gdelt-session worker-gdelt python -m workers.gdelt_worker --duration-seconds 7200
+docker compose --profile tools run --rm --no-deps research-tools -m scripts.inspect_collection_sessions
+```
+
+Do not run these named session containers alongside the regular collectors.
+Collector ownership is exclusive per topic and shared ledger directory. For the
+snapshot, wait for these bounded containers to exit or stop them by their actual
+names with sufficient grace (for example `docker stop --time 180 ...`). Stopping
+the regular Compose services does not stop containers created by `compose run`.
+The writer remains running until the successful saved drain. Retain session
+containers/logs as evidence rather than removing them before inspection.
+
+Each request records endpoint, feed/query/filter configuration, UTC start/result
+times, HTTP status when available, returned/selected item count and error. A valid
+empty feed/API response is `empty`; HTTP, timeout, parsing or shape failures are
+`failed`. Every DOC retry is separate. GKG success does not erase DOC failures and
+does not supply eligible sentiment headlines. RSS feeds with usable entries and
+parser warnings retain their warning rather than losing those entries.
+
+Session termination appends a normal or failed event. A killed process leaves an
+unfinished session/request. A subsequent worker holding the same exclusive topic
+lock appends interruption detection; this never invents its actual stop time.
+Inspection itself is read-only and does not infer process liveness. A closed
+collector can still have pending deliveries and source failures; closure is not
+a successful drain or proof of continuous coverage. Cross-host collection sharing
+this ledger is not supported by this local file-ownership design.
 
 ## Consistent snapshot procedure
 
@@ -108,31 +143,76 @@ live-session validation is completed in Checkpoint 3.
    re-entering dedup. It checks committed writer offsets against every configured
    topic partition. Only exit code 0 permits stopping the writer for a snapshot.
 3. Run the readiness audit with the writer stopped.
-4. Export to a new directory using an explicit timezone-aware cutoff.
+4. Export to a new directory using an explicit timezone-aware cutoff, the active
+   baseline, and the saved successful drain report. With the writer stopped, the
+   exporter reconciles delivery ranges against Bronze and processing outcomes.
 5. Compare manifest counts with the audit, retain both outputs, then restart only
    services that were intentionally running before the snapshot.
 
 ```powershell
 docker compose --profile workers stop worker-rss worker-gdelt worker-sec
 if ($LASTEXITCODE -ne 0) { throw 'Collector stop failed' }
-docker compose --profile tools run --rm --no-deps research-tools -m scripts.drain_delivery --timeout 120 --baseline-path /app/docs/collection-baseline-20260928T084655Z.json
+docker compose --profile tools run --rm --no-deps research-tools -m scripts.drain_delivery --timeout 120 --baseline-path /app/docs/collection-baseline-20260928T084655Z.json --output /app/data/research/session-001-drain.json
 if ($LASTEXITCODE -ne 0) { throw 'Delivery incomplete: leave writer running, repair and retry' }
 docker compose --profile workers stop lakehouse-writer
 if ($LASTEXITCODE -ne 0) { throw 'Writer stop failed' }
 docker compose --profile tools run --rm --no-deps research-tools -m scripts.audit_data_readiness
 if ($LASTEXITCODE -ne 0) { throw 'Audit failed' }
-docker compose --profile tools run --rm --no-deps research-tools -m scripts.export_research_dataset --cutoff 2026-10-01T00:00:00Z --output-dir /app/data/research/snapshot-001
+docker compose --profile tools run --rm --no-deps research-tools -m scripts.export_research_dataset --cutoff 2026-10-06T12:00:00Z --drain-report /app/data/research/session-001-drain.json --output-dir /app/data/research/snapshot-001
 ```
 
 The exporter refuses to overwrite an existing snapshot. Its manifest records
 the authoritative database identity and schema, research-version counts, cutoff,
 dataset hash and exporter provenance separately from collection provenance.
-Each producer creates one run identity at its first research capture. Its actual
+Manifest v3 distinguishes `prospective_since_baseline` from an explicit
+`--development` export. Prospective selection requires the first stored version's
+offset at or after its partition baseline, observation time at or after the
+baseline time, and sealed availability at or before the cutoff. A pre-baseline
+version redelivered later remains development data; a new corrected version may
+qualify. A source publication date may precede the baseline without exclusion.
+All eligible versions before this boundary are retained in the database.
+
+The stopped-writer check requires every delivery offset from each baseline to
+its reported high watermark to have raw Bronze bytes and a matching processed
+outcome. Research outcomes must also refer to a stored research version. Missing
+evidence, unresolved transport faults, unsealed versions, database identity
+mismatch, a report for another baseline, or database deliveries beyond the report
+prevent export. This assumes the configured topics use delete retention without
+transactional offset gaps or compaction. It does not establish successful source
+coverage or final sentiment eligibility. Keep collectors stopped throughout.
+Choose a fresh report and snapshot path for each run.
+Each RSS/GDELT collector creates one run identity before fetching, including empty
+and failed sessions. Its actual
 application-file hashes and effective allowlisted settings travel with observations
 and survive outbox retries. The manifest lists runs referenced by exported first
-versions; older versions remain unknown. Run metadata is excluded from content
+versions; older versions remain unknown. Run and request metadata are excluded from content
 identity: restarting a collector must not manufacture a new article version.
 Feed definitions and query constants are covered by application-file hashes.
+Each new observation also carries its request/run ID and publisher domain in
+`request_context`. The first stored version retains its original link; repeated
+captures have their own links in Bronze without multiplying versions. The CLI
+exporter reads the shared ledger (`--session-ledger` can override its path),
+archives `collection-sessions.json`, hashes it in the manifest, and verifies the
+exported first-version links. Missing/inconsistent evidence fails export. Old
+versions without request links remain explicitly unknown. This separate ledger
+contains operational source history, including empty/failing requests that have
+no DuckDB observation. Keep it backed up with the DuckDB file. Its snapshot may
+contain events after the research cutoff: it is audit evidence, never model input.
+
+Quality faults discovered before protocol freeze can invalidate a terminated
+collection run using `scripts.inspect_collection_sessions --invalidate-run RUN_ID
+--reason "Concrete fault and evidence"`. This appends a dated audit event; no
+Bronze record, observation, first-seen time, or original snapshot is deleted or
+rewritten. Later exports exclude first versions from those runs and separately
+report their count and run IDs. This is a disclosed quality decision at export
+time, not a backdated label or feature. Archive the reasons and freeze inclusion
+rules before final testing. Previously exported faulty artifacts must be marked
+invalid separately and must not be used for experiments.
+
+RSS HTTP-byte parsing preserves the response headers and final URL, including
+relative-link resolution and `title_detail.base`. Changing fetch methods without
+this context can manufacture content versions. A regression compares the old
+URL-fetch and new HTTP-byte parse results for exactly this case.
 `COLLECTION_CODE_REVISION` and `COLLECTION_WORKTREE_STATE` are labeled declarations,
 not verified build identity. Without Git, Git fields are null, not an empty-diff hash.
 Archive the matching source and freeze dependencies before experiments; hashes
@@ -143,11 +223,13 @@ A failed drain keeps pending messages durable and exits nonzero. Repair broker o
 writer availability and rerun it. Missing topics, missing outbox, unavailable offsets,
 or unprocessed retention gaps cannot certify completeness. The active baseline
 allows a topic with no post-baseline messages to remain complete even when its
-older writer commit is unavailable. Once new messages exist, the writer must commit
+older writer commit expired during inactivity. Such partitions are explicitly
+marked `commit_expired_at_idle_boundary`; no Kafka position is reset. Once new messages exist, the writer must commit
 through the broker high watermark. A changed partition set, regressed commit/high
 watermark, or retention passing an unprocessed commit fails. Use the same outbox mount, topic
-configuration and writer group as collection. Drain success proves delivery and
-writer commits, including recorded rejections, not research quality. Keep the audit
+configuration and writer group as collection. Drain success verifies the broker
+boundary and current commits; the stopped-writer export check separately verifies
+stored deliveries, including recorded rejections. Neither establishes research quality. Keep the audit
 and drain output with each snapshot. Independent outbox paths need separate drains.
 
 `docs/data-readiness-legacy-host-20260915.json` is historical host evidence only.

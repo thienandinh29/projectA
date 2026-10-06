@@ -1,12 +1,11 @@
-import sys
-import time
 import hashlib
 import re
 import logging
-import signal
-import argparse
 from datetime import datetime, timezone
 import feedparser
+from feedparser.exceptions import NonXMLContentType, CharacterEncodingOverride
+import requests
+from urllib.parse import urlsplit, urljoin
 
 from config import (
     TOPIC_RSS,
@@ -80,24 +79,50 @@ def parse_published_time_with_provenance(entry):
     return datetime.now(timezone.utc), 'ingestion_fallback'
 
 
+def parse_feed_response(response):
+    # Preserve the final response URL/headers that feedparser's URL-fetch path
+    # would supply. Otherwise relative links and title_detail.base change, which
+    # manufactures content versions even when the publisher changed nothing.
+    headers = {key.lower(): value for key, value in getattr(response, 'headers', {}).items()}
+    headers['content-location'] = urljoin(response.url, headers.get('content-location') or response.url)
+    return feedparser.parse(response.content, response_headers=headers)
+
+
 def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) -> dict:
     """Fetches all feeds, deduplicates, and publishes new items to Redpanda."""
     stats = {"fetched": 0, "duplicates": 0, "published": 0, "queued": 0, "errors": 0}
     stats["_delivery_start"] = producer.delivered_count(TOPIC_RSS)
     stats['_cycle_started_at'] = datetime.now(timezone.utc).isoformat()
+    session = producer.start_session(TOPIC_RSS, {'feeds': MACRO_FEEDS})
     producer.retry_pending(TOPIC_RSS)
 
     for feed_info in MACRO_FEEDS:
         feed_name = feed_info["name"]
         feed_url = feed_info["url"]
         logger.info(f"Polling feed: {feed_name}...")
-
+        request_id = session.begin_request(feed_url, {'feed_name': feed_name, 'timeout_seconds': 15})
+        request_finished = False
         try:
-            feed = feedparser.parse(feed_url)
-            if feed.bozo and not feed.entries:
-                logger.warning(f"Failed to parse feed {feed_name}: {feed.bozo_exception}")
+            response = requests.get(feed_url, timeout=15,
+                                    headers={'User-Agent': 'FinancialIngestionWorker/1.0'})
+            response.raise_for_status()
+            feed = parse_feed_response(response)
+            fatal_empty_parse = (feed.bozo and not feed.entries and not isinstance(
+                getattr(feed, 'bozo_exception', None), (NonXMLContentType, CharacterEncodingOverride)))
+            if fatal_empty_parse or not feed.version:
+                logger.warning('Failed to parse feed %s: %s', feed_name,
+                               getattr(feed, 'bozo_exception', 'Unrecognized feed'))
+                session.finish_request(request_id, 'failed', http_status=response.status_code,
+                                       error=str(getattr(feed, 'bozo_exception', 'Unrecognized feed')))
+                request_finished = True
                 stats['errors'] += 1
                 continue
+
+            session.finish_request(request_id, 'success' if feed.entries else 'empty',
+                                   http_status=response.status_code, item_count=len(feed.entries),
+                                   parse_warning=str(feed.bozo_exception) if feed.bozo else None,
+                                   response_url=response.url)
+            request_finished = True
 
             for entry in feed.entries:
                 stats["fetched"] += 1
@@ -118,6 +143,7 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
                     source_item=raw_item, title_provenance='source_feed',
                     source_time=None if pub_time_provenance == 'ingestion_fallback' else pub_time,
                     source_time_kind=pub_time_provenance,
+                    request_context=session.context(request_id, urlsplit(link).hostname),
                     source_time_raw=str(raw_item.get('published') or raw_item.get('updated') or '') or None)
 
                 # Parse snippet and extract entities BEFORE dedup:
@@ -167,6 +193,11 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
                     stats["errors"] += 1
 
         except Exception as e:
+            if not request_finished:
+                session.finish_request(request_id, 'failed', error=f'{type(e).__name__}: {e}',
+                                       http_status=getattr(getattr(e, 'response', None), 'status_code', None))
+            else:
+                session.event('processing_error', request_id=request_id, error=f'{type(e).__name__}: {e}')
             logger.error(f"Error fetching RSS feed {feed_name}: {e}")
             stats["errors"] += 1
 
@@ -174,46 +205,9 @@ def run_rss_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) ->
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Macro RSS Ingestion Worker")
-    parser.add_argument("--once", action="store_true", help="Run a single fetch cycle and exit")
-    args = parser.parse_args()
-
-    producer = RedpandaProducer(profile="fast")
-    dedup = RedisDeduplicator()
-
-    if not dedup.ping():
-        logger.warning("Redis is currently not reachable. Deduplication will operate in memory-only fallback or retry on reconnect.")
-
-    stop_requested = False
-
-    def handle_signal(signum, frame):
-        nonlocal stop_requested
-        logger.info("Termination signal received. Shutting down RSS Worker...")
-        stop_requested = True
-
-    signal.signal(signal.SIGINT, handle_signal)
-    signal.signal(signal.SIGTERM, handle_signal)
-
-    logger.info(f"RSS Ingestion Worker started (Topic: {TOPIC_RSS}, Interval: {RSS_POLL_INTERVAL_SECONDS}s)")
-
-    while not stop_requested:
-        stats = run_rss_fetch_cycle(producer, dedup)
-        logger.info(
-            f"Cycle finished: Fetched={stats['fetched']}, Duplicates={stats['duplicates']}, "
-            f"Published={stats['published']}, Errors={stats['errors']}"
-        )
-
-        if args.once:
-            break
-
-        # Sleep with periodic checks for termination
-        for _ in range(RSS_POLL_INTERVAL_SECONDS):
-            if stop_requested:
-                break
-            time.sleep(1)
-
-    producer.flush(timeout=5.0)
-    logger.info("RSS Ingestion Worker exited cleanly.")
+    from utils.collector_lifecycle import run_collector
+    run_collector('rss_worker', TOPIC_RSS, RSS_POLL_INTERVAL_SECONDS,
+                  {'feeds': MACRO_FEEDS}, run_rss_fetch_cycle)
 
 
 if __name__ == "__main__":
