@@ -1,0 +1,82 @@
+{
+  "kind": "development_human_annotation_batch_v1",
+  "paper_ready": false,
+  "verified_at_utc": "2026-10-07T08:52:36.880421+00:00",
+  "recorded": [
+    {
+      "decision_id": "8dcae5dc-0d5b-4c5d-8d77-020d46ca6b69",
+      "version_id": "37672e741f83bab6def7e4591a5e39281729205e5cb936c12ecba69e22758675",
+      "label_available_at": "2026-10-07T08:52:36.822308+00:00",
+      "release_kind": "initial"
+    },
+    {
+      "decision_id": "6a8aa7a1-9088-42ed-9c3d-2d35513f7bf6",
+      "version_id": "ac41e9a94980764867bd8fbd31dc8777b722a801b7289e4e347abf8351557d49",
+      "label_available_at": "2026-10-07T08:52:36.822308+00:00",
+      "release_kind": "initial"
+    },
+    {
+      "decision_id": "d78713ba-da1b-4c60-b6f4-9d58075ea9e0",
+      "version_id": "8839d140fe7571e1571b065ed747d9f45a2e06ba11825ed2fd09e07ec5194eac",
+      "label_available_at": "2026-10-07T08:52:36.822308+00:00",
+      "release_kind": "initial"
+    }
+  ],
+  "subjects_and_sentiments": [
+    {
+      "item": 1,
+      "subject": "Jobs-report announcement",
+      "sentiment": "neutral"
+    },
+    {
+      "item": 2,
+      "subject": "Microsoft’s stock",
+      "sentiment": "positive"
+    },
+    {
+      "item": 3,
+      "subject": "Intel’s stock",
+      "sentiment": "negative"
+    }
+  ],
+  "approval_path": "/app/data/research/sentiment-teaching-batch01-approval01-20261007.json",
+  "approval_sha256": "a7090770291e4f39eab61fbcfe50a60686563cd19696a513dfba69a7a815f6f8",
+  "original_response_path": "/app/data/research/sentiment-teaching-batch01-response01-pending-20261007.json",
+  "original_response_sha256": "4615c27394ebcddeab0c48a92fba7539545b90df074ff4826970c5eaff2df83d",
+  "completed_reviews": "/app/data/research/sentiment-teaching-batch01-completed-20261007.json",
+  "guide_sha256": "4f5b13fa5f5660ba1e6e5015bee11712fe58561b8b92466d474412bec1916653",
+  "cutoff_checks": {
+    "earlier": {
+      "cutoff": "2026-10-07T08:43:05.027023+00:00",
+      "counts": {
+        "pending": 18
+      },
+      "output": "/app/data/research/sentiment-teaching-batch01-earlier-20261007"
+    },
+    "boundary": {
+      "cutoff": "2026-10-07T08:52:36.822308+00:00",
+      "counts": {
+        "pending": 18
+      },
+      "output": "/app/data/research/sentiment-teaching-batch01-boundary-20261007"
+    },
+    "current": {
+      "cutoff": "2026-10-07T08:52:36.834270+00:00",
+      "counts": {
+        "pending": 15,
+        "labeled": 3
+      },
+      "output": "/app/data/research/sentiment-teaching-batch01-current-20261007"
+    }
+  },
+  "original_snapshot_eligibility_and_template_preserved": true,
+  "assisted_development_only": true,
+  "total_labeled": 3,
+  "remaining_included_unlabeled": 15,
+  "limits": [
+    "Three deliberately selected teaching examples, not representative evaluation or independent annotation.",
+    "Item1 original uncertainty remains in preserved input; it was corrected before first formal release.",
+    "Human approval and assisted flags are disclosed; no classifier predictions or training were run."
+  ],
+  "summary_path": "/app/data/research/sentiment-teaching-batch01-recorded-summary-20261007.json"
+}

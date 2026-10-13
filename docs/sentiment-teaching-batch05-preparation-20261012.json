@@ -1,0 +1,42 @@
+{
+  "kind": "development_sentiment_batch_preparation_v1",
+  "prepared_at_utc": "2026-10-12T09:28:10.685712+00:00",
+  "selection_cutoff": "2026-10-12T09:28:10.668433+00:00",
+  "dataset_sha256": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+  "eligibility_selection_sha256": "2a6079494612ead1302e17a482f23cb087d62c4ce8a3434547955a032db6b6a3",
+  "guide_sha256": "4f5b13fa5f5660ba1e6e5015bee11712fe58561b8b92466d474412bec1916653",
+  "template": "/app/data/research/sentiment-teaching-batch05-20261012.json",
+  "template_sha256": "71a3b676e412175b991d07b71eea89c9309ceac0cc3b52d8998a3bf1d921d53e",
+  "inputs": [
+    {
+      "version_id": "4a954e9fcf6437b132a77befc24b20e95f7982ad1781183e428ae595fada7a61",
+      "content_hash": "4a954e9fcf6437b132a77befc24b20e95f7982ad1781183e428ae595fada7a61",
+      "title": "‘People in the U.S. need to wake up’: As a mortgage loan officer, I rejected wealthy couples due to overspending. We’re all heading for trouble.",
+      "source": "RSS"
+    },
+    {
+      "version_id": "1437c07a646531c9128de47cdbaafc0ea9d65317bc2d92c81a15cf998b8a2ebe",
+      "content_hash": "1437c07a646531c9128de47cdbaafc0ea9d65317bc2d92c81a15cf998b8a2ebe",
+      "title": "The case for Nvidia’s stock to march even higher after clinching its first record high in months",
+      "source": "RSS"
+    },
+    {
+      "version_id": "861764a9f5b764a6921f83c14475e2e0e53472b39aa5b4c6d5f523351fa9e0fa",
+      "content_hash": "861764a9f5b764a6921f83c14475e2e0e53472b39aa5b4c6d5f523351fa9e0fa",
+      "title": "Western Digital and Seagate shares bounce back as analysts downplay the Toshiba threat",
+      "source": "RSS"
+    }
+  ],
+  "current_counts": {
+    "labeled": 11,
+    "unresolved": 1,
+    "pending": 6
+  },
+  "judgments_generated": 0,
+  "prior_annotation_history_preserved": true,
+  "snapshot_and_eligibility_preserved": true,
+  "unresolved_case_retained": true,
+  "selection_reason": "Next three pending included versions for project-owner under the guide, ordered by availability, observation and version ID. Unresolved cases are retained separately. Assisted development only; not representative accuracy sampling.",
+  "paper_ready": false,
+  "summary_path": "/app/data/research/sentiment-teaching-batch05-preparation-20261012.json"
+}

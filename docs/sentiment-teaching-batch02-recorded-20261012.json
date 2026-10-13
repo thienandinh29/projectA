@@ -1,0 +1,94 @@
+{
+  "kind": "development_human_annotation_batch_v1",
+  "paper_ready": false,
+  "verified_at_utc": "2026-10-12T08:48:30.560965+00:00",
+  "recorded": [
+    {
+      "decision_id": "b97ce266-b9eb-4a31-b7ac-bda2fd6ad41e",
+      "version_id": "6a20838e0a78b624a065de3c8f66ce08d93d237546e0c1c8a10476253c1bad39",
+      "label_available_at": "2026-10-12T08:48:30.425681+00:00",
+      "release_kind": "initial"
+    },
+    {
+      "decision_id": "e82809d2-7da0-4b37-8bea-b177b1588f5c",
+      "version_id": "650217b328e5b6a5b50f391d5fbf218cad4a5f3c698bfc225ad92335d5445b62",
+      "label_available_at": "2026-10-12T08:48:30.425681+00:00",
+      "release_kind": "initial"
+    },
+    {
+      "decision_id": "201ba571-0c88-49fc-b4d7-c580ac12b115",
+      "version_id": "8d29ede45e8d848c3b80a23ee70f0e8be63483dbc7d9b302a1701330d0ca7764",
+      "label_available_at": "2026-10-12T08:48:30.425681+00:00",
+      "release_kind": "initial"
+    }
+  ],
+  "subjects_and_sentiments": [
+    {
+      "item": 1,
+      "subject": "Public finances",
+      "sentiment": "negative"
+    },
+    {
+      "item": 2,
+      "subject": "Men's position in the labor market",
+      "sentiment": "negative"
+    },
+    {
+      "item": 3,
+      "subject": "Labor market",
+      "sentiment": "negative"
+    }
+  ],
+  "approval_path": "/app/data/research/sentiment-teaching-batch02-approval01-20261012.json",
+  "approval_sha256": "b04db7bba50a83be3208d47e12b7a015b3d8159b27cfb1e71f3bd7987a16dcc7",
+  "original_response_path": "/app/data/research/sentiment-teaching-batch02-response01-pending-20261012.json",
+  "original_response_sha256": "811ca8a17564bd9fc661fa1226451d3c3142f43cbabdc813811528c083ad7757",
+  "completed_reviews": "/app/data/research/sentiment-teaching-batch02-completed-20261012.json",
+  "guide_sha256": "4f5b13fa5f5660ba1e6e5015bee11712fe58561b8b92466d474412bec1916653",
+  "cutoff_checks": {
+    "october7": {
+      "cutoff": "2026-10-07T08:52:36.834270+00:00",
+      "counts": {
+        "pending": 15,
+        "labeled": 3
+      },
+      "output": "/app/data/research/sentiment-teaching-batch02-october7-20261012"
+    },
+    "before": {
+      "cutoff": "2026-10-12T08:48:30.284276+00:00",
+      "counts": {
+        "pending": 15,
+        "labeled": 3
+      },
+      "output": "/app/data/research/sentiment-teaching-batch02-before-20261012"
+    },
+    "boundary": {
+      "cutoff": "2026-10-12T08:48:30.425681+00:00",
+      "counts": {
+        "pending": 15,
+        "labeled": 3
+      },
+      "output": "/app/data/research/sentiment-teaching-batch02-boundary-20261012"
+    },
+    "current": {
+      "cutoff": "2026-10-12T08:48:30.440146+00:00",
+      "counts": {
+        "labeled": 6,
+        "pending": 12
+      },
+      "output": "/app/data/research/sentiment-teaching-batch02-current-20261012"
+    }
+  },
+  "prior_annotation_history_preserved": true,
+  "original_snapshot_eligibility_and_template_preserved": true,
+  "assisted_development_only": true,
+  "total_labeled": 6,
+  "remaining_included_unlabeled": 12,
+  "limits": [
+    "Assisted development labels, not independent blinded annotation or representative evaluation.",
+    "Item2 original unresolved answer was corrected with human approval before first formal release.",
+    "Real availability is October 12; labels were not backdated to October 7.",
+    "No classifier predictions, model fitting or scoring were run."
+  ],
+  "summary_path": "/app/data/research/sentiment-teaching-batch02-recorded-summary-20261012.json"
+}

@@ -1,0 +1,73 @@
+{
+  "kind": "development_human_annotation_partial_batch_v1",
+  "paper_ready": false,
+  "verified_at_utc": "2026-10-12T09:59:28.784691+00:00",
+  "recorded": [
+    {
+      "decision_id": "b4fbe881-1140-4139-b5f7-648130b100f7",
+      "version_id": "e2edbb824043b883e1330f6c39abcf359e9c809f8b65585bb32430fe7f400bd0",
+      "label_available_at": "2026-10-12T09:59:28.741107+00:00",
+      "release_kind": "initial"
+    },
+    {
+      "decision_id": "95ee5dcd-385b-4070-ac84-1f6de3e97bfe",
+      "version_id": "a9ab679ed5d0832d8f3a918c75f52e022028d80a74e7074dec58740da137c5c3",
+      "label_available_at": "2026-10-12T09:59:28.741107+00:00",
+      "release_kind": "initial"
+    }
+  ],
+  "recorded_items": [
+    1,
+    3
+  ],
+  "pending_item": 2,
+  "pending_version_id": "500be8fcff9e499cd134eaf9c5b506852f5bf57b4aa802fa037d6c97758e5077",
+  "original_response_path": "/app/data/research/sentiment-teaching-batch06-response01-20261012.json",
+  "original_response_sha256": "99e44a993044559f3544d7ac7aadd2766c6756a68b7c8a78a86687fb37deaf14",
+  "completed_reviews": "/app/data/research/sentiment-teaching-batch06-items01and03-completed-20261012.json",
+  "guide_sha256": "4f5b13fa5f5660ba1e6e5015bee11712fe58561b8b92466d474412bec1916653",
+  "cutoff_checks": {
+    "before": {
+      "cutoff": "2026-10-12T09:59:28.722825+00:00",
+      "counts": {
+        "labeled": 14,
+        "unresolved": 1,
+        "pending": 3
+      },
+      "output": "/app/data/research/sentiment-teaching-batch06-partial-before-20261012"
+    },
+    "boundary": {
+      "cutoff": "2026-10-12T09:59:28.741107+00:00",
+      "counts": {
+        "labeled": 14,
+        "unresolved": 1,
+        "pending": 3
+      },
+      "output": "/app/data/research/sentiment-teaching-batch06-partial-boundary-20261012"
+    },
+    "current": {
+      "cutoff": "2026-10-12T09:59:28.745912+00:00",
+      "counts": {
+        "labeled": 14,
+        "unresolved": 3,
+        "pending": 1
+      },
+      "output": "/app/data/research/sentiment-teaching-batch06-partial-current-20261012"
+    }
+  },
+  "prior_annotation_history_preserved": true,
+  "original_snapshot_eligibility_and_template_preserved": true,
+  "assisted_development_only": true,
+  "total_reviewed": 17,
+  "total_labeled": 14,
+  "unresolved": 3,
+  "remaining_pending": 1,
+  "limits": [
+    "Two human uncertain judgments normalized to unresolved; original wording and reasons preserved.",
+    "Item2 positive answer is preserved but not formalized until the claimed economic benefit is clarified.",
+    "Unresolved judgments stay visible and are excluded from three-class labels.",
+    "Subject/flags are assistant-normalized; no independent blinded annotation claimed.",
+    "No model fitting, predictions or scoring were run."
+  ],
+  "summary_path": "/app/data/research/sentiment-teaching-batch06-partial-recorded-summary-20261012.json"
+}

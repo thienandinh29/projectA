@@ -1,5 +1,6 @@
 """Research timing, immutable observations and causally isolated experiments."""
 import json
+import os
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -118,8 +119,12 @@ class TestResearchStorage(unittest.TestCase):
         # Close the writer before an independent read-only connection.
         self.lake.close()
         a, b = Path(self.tmp.name)/'a', Path(self.tmp.name)/'b'
-        first = export_dataset(self.path, a, T+timedelta(hours=1), development=True)
-        second = export_dataset(self.path, b, T+timedelta(hours=1), development=True)
+        # Exercise the local-file default even inside the Docker tools service,
+        # which explicitly identifies the authoritative production volume.
+        with patch.dict(os.environ):
+            os.environ.pop('RESEARCH_DATABASE_ID', None)
+            first = export_dataset(self.path, a, T+timedelta(hours=1), development=True)
+            second = export_dataset(self.path, b, T+timedelta(hours=1), development=True)
         self.assertEqual(first['dataset_sha256'], second['dataset_sha256'])
         self.assertEqual(first['rows'], 1)
         self.assertEqual(first['database']['schema_version'], 5)

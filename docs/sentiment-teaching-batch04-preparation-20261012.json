@@ -1,0 +1,40 @@
+{
+  "kind": "development_sentiment_batch_preparation_v1",
+  "prepared_at_utc": "2026-10-12T09:08:06.141295+00:00",
+  "selection_cutoff": "2026-10-12T09:08:06.130606+00:00",
+  "dataset_sha256": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+  "eligibility_selection_sha256": "2a6079494612ead1302e17a482f23cb087d62c4ce8a3434547955a032db6b6a3",
+  "guide_sha256": "4f5b13fa5f5660ba1e6e5015bee11712fe58561b8b92466d474412bec1916653",
+  "template": "/app/data/research/sentiment-teaching-batch04-20261012.json",
+  "template_sha256": "e3a30fe50072fa1d0dfdd94cc6b6818d520523df5ad6ba0ceb8268cfe5319312",
+  "inputs": [
+    {
+      "version_id": "c9d6a6e73099d577f56d61cb4de6110bd83def1fd936bd341a4aafe144d8bf42",
+      "content_hash": "c9d6a6e73099d577f56d61cb4de6110bd83def1fd936bd341a4aafe144d8bf42",
+      "title": "Consumer optimism slides to lowest since 2014 as fears escalate over rising prices and jobs",
+      "source": "RSS"
+    },
+    {
+      "version_id": "3fcffe4ed3688d6a05b2a80e7cd8ab37db9290c14a079c20e9d1b4cb83876c15",
+      "content_hash": "3fcffe4ed3688d6a05b2a80e7cd8ab37db9290c14a079c20e9d1b4cb83876c15",
+      "title": "America's Canadian import restrictions come into force. Here are the products barred from entry",
+      "source": "RSS"
+    },
+    {
+      "version_id": "8f80d13b91a89d9dd37fc39daea5e74ce713e1f2ceab1e20ffeb1c097862d0a9",
+      "content_hash": "8f80d13b91a89d9dd37fc39daea5e74ce713e1f2ceab1e20ffeb1c097862d0a9",
+      "title": "Australia says more hikes not off the table after raising rates to 15-year high",
+      "source": "RSS"
+    }
+  ],
+  "current_counts": {
+    "labeled": 9,
+    "pending": 9
+  },
+  "judgments_generated": 0,
+  "prior_annotation_history_preserved": true,
+  "snapshot_and_eligibility_preserved": true,
+  "selection_reason": "Next three pending included versions for project-owner under this guide, ordered by availability, observation and version ID. Assisted development only; not a representative accuracy sample.",
+  "paper_ready": false,
+  "summary_path": "/app/data/research/sentiment-teaching-batch04-preparation-20261012.json"
+}

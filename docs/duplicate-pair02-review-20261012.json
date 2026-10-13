@@ -1,0 +1,51 @@
+{
+  "kind": "development_event_pair_content_availability_v1",
+  "decision_id": "594d9970-87d1-487d-b3ed-c4eb820a7418",
+  "response_path": "/app/data/research/duplicate-pair02-response01-20261012.json",
+  "response_sha256": "92ce6ef079d62c62d21135072e9277df97b01585cb187f45c5ef6e7d2ccfb1ca",
+  "decision_available_at": "2026-10-12T10:50:39.355732+00:00",
+  "clock_contract": "Sampled after response contents flushed/fsynced; marker committed separately.",
+  "paper_ready": false,
+  "marker_path": "/app/data/research/duplicate-pair02-response01-availability-20261012.json",
+  "review": {
+    "kind": "development_event_pair_response_v1",
+    "decision_id": "594d9970-87d1-487d-b3ed-c4eb820a7418",
+    "reviewer": "project-owner",
+    "snapshot_sha256": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+    "audit_sha256": "519cdffb093afd50c00777a0cde8ab156c27eadf2bfc2a8c2af67398cec1b22d",
+    "first_version_id": "8d29ede45e8d848c3b80a23ee70f0e8be63483dbc7d9b302a1701330d0ca7764",
+    "second_version_id": "50722746cb907c895ced4934d461426b08298f777cc660447987211b7bfe1261",
+    "first_title": "Labor market faltered in September as jobs increased by just 29,000, unemployment rate rose to 4.2%",
+    "second_title": "Private sector jobs rose by 90,000 in September, better than expected, ADP reports",
+    "same_news_event": false,
+    "judgment": "different_events",
+    "raw_human_response": "there seem 2 about same month and same about job but it different, first there is told about the rose of unemployment rate and in second is better than expected",
+    "assisted": true,
+    "source_context_used_for_event_identity": [
+      {
+        "version_id": "8d29ede45e8d848c3b80a23ee70f0e8be63483dbc7d9b302a1701330d0ca7764",
+        "publisher": "www.cnbc.com",
+        "source_time": "2026-10-02T13:45:58Z",
+        "captured_feed_summary": "Nonfarm payrolls rose by just 29,000 in September, well below the 84,000 forecast, and the unemployment rate rose to 4.2%, the Bureau of Labor Statistics said.",
+        "underlying_report_identity": "BLS nonfarm payrolls/unemployment release"
+      },
+      {
+        "version_id": "50722746cb907c895ced4934d461426b08298f777cc660447987211b7bfe1261",
+        "publisher": "www.cnbc.com",
+        "source_time": "2026-09-30T14:42:04Z",
+        "captured_feed_summary": "Private job creation picked up in September after a brief slowdown.",
+        "underlying_report_identity": "ADP private-sector jobs release"
+      }
+    ],
+    "assistant_feedback": "Different reports are supported by captured source context: BLS nonfarm payrolls/unemployment versus ADP private-sector jobs. Shared month/topic or opposing sentiment alone does not decide event identity. One event can have differently framed articles or different financial subjects.",
+    "human_rationale_status": "Human original outcome/tone rationale is preserved; report-identity explanation is assistant feedback, not a new human statement.",
+    "evidence_status": "Assisted development review; not independent adjudicated ground truth.",
+    "limits": [
+      "Captured summaries used only for event-identity context; existing headline-only sentiment judgments were not changed.",
+      "No verification of real-world employment statistics or methodology beyond captured text is claimed.",
+      "No live Redis canonical IDs, grouping rules or stored research clusters changed.",
+      "Two screened negative examples cannot establish grouping accuracy, recall or validated rewrite positives."
+    ]
+  },
+  "annotation_snapshot_eligibility_and_audit_preserved": true
+}

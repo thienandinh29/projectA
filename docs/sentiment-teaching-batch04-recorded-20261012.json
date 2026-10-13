@@ -1,0 +1,102 @@
+{
+  "kind": "development_human_annotation_batch_v1",
+  "paper_ready": false,
+  "verified_at_utc": "2026-10-12T09:19:35.081661+00:00",
+  "recorded": [
+    {
+      "decision_id": "5f68f194-d3c3-49e5-841d-ea065d0ae94a",
+      "version_id": "c9d6a6e73099d577f56d61cb4de6110bd83def1fd936bd341a4aafe144d8bf42",
+      "label_available_at": "2026-10-12T09:19:35.009624+00:00",
+      "release_kind": "initial"
+    },
+    {
+      "decision_id": "df5aafcf-761d-481a-b536-896463f357bb",
+      "version_id": "3fcffe4ed3688d6a05b2a80e7cd8ab37db9290c14a079c20e9d1b4cb83876c15",
+      "label_available_at": "2026-10-12T09:19:35.009624+00:00",
+      "release_kind": "initial"
+    },
+    {
+      "decision_id": "1a34d3e7-2520-4754-9842-987898626ea5",
+      "version_id": "8f80d13b91a89d9dd37fc39daea5e74ce713e1f2ceab1e20ffeb1c097862d0a9",
+      "label_available_at": "2026-10-12T09:19:35.009624+00:00",
+      "release_kind": "initial"
+    }
+  ],
+  "confirmed_judgments": [
+    {
+      "item": 1,
+      "subject": "Consumer confidence",
+      "status": "labeled",
+      "sentiment": "negative"
+    },
+    {
+      "item": 2,
+      "subject": "Affected Canadian products' access to the US market",
+      "status": "labeled",
+      "sentiment": "negative"
+    },
+    {
+      "item": 3,
+      "subject": "Australian interest-rate policy",
+      "status": "unresolved",
+      "sentiment": null
+    }
+  ],
+  "approval_path": "/app/data/research/sentiment-teaching-batch04-approval01-20261012.json",
+  "approval_sha256": "a41fff9f825cbc8de9a936d9ea97c5df6237fb22b98cba83ab4d915341e15e4b",
+  "original_response_path": "/app/data/research/sentiment-teaching-batch04-response01-pending-20261012.json",
+  "original_response_sha256": "20bb8ed0879e9003757ff5e699c55e81e5f11ddcded06ae2aaf2141a714b24d2",
+  "completed_reviews": "/app/data/research/sentiment-teaching-batch04-completed-20261012.json",
+  "guide_sha256": "4f5b13fa5f5660ba1e6e5015bee11712fe58561b8b92466d474412bec1916653",
+  "cutoff_checks": {
+    "batch03": {
+      "cutoff": "2026-10-12T09:05:11.927267+00:00",
+      "counts": {
+        "labeled": 9,
+        "pending": 9
+      },
+      "output": "/app/data/research/sentiment-teaching-batch04-batch03-20261012"
+    },
+    "before": {
+      "cutoff": "2026-10-12T09:19:34.967162+00:00",
+      "counts": {
+        "labeled": 9,
+        "pending": 9
+      },
+      "output": "/app/data/research/sentiment-teaching-batch04-before-20261012"
+    },
+    "boundary": {
+      "cutoff": "2026-10-12T09:19:35.009624+00:00",
+      "counts": {
+        "labeled": 9,
+        "pending": 9
+      },
+      "output": "/app/data/research/sentiment-teaching-batch04-boundary-20261012"
+    },
+    "current": {
+      "cutoff": "2026-10-12T09:19:35.016396+00:00",
+      "counts": {
+        "labeled": 11,
+        "unresolved": 1,
+        "pending": 6
+      },
+      "output": "/app/data/research/sentiment-teaching-batch04-current-20261012"
+    }
+  },
+  "prior_annotation_history_preserved": true,
+  "original_snapshot_eligibility_and_template_preserved": true,
+  "assisted_development_only": true,
+  "total_reviewed": 12,
+  "total_labeled": 11,
+  "unresolved": 1,
+  "remaining_pending": 6,
+  "unresolved_retained_in_report_and_history": true,
+  "unresolved_excluded_from_three_class_labels": true,
+  "limits": [
+    "Assisted development judgments, not independent blinded annotation or representative scores.",
+    "Item3 original negative answer remains preserved; correction preceded first formal release.",
+    "One unresolved judgment has null sentiment, not neutral or a fourth model class.",
+    "No predictions, model fitting or scoring were run."
+  ],
+  "summary_path": "/app/data/research/sentiment-teaching-batch04-recorded-summary-20261012.json"
+}

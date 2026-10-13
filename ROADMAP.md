@@ -1,5 +1,8 @@
 # Paper 1: frozen financial sentiment under duplicate-aware evaluation
 
+Today's active checklist: [TODAY.md](TODAY.md). Its time budgets are estimates;
+completion requires saved evidence, not time passing.
+
 ## Research objective
 
 Build a reproducible evaluation of a fixed financial-headline sentiment model
@@ -92,6 +95,16 @@ operational reliability check rather than a research sample-size claim.
 
 Gate: every pilot row has provenance, an eligibility decision, an immutable
 version, and a reproducible selection record.
+
+Development annotation tooling now uses `docs/sentiment-annotation-dev-v1.md` and
+`scripts/review_sentiment.py`: it prepares blank inputs, stores assisted/unresolved
+human judgments and revisions, and selects one explicit annotator by cutoff.
+Availability markers are sampled after judgment contents commit; interrupted
+sealing requires present-time recovery. This does not complete human labeling,
+independent review, representative sampling or the final annotation freeze.
+Eligibility still samples its recording timestamp before its batch commit; its
+availability contract must be hardened before final freeze. Existing saved
+development selections use post-return cutoffs; preserve their history.
 
 ## 5. Freeze and evaluate Paper 1
 

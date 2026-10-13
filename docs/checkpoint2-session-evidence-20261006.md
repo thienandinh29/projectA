@@ -114,7 +114,12 @@ investigation. GKG never substitutes for real sentiment headlines. Three
 provisional sessions, pilot eligibility/annotation, duplicate review, protocol
 freeze and final sample-size planning remain. The data is **not paper-ready**.
 
-## Two-hour session started (not yet certified complete)
+## Two-hour session start record (historical)
+
+Update October 6, rechecked at 14:10 Bangkok: this session has since closed, drained,
+and passed storage audit/export. Both collectors exited at 12:55 Bangkok and the
+writer at 12:56. Current closure evidence and coverage gaps are in
+`docs/session01-closure-20261006.md`; this older start record is retained below.
 
 Started October 6 at approximately **03:41 UTC / 10:41 Bangkok time**:
 
@@ -125,7 +130,7 @@ Started October 6 at approximately **03:41 UTC / 10:41 Bangkok time**:
 Collectors use `--duration-seconds 7200` and Docker restart policy `no`.
 They stop starting cycles around 05:41 UTC / 12:41 Bangkok time; an in-progress
 cycle may finish later. The writer remains running for the final delivery drain.
-No final snapshot or continuity claim has been made for this session.
+At startup, no final snapshot or continuity claim had been made for this session.
 
 After both actual named containers exit, inspect their status/ledger, then:
 

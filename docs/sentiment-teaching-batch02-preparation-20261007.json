@@ -1,0 +1,40 @@
+{
+  "kind": "development_sentiment_batch_preparation_v1",
+  "prepared_at_utc": "2026-10-07T09:09:06.454468+00:00",
+  "selection_cutoff": "2026-10-07T09:09:06.440421+00:00",
+  "dataset_sha256": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+  "eligibility_selection_sha256": "2a6079494612ead1302e17a482f23cb087d62c4ce8a3434547955a032db6b6a3",
+  "guide_sha256": "4f5b13fa5f5660ba1e6e5015bee11712fe58561b8b92466d474412bec1916653",
+  "template": "/app/data/research/sentiment-teaching-batch02-20261007.json",
+  "template_sha256": "25cf68ce56a8c9a1cf543c169ffe47ef91d1f477fd96825f7a2fd9cf717e7788",
+  "inputs": [
+    {
+      "version_id": "6a20838e0a78b624a065de3c8f66ce08d93d237546e0c1c8a10476253c1bad39",
+      "content_hash": "6a20838e0a78b624a065de3c8f66ce08d93d237546e0c1c8a10476253c1bad39",
+      "title": "The 2029 tipping point: Western populations are about to start shrinking, piling pressure on public finances",
+      "source": "RSS"
+    },
+    {
+      "version_id": "650217b328e5b6a5b50f391d5fbf218cad4a5f3c698bfc225ad92335d5445b62",
+      "content_hash": "650217b328e5b6a5b50f391d5fbf218cad4a5f3c698bfc225ad92335d5445b62",
+      "title": "Men are losing ground in the labor market. Here's why",
+      "source": "RSS"
+    },
+    {
+      "version_id": "8d29ede45e8d848c3b80a23ee70f0e8be63483dbc7d9b302a1701330d0ca7764",
+      "content_hash": "8d29ede45e8d848c3b80a23ee70f0e8be63483dbc7d9b302a1701330d0ca7764",
+      "title": "Labor market faltered in September as jobs increased by just 29,000, unemployment rate rose to 4.2%",
+      "source": "RSS"
+    }
+  ],
+  "current_counts": {
+    "pending": 15,
+    "labeled": 3
+  },
+  "judgments_generated": 0,
+  "prior_annotation_history_preserved": true,
+  "snapshot_and_eligibility_preserved": true,
+  "selection_reason": "Next three unlabeled included versions for project-owner under this guide, ordered by availability, observation and version ID. Assisted development only; not a representative accuracy sample.",
+  "paper_ready": false,
+  "summary_path": "/app/data/research/sentiment-teaching-batch02-preparation-20261007.json"
+}

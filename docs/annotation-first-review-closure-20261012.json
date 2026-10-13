@@ -1,0 +1,62 @@
+{
+  "kind": "development_annotation_first_review_closure_v1",
+  "paper_ready": false,
+  "verified_at_utc": "2026-10-12T10:08:22.248890+00:00",
+  "recorded": [
+    {
+      "decision_id": "6ff51f0e-c79e-48c3-bbb4-7aee14382698",
+      "version_id": "500be8fcff9e499cd134eaf9c5b506852f5bf57b4aa802fa037d6c97758e5077",
+      "label_available_at": "2026-10-12T10:08:22.193069+00:00",
+      "release_kind": "initial"
+    }
+  ],
+  "approval_path": "/app/data/research/sentiment-teaching-batch06-item02-approval01-20261012.json",
+  "approval_sha256": "d69df1634ba62f7db73096cbce04ecb6ced107aa37cc008e1bedf939e4e408c2",
+  "original_response_path": "/app/data/research/sentiment-teaching-batch06-response01-20261012.json",
+  "completed_reviews": "/app/data/research/sentiment-teaching-batch06-item02-completed-20261012.json",
+  "dataset_sha256": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+  "eligibility_selection_sha256": "2a6079494612ead1302e17a482f23cb087d62c4ce8a3434547955a032db6b6a3",
+  "guide_sha256": "4f5b13fa5f5660ba1e6e5015bee11712fe58561b8b92466d474412bec1916653",
+  "cutoff_checks": {
+    "before": {
+      "cutoff": "2026-10-12T10:08:22.164622+00:00",
+      "counts": {
+        "labeled": 14,
+        "unresolved": 3,
+        "pending": 1
+      },
+      "output": "/app/data/research/sentiment-teaching-batch06-final-before-20261012"
+    },
+    "boundary": {
+      "cutoff": "2026-10-12T10:08:22.193069+00:00",
+      "counts": {
+        "labeled": 14,
+        "unresolved": 3,
+        "pending": 1
+      },
+      "output": "/app/data/research/sentiment-teaching-batch06-final-boundary-20261012"
+    },
+    "current": {
+      "cutoff": "2026-10-12T10:08:22.199055+00:00",
+      "counts": {
+        "labeled": 14,
+        "unresolved": 4
+      },
+      "output": "/app/data/research/sentiment-teaching-batch06-final-current-20261012"
+    }
+  },
+  "prior_annotation_history_preserved": true,
+  "original_snapshot_eligibility_and_template_preserved": true,
+  "total_reviewed": 18,
+  "total_labeled": 14,
+  "unresolved": 4,
+  "remaining_pending": 0,
+  "class_counts": {
+    "negative": 7,
+    "neutral": 2,
+    "positive": 5
+  },
+  "assisted_development_only": true,
+  "completion_boundary": "First review of currently included 18 versions only; not all 41 eligibility decisions, larger pilot, independent adjudication or final testing.",
+  "summary_path": "/app/data/research/sentiment-teaching-batch06-final-recorded-summary-20261012.json"
+}

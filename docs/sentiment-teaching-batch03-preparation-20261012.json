@@ -1,0 +1,40 @@
+{
+  "kind": "development_sentiment_batch_preparation_v1",
+  "prepared_at_utc": "2026-10-12T08:52:55.967413+00:00",
+  "selection_cutoff": "2026-10-12T08:52:55.946233+00:00",
+  "dataset_sha256": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+  "eligibility_selection_sha256": "2a6079494612ead1302e17a482f23cb087d62c4ce8a3434547955a032db6b6a3",
+  "guide_sha256": "4f5b13fa5f5660ba1e6e5015bee11712fe58561b8b92466d474412bec1916653",
+  "template": "/app/data/research/sentiment-teaching-batch03-20261012.json",
+  "template_sha256": "9074b69280ffb4b71ad1ac73213b23be0297f2651242c468a6183418f860077d",
+  "inputs": [
+    {
+      "version_id": "f5f0a58b34698f039b50219ab8277e71193132f3b9480687516a62263d9b6909",
+      "content_hash": "f5f0a58b34698f039b50219ab8277e71193132f3b9480687516a62263d9b6909",
+      "title": "Fed’s preferred gauge showed core inflation at 3.0% in August, much lighter than expected",
+      "source": "RSS"
+    },
+    {
+      "version_id": "50722746cb907c895ced4934d461426b08298f777cc660447987211b7bfe1261",
+      "content_hash": "50722746cb907c895ced4934d461426b08298f777cc660447987211b7bfe1261",
+      "title": "Private sector jobs rose by 90,000 in September, better than expected, ADP reports",
+      "source": "RSS"
+    },
+    {
+      "version_id": "11a2ada1e3964db64d1124eeb5df5d66692c39a2042edd78ac333bb97534bed3",
+      "content_hash": "11a2ada1e3964db64d1124eeb5df5d66692c39a2042edd78ac333bb97534bed3",
+      "title": "The Fed's main inflation measure will be released Wednesday. Here's what to expect",
+      "source": "RSS"
+    }
+  ],
+  "current_counts": {
+    "labeled": 6,
+    "pending": 12
+  },
+  "judgments_generated": 0,
+  "prior_annotation_history_preserved": true,
+  "snapshot_and_eligibility_preserved": true,
+  "selection_reason": "Next three pending included versions for project-owner under the working guide, ordered by availability, observation and version ID. Assisted development only; not a representative accuracy sample.",
+  "paper_ready": false,
+  "summary_path": "/app/data/research/sentiment-teaching-batch03-preparation-20261012.json"
+}

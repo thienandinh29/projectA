@@ -1,0 +1,42 @@
+{
+  "kind": "development_sentiment_batch_preparation_v1",
+  "prepared_at_utc": "2026-10-12T09:46:58.361313+00:00",
+  "selection_cutoff": "2026-10-12T09:46:58.347613+00:00",
+  "dataset_sha256": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+  "eligibility_selection_sha256": "2a6079494612ead1302e17a482f23cb087d62c4ce8a3434547955a032db6b6a3",
+  "guide_sha256": "4f5b13fa5f5660ba1e6e5015bee11712fe58561b8b92466d474412bec1916653",
+  "template": "/app/data/research/sentiment-teaching-batch06-20261012.json",
+  "template_sha256": "ad60b8312e14a8d09ac70ce147eb625cb7ee658c23b057ac7d91f929ba71d924",
+  "inputs": [
+    {
+      "version_id": "e2edbb824043b883e1330f6c39abcf359e9c809f8b65585bb32430fe7f400bd0",
+      "content_hash": "e2edbb824043b883e1330f6c39abcf359e9c809f8b65585bb32430fe7f400bd0",
+      "title": "This rare stock-market divide means an elevated chance of a big surge — or a deep plunge",
+      "source": "RSS"
+    },
+    {
+      "version_id": "500be8fcff9e499cd134eaf9c5b506852f5bf57b4aa802fa037d6c97758e5077",
+      "content_hash": "500be8fcff9e499cd134eaf9c5b506852f5bf57b4aa802fa037d6c97758e5077",
+      "title": "Trump is promising $90 Medicare rebate checks ahead of the midterms. Here’s the hidden cost.",
+      "source": "RSS"
+    },
+    {
+      "version_id": "a9ab679ed5d0832d8f3a918c75f52e022028d80a74e7074dec58740da137c5c3",
+      "content_hash": "a9ab679ed5d0832d8f3a918c75f52e022028d80a74e7074dec58740da137c5c3",
+      "title": "Investors see big opportunity in ferocious 2026 bond-market rout",
+      "source": "RSS"
+    }
+  ],
+  "current_counts": {
+    "labeled": 14,
+    "unresolved": 1,
+    "pending": 3
+  },
+  "judgments_generated": 0,
+  "prior_annotation_history_preserved": true,
+  "snapshot_and_eligibility_preserved": true,
+  "unresolved_case_retained": true,
+  "selection_reason": "Final three pending included versions for project-owner under this guide, ordered by availability, observation and version ID. Existing unresolved judgment remains separate. Assisted development only; not a full pilot or representative accuracy sample.",
+  "paper_ready": false,
+  "summary_path": "/app/data/research/sentiment-teaching-batch06-preparation-20261012.json"
+}

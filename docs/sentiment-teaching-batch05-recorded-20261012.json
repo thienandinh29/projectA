@@ -1,0 +1,102 @@
+{
+  "kind": "development_human_annotation_batch_v1",
+  "paper_ready": false,
+  "verified_at_utc": "2026-10-12T09:42:40.004064+00:00",
+  "recorded": [
+    {
+      "decision_id": "47a33e7b-bef5-4f29-990f-31af2d38aa00",
+      "version_id": "4a954e9fcf6437b132a77befc24b20e95f7982ad1781183e428ae595fada7a61",
+      "label_available_at": "2026-10-12T09:42:39.947604+00:00",
+      "release_kind": "initial"
+    },
+    {
+      "decision_id": "fcd4cb5d-d792-46b8-838a-11e2a35f64cf",
+      "version_id": "1437c07a646531c9128de47cdbaafc0ea9d65317bc2d92c81a15cf998b8a2ebe",
+      "label_available_at": "2026-10-12T09:42:39.947604+00:00",
+      "release_kind": "initial"
+    },
+    {
+      "decision_id": "ebe068c9-f7ed-4145-844a-dc2c56c3fa80",
+      "version_id": "861764a9f5b764a6921f83c14475e2e0e53472b39aa5b4c6d5f523351fa9e0fa",
+      "label_available_at": "2026-10-12T09:42:39.947604+00:00",
+      "release_kind": "initial"
+    }
+  ],
+  "normalized_judgments": [
+    {
+      "item": 1,
+      "subject": "Household financial outlook and mortgage applicants' financial position",
+      "sentiment": "negative"
+    },
+    {
+      "item": 2,
+      "subject": "Nvidia's stock",
+      "sentiment": "positive"
+    },
+    {
+      "item": 3,
+      "subject": "Western Digital and Seagate shares",
+      "sentiment": "positive"
+    }
+  ],
+  "original_response_path": "/app/data/research/sentiment-teaching-batch05-response01-20261012.json",
+  "original_response_sha256": "6ea33ad9a3ab29c9765170960fac874ee6ac1404643b7c6575a3cffcd761cbee",
+  "completed_reviews": "/app/data/research/sentiment-teaching-batch05-completed-20261012.json",
+  "guide_sha256": "4f5b13fa5f5660ba1e6e5015bee11712fe58561b8b92466d474412bec1916653",
+  "cutoff_checks": {
+    "batch04": {
+      "cutoff": "2026-10-12T09:19:35.016396+00:00",
+      "counts": {
+        "labeled": 11,
+        "unresolved": 1,
+        "pending": 6
+      },
+      "output": "/app/data/research/sentiment-teaching-batch05-batch04-20261012"
+    },
+    "before": {
+      "cutoff": "2026-10-12T09:42:39.922235+00:00",
+      "counts": {
+        "labeled": 11,
+        "unresolved": 1,
+        "pending": 6
+      },
+      "output": "/app/data/research/sentiment-teaching-batch05-before-20261012"
+    },
+    "boundary": {
+      "cutoff": "2026-10-12T09:42:39.947604+00:00",
+      "counts": {
+        "labeled": 11,
+        "unresolved": 1,
+        "pending": 6
+      },
+      "output": "/app/data/research/sentiment-teaching-batch05-boundary-20261012"
+    },
+    "current": {
+      "cutoff": "2026-10-12T09:42:39.953026+00:00",
+      "counts": {
+        "labeled": 14,
+        "unresolved": 1,
+        "pending": 3
+      },
+      "output": "/app/data/research/sentiment-teaching-batch05-current-20261012"
+    }
+  },
+  "prior_annotation_history_preserved": true,
+  "original_snapshot_eligibility_and_template_preserved": true,
+  "assisted_development_only": true,
+  "total_reviewed": 15,
+  "total_labeled": 14,
+  "unresolved": 1,
+  "remaining_pending": 3,
+  "unresolved_retained_in_report_and_history": true,
+  "human_polarities_unchanged": true,
+  "subject_normalization_disclosed": true,
+  "limits": [
+    "Assisted development judgments, not independent annotation or representative scores.",
+    "Specific subjects and contextual flags are assistant-normalized; original human wording is preserved.",
+    "No separate explicit approval message for rewritten subject strings is claimed.",
+    "Item3 original after wording is preserved without validating causality or chronology.",
+    "No fitting, predictions or scoring were run."
+  ],
+  "summary_path": "/app/data/research/sentiment-teaching-batch05-recorded-summary-20261012.json"
+}

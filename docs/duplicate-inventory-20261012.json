@@ -1,0 +1,167 @@
+{
+  "kind": "development_duplicate_inventory_v1",
+  "created_at_utc": "2026-10-12T10:11:22.468648+00:00",
+  "paper_ready": false,
+  "snapshot_sha256": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+  "snapshot_manifest_sha256": "5f069a33d837e4e946f6feb15697fe86ee5feec6e33fb255ce1243d66a79ea9d",
+  "eligibility_selection_sha256": "2a6079494612ead1302e17a482f23cb087d62c4ce8a3434547955a032db6b6a3",
+  "snapshot_versions": 41,
+  "article_id_count": 38,
+  "distinct_exact_titles": 38,
+  "multi_version_article_count": 2,
+  "multi_version_articles": [
+    {
+      "article_id": "4dfeaec4547e72c411c6b0095efdf700dae0dfb7fe26907026b2bc3e88c57478",
+      "url": "https://www.investing.com/news/economy-news/australias-abc-rejects-ai-copyright-carveout-believes-already-been-scraped-4933144",
+      "versions": 3,
+      "comparisons": [
+        {
+          "earlier_version_id": "147e7346a67ab1022632bb0f1a1c2b7f13e516c06a8cbad90c8f8a961511da6d",
+          "later_version_id": "836e144fd42442bc0b11c9d165814371d96d28f615509ece47cd543c23804515",
+          "earlier_title": "Anthropic tells Australia it’s open to laws requiring reporting of AI agent hacks",
+          "later_title": "Anthropic tells Australia it’s open to laws requiring reporting of AI agent hacks",
+          "earlier_available_at": "2026-10-06T03:54:51.833747+00:00",
+          "later_available_at": "2026-10-06T04:33:05.613639+00:00",
+          "headline_changed": false,
+          "version_material_changed_paths": [
+            "source_item.published",
+            "source_item.published_parsed[3]",
+            "source_item.published_parsed[4]",
+            "source_item.published_parsed[5]",
+            "source_time",
+            "source_time_raw"
+          ]
+        },
+        {
+          "earlier_version_id": "836e144fd42442bc0b11c9d165814371d96d28f615509ece47cd543c23804515",
+          "later_version_id": "c34fb20b88d31a066035c015186597d042550dec8b29e72cc2ff27d464a3d03f",
+          "earlier_title": "Anthropic tells Australia it’s open to laws requiring reporting of AI agent hacks",
+          "later_title": "Anthropic tells Australia it’s open to laws requiring reporting of AI agent hacks",
+          "earlier_available_at": "2026-10-06T04:33:05.613639+00:00",
+          "later_available_at": "2026-10-06T05:51:18.282628+00:00",
+          "headline_changed": false,
+          "version_material_changed_paths": [
+            "source_item.published",
+            "source_item.published_parsed[3]",
+            "source_item.published_parsed[4]",
+            "source_item.published_parsed[5]",
+            "source_time",
+            "source_time_raw"
+          ]
+        }
+      ],
+      "interpretation": "Same URL identity with changed version material; correction/new-story meaning requires review."
+    },
+    {
+      "article_id": "a25deee6d7cf848048b636830be0ccad677d005c6d758db870208cbb59def1a2",
+      "url": "https://www.investing.com/news/economy-news/cornell-students-stage-antirape-rally-4933137",
+      "versions": 2,
+      "comparisons": [
+        {
+          "earlier_version_id": "aacbd6acb65bd9a3cf240e765b81363fe0e80475259b17e9033f8334beaaf0b1",
+          "later_version_id": "2b49bd8a6bf109162b517e8ef858768d6a8ace5eaa982e2fe9d594c4d2e684e3",
+          "earlier_title": "Cornell students stage anti-rape rally in support of ’Jane Doe’",
+          "later_title": "Cornell students stage anti-rape rally in support of ’Jane Doe’",
+          "earlier_available_at": "2026-10-06T03:55:04.504448+00:00",
+          "later_available_at": "2026-10-06T04:33:05.613639+00:00",
+          "headline_changed": false,
+          "version_material_changed_paths": [
+            "source_item.published",
+            "source_item.published_parsed[3]",
+            "source_item.published_parsed[5]",
+            "source_time",
+            "source_time_raw"
+          ]
+        }
+      ],
+      "interpretation": "Same URL identity with changed version material; correction/new-story meaning requires review."
+    }
+  ],
+  "reference_parameters": {
+    "lexical_threshold": 0.75,
+    "window_hours": 24,
+    "ordering": "availability, observation, version ID",
+    "actual_run_time": "created_at_utc",
+    "historical_arrival_times": "Replayed data timing, not actual human grouping decisions."
+  },
+  "reference_group_counts": {
+    "all_snapshot_versions": {
+      "article": {
+        "versions": 41,
+        "reference_groups": 38
+      },
+      "exact": {
+        "versions": 41,
+        "reference_groups": 38
+      },
+      "lexical": {
+        "versions": 41,
+        "reference_groups": 38
+      }
+    },
+    "currently_included_versions": {
+      "article": {
+        "versions": 18,
+        "reference_groups": 18
+      },
+      "exact": {
+        "versions": 18,
+        "reference_groups": 18
+      },
+      "lexical": {
+        "versions": 18,
+        "reference_groups": 18
+      }
+    }
+  },
+  "prefix_stability_checks": {
+    "all_snapshot_versions_article": true,
+    "all_snapshot_versions_exact": true,
+    "all_snapshot_versions_lexical": true,
+    "currently_included_versions_article": true,
+    "currently_included_versions_exact": true,
+    "currently_included_versions_lexical": true
+  },
+  "distinct_article_pairs_at_or_above_threshold": 0,
+  "annotation_eligibility_and_snapshot_unchanged": true,
+  "audit_path": "/app/data/research/duplicate-inventory-20261012.json",
+  "audit_sha256": "519cdffb093afd50c00777a0cde8ab156c27eadf2bfc2a8c2af67398cec1b22d",
+  "nearest_pairs_preview": [
+    {
+      "first_version_id": "37672e741f83bab6def7e4591a5e39281729205e5cb936c12ecba69e22758675",
+      "second_version_id": "11a2ada1e3964db64d1124eeb5df5d66692c39a2042edd78ac333bb97534bed3",
+      "first_title": "The September jobs report will be released Friday. Here's what to expect",
+      "second_title": "The Fed's main inflation measure will be released Wednesday. Here's what to expect",
+      "first_url": "https://www.cnbc.com/2026/10/01/the-september-jobs-report-will-be-released-friday-heres-what-to-expect.html",
+      "second_url": "https://www.cnbc.com/2026/09/29/the-feds-main-inflation-measure-will-be-released-wednesday-heres-what-to-expect.html",
+      "exact_jaccard": 0.39473684210526316,
+      "polarity_guard_blocks": false,
+      "same_news_event": null,
+      "human_reason": null
+    },
+    {
+      "first_version_id": "8d29ede45e8d848c3b80a23ee70f0e8be63483dbc7d9b302a1701330d0ca7764",
+      "second_version_id": "50722746cb907c895ced4934d461426b08298f777cc660447987211b7bfe1261",
+      "first_title": "Labor market faltered in September as jobs increased by just 29,000, unemployment rate rose to 4.2%",
+      "second_title": "Private sector jobs rose by 90,000 in September, better than expected, ADP reports",
+      "first_url": "https://www.cnbc.com/2026/10/02/jobs-report-september-2026.html",
+      "second_url": "https://www.cnbc.com/2026/09/30/private-sector-jobs-rose-by-90000-in-september-better-than-expected-adp-reports.html",
+      "exact_jaccard": 0.15789473684210525,
+      "polarity_guard_blocks": false,
+      "same_news_event": null,
+      "human_reason": null
+    },
+    {
+      "first_version_id": "7ac0dbaac2a665c4f4cccc5fb8b38b1a35a7713cf0fa71e607d4cb914e05ae35",
+      "second_version_id": "90b3de3f648afecc955a588c6d4eb93f1a5b4f5c4f801fd59dc5a8703544e2a4",
+      "first_title": "Nasdaq notches record high close as investors focus on earnings",
+      "second_title": "Nasdaq hits record as dollar and Treasury yields climb, oil prices ease",
+      "first_url": "https://www.investing.com/news/economy-news/wall-st-futures-dip-as-tech-stocks-take-a-breather-4931591",
+      "second_url": "https://www.investing.com/news/economy-news/stocks-upbeat-dollar-wobbles-as-fed-hike-bets-recede-4930982",
+      "exact_jaccard": 0.11627906976744186,
+      "polarity_guard_blocks": false,
+      "same_news_event": null,
+      "human_reason": null
+    }
+  ]
+}

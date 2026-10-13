@@ -1,0 +1,34 @@
+{
+  "kind": "development_event_pair_content_availability_v1",
+  "decision_id": "618a7f85-bc07-4800-8952-54ef14ac5022",
+  "response_path": "/app/data/research/duplicate-pair01-response01-20261012.json",
+  "response_sha256": "ef5fd7134e3c324e2b26ac5646f7e3fa9263339d37b3d20d0dea5194712e2b88",
+  "decision_available_at": "2026-10-12T10:27:39.062761+00:00",
+  "clock_contract": "Sampled after response contents flushed/fsynced; marker saved separately.",
+  "paper_ready": false,
+  "marker_path": "/app/data/research/duplicate-pair01-response01-availability-20261012.json",
+  "review": {
+    "kind": "development_event_pair_response_v1",
+    "decision_id": "618a7f85-bc07-4800-8952-54ef14ac5022",
+    "reviewer": "project-owner",
+    "snapshot_sha256": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+    "audit_sha256": "519cdffb093afd50c00777a0cde8ab156c27eadf2bfc2a8c2af67398cec1b22d",
+    "first_version_id": "37672e741f83bab6def7e4591a5e39281729205e5cb936c12ecba69e22758675",
+    "second_version_id": "11a2ada1e3964db64d1124eeb5df5d66692c39a2042edd78ac333bb97534bed3",
+    "first_title": "The September jobs report will be released Friday. Here's what to expect",
+    "second_title": "The Fed's main inflation measure will be released Wednesday. Here's what to expect",
+    "same_news_event": false,
+    "judgment": "different_events",
+    "raw_human_response": "it's different/ first the news from a grovoment and one in Fed. second, one released in friday and one released in wednesday",
+    "assisted": true,
+    "assistant_feedback": "Different event topics: an employment report versus an inflation report. Both saved articles have publisher www.cnbc.com. Fed is discussed in the second title, not its publisher. Different publishers or weekdays alone do not establish different underlying events.",
+    "human_rationale_status": "Original source/day rationale preserved; corrected event-topic rationale is assistant feedback, not a new human statement.",
+    "evidence_status": "Assisted development response; not independent adjudicated ground truth.",
+    "limits": [
+      "No grouping rule or stored cluster was changed.",
+      "One screened pair cannot establish duplicate precision/recall or an independent-event count.",
+      "No classifier labels, predictions or scores were changed."
+    ]
+  },
+  "annotation_snapshot_and_eligibility_preserved": true
+}

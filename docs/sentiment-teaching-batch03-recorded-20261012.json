@@ -1,0 +1,102 @@
+{
+  "kind": "development_human_annotation_batch_v1",
+  "paper_ready": false,
+  "verified_at_utc": "2026-10-12T09:05:12.050971+00:00",
+  "recorded": [
+    {
+      "decision_id": "ebbd3f1b-1500-422a-bf50-65d635be23d9",
+      "version_id": "f5f0a58b34698f039b50219ab8277e71193132f3b9480687516a62263d9b6909",
+      "label_available_at": "2026-10-12T09:05:11.913220+00:00",
+      "release_kind": "initial"
+    },
+    {
+      "decision_id": "6aee7484-4fbe-47c5-b499-69201a4defa9",
+      "version_id": "50722746cb907c895ced4934d461426b08298f777cc660447987211b7bfe1261",
+      "label_available_at": "2026-10-12T09:05:11.913220+00:00",
+      "release_kind": "initial"
+    },
+    {
+      "decision_id": "85590472-3725-48f2-a240-67515d94b796",
+      "version_id": "11a2ada1e3964db64d1124eeb5df5d66692c39a2042edd78ac333bb97534bed3",
+      "label_available_at": "2026-10-12T09:05:11.913220+00:00",
+      "release_kind": "initial"
+    }
+  ],
+  "subjects_and_sentiments": [
+    {
+      "item": 1,
+      "subject": "Core inflation relative to expectations (lower inflation pressure)",
+      "sentiment": "positive"
+    },
+    {
+      "item": 2,
+      "subject": "Private-sector employment",
+      "sentiment": "positive"
+    },
+    {
+      "item": 3,
+      "subject": "Inflation-report announcement",
+      "sentiment": "neutral"
+    }
+  ],
+  "approval_path": "/app/data/research/sentiment-teaching-batch03-approval01-20261012.json",
+  "approval_sha256": "9a2c58c1d620e9282a49ac302dd9931667eda6428e1aae21b8d88b9565b7c85b",
+  "original_response_path": "/app/data/research/sentiment-teaching-batch03-response01-pending-20261012.json",
+  "original_response_sha256": "35fb1b53fba0255efb73c86781f2cc0961acae277c1bf50028b63039f85cc96c",
+  "completed_reviews": "/app/data/research/sentiment-teaching-batch03-completed-20261012.json",
+  "guide_sha256": "4f5b13fa5f5660ba1e6e5015bee11712fe58561b8b92466d474412bec1916653",
+  "cutoff_checks": {
+    "october7": {
+      "cutoff": "2026-10-07T08:52:36.834270+00:00",
+      "counts": {
+        "pending": 15,
+        "labeled": 3
+      },
+      "output": "/app/data/research/sentiment-teaching-batch03-october7-20261012"
+    },
+    "batch02": {
+      "cutoff": "2026-10-12T08:48:30.440146+00:00",
+      "counts": {
+        "labeled": 6,
+        "pending": 12
+      },
+      "output": "/app/data/research/sentiment-teaching-batch03-batch02-20261012"
+    },
+    "before": {
+      "cutoff": "2026-10-12T09:05:11.864341+00:00",
+      "counts": {
+        "labeled": 6,
+        "pending": 12
+      },
+      "output": "/app/data/research/sentiment-teaching-batch03-before-20261012"
+    },
+    "boundary": {
+      "cutoff": "2026-10-12T09:05:11.913220+00:00",
+      "counts": {
+        "labeled": 6,
+        "pending": 12
+      },
+      "output": "/app/data/research/sentiment-teaching-batch03-boundary-20261012"
+    },
+    "current": {
+      "cutoff": "2026-10-12T09:05:11.927267+00:00",
+      "counts": {
+        "labeled": 9,
+        "pending": 9
+      },
+      "output": "/app/data/research/sentiment-teaching-batch03-current-20261012"
+    }
+  },
+  "prior_annotation_history_preserved": true,
+  "original_snapshot_eligibility_and_template_preserved": true,
+  "assisted_development_only": true,
+  "total_labeled": 9,
+  "remaining_included_unlabeled": 9,
+  "limits": [
+    "Assisted development labels, not blinded independent annotation or representative performance evidence.",
+    "Item3 original unresolved answer and item1 original reason are preserved before human-approved clarification.",
+    "Inflation positivity is perspective-specific and comparison-based, not verified month-to-month improvement.",
+    "No classifier predictions, fitting or scoring were run."
+  ],
+  "summary_path": "/app/data/research/sentiment-teaching-batch03-recorded-summary-20261012.json"
+}

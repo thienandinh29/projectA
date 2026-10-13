@@ -1,0 +1,286 @@
+{
+  "kind": "session01_operational_summary_v1",
+  "snapshot_versions": 41,
+  "snapshot_article_ids": 38,
+  "versions_by_first_run": {
+    "bd6c214d-6b32-4928-af63-b990260f2cde": 20,
+    "c6894a63-eea7-4cf1-8af5-7411db116881": 21
+  },
+  "dataset_sha256": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+  "request_links": {
+    "linked_versions": 41,
+    "versions_with_unknown_request": 0,
+    "unfinished_sessions": 0,
+    "unfinished_requests": 0
+  },
+  "human_review_counts_for_new_snapshot": {
+    "included": 2,
+    "excluded": 2,
+    "pending": 37
+  },
+  "session_starts": [
+    {
+      "run_id": "c6894a63-eea7-4cf1-8af5-7411db116881",
+      "started_at": "2026-10-06T03:41:24.122570+00:00",
+      "status": "closed",
+      "termination_events": [
+        {
+          "details": {
+            "reason": "SIGTERM"
+          },
+          "event_id": "9f0f6510-2493-4935-8025-ee96b3cf6926",
+          "kind": "stop_requested",
+          "recorded_at": "2026-10-06T05:55:11.712047+00:00",
+          "run_id": "c6894a63-eea7-4cf1-8af5-7411db116881"
+        },
+        {
+          "details": {
+            "pending_delivery": 0,
+            "reason": "SIGTERM"
+          },
+          "event_id": "9dff43f3-d287-45a5-ba00-241f90feac52",
+          "kind": "closed",
+          "recorded_at": "2026-10-06T05:55:12.551409+00:00",
+          "run_id": "c6894a63-eea7-4cf1-8af5-7411db116881"
+        }
+      ]
+    },
+    {
+      "run_id": "ca207964-a19a-4d07-967a-0d5e6db2068e",
+      "started_at": "2026-10-06T03:41:24.606485+00:00",
+      "status": "closed",
+      "termination_events": [
+        {
+          "details": {
+            "reason": "SIGTERM"
+          },
+          "event_id": "45b038cd-70ca-40f3-bc73-7c39bf1d8e86",
+          "kind": "stop_requested",
+          "recorded_at": "2026-10-06T05:55:11.809786+00:00",
+          "run_id": "ca207964-a19a-4d07-967a-0d5e6db2068e"
+        },
+        {
+          "details": {
+            "pending_delivery": 0,
+            "reason": "SIGTERM"
+          },
+          "event_id": "40702eb7-2876-437a-a65e-9c97538d57c6",
+          "kind": "closed",
+          "recorded_at": "2026-10-06T05:55:11.902133+00:00",
+          "run_id": "ca207964-a19a-4d07-967a-0d5e6db2068e"
+        }
+      ]
+    }
+  ],
+  "source_requests": [
+    {
+      "run_id": "c6894a63-eea7-4cf1-8af5-7411db116881",
+      "endpoint": "https://feeds.content.dowjones.io/public/rss/mw_topstories",
+      "session_status": "closed",
+      "invalidated_run": false,
+      "attempts": 18,
+      "outcomes": {
+        "success": 18
+      },
+      "http_statuses": {
+        "200": 18
+      },
+      "reported_items_across_attempts": 180,
+      "attempts_without_item_count": 0,
+      "first_attempt_started_at": "2026-10-06T03:41:27.584280+00:00",
+      "last_attempt_started_at": "2026-10-06T05:54:16.833295+00:00",
+      "max_interval_between_attempt_starts_seconds": 4692.356462,
+      "errors": []
+    },
+    {
+      "run_id": "c6894a63-eea7-4cf1-8af5-7411db116881",
+      "endpoint": "https://finance.yahoo.com/news/rssindex",
+      "session_status": "closed",
+      "invalidated_run": false,
+      "attempts": 18,
+      "outcomes": {
+        "success": 16,
+        "failed": 2
+      },
+      "http_statuses": {
+        "200": 16,
+        "404": 2
+      },
+      "reported_items_across_attempts": 784,
+      "attempts_without_item_count": 2,
+      "first_attempt_started_at": "2026-10-06T03:41:24.173188+00:00",
+      "last_attempt_started_at": "2026-10-06T05:54:14.850441+00:00",
+      "max_interval_between_attempt_starts_seconds": 4694.226984,
+      "errors": [
+        "HTTPError: 404 Client Error: Not Found for url: https://finance.yahoo.com/news/rssindex"
+      ]
+    },
+    {
+      "run_id": "c6894a63-eea7-4cf1-8af5-7411db116881",
+      "endpoint": "https://www.cnbc.com/id/20910258/device/rss/rss.html",
+      "session_status": "closed",
+      "invalidated_run": false,
+      "attempts": 18,
+      "outcomes": {
+        "success": 18
+      },
+      "http_statuses": {
+        "200": 18
+      },
+      "reported_items_across_attempts": 540,
+      "attempts_without_item_count": 0,
+      "first_attempt_started_at": "2026-10-06T03:41:26.134341+00:00",
+      "last_attempt_started_at": "2026-10-06T05:54:15.445888+00:00",
+      "max_interval_between_attempt_starts_seconds": 4692.493679,
+      "errors": []
+    },
+    {
+      "run_id": "c6894a63-eea7-4cf1-8af5-7411db116881",
+      "endpoint": "https://www.investing.com/rss/news_14.rss",
+      "session_status": "closed",
+      "invalidated_run": false,
+      "attempts": 18,
+      "outcomes": {
+        "failed": 11,
+        "success": 7
+      },
+      "http_statuses": {
+        "200": 7,
+        "unknown": 11
+      },
+      "reported_items_across_attempts": 70,
+      "attempts_without_item_count": 11,
+      "first_attempt_started_at": "2026-10-06T03:41:28.650425+00:00",
+      "last_attempt_started_at": "2026-10-06T05:54:17.913818+00:00",
+      "max_interval_between_attempt_starts_seconds": 4692.04866,
+      "errors": [
+        "ReadTimeout: HTTPSConnectionPool(host='www.investing.com', port=443): Read timed out. (read timeout=15)"
+      ]
+    },
+    {
+      "run_id": "ca207964-a19a-4d07-967a-0d5e6db2068e",
+      "endpoint": "http://data.gdeltproject.org/gdeltv2/20261006034500.gkg.csv.zip",
+      "session_status": "closed",
+      "invalidated_run": false,
+      "attempts": 1,
+      "outcomes": {
+        "success": 1
+      },
+      "http_statuses": {
+        "200": 1
+      },
+      "reported_items_across_attempts": 50,
+      "attempts_without_item_count": 0,
+      "first_attempt_started_at": "2026-10-06T03:42:13.733157+00:00",
+      "last_attempt_started_at": "2026-10-06T03:42:13.733157+00:00",
+      "max_interval_between_attempt_starts_seconds": null,
+      "errors": []
+    },
+    {
+      "run_id": "ca207964-a19a-4d07-967a-0d5e6db2068e",
+      "endpoint": "http://data.gdeltproject.org/gdeltv2/20261006040000.gkg.csv.zip",
+      "session_status": "closed",
+      "invalidated_run": false,
+      "attempts": 1,
+      "outcomes": {
+        "success": 1
+      },
+      "http_statuses": {
+        "200": 1
+      },
+      "reported_items_across_attempts": 50,
+      "attempts_without_item_count": 0,
+      "first_attempt_started_at": "2026-10-06T03:58:04.135426+00:00",
+      "last_attempt_started_at": "2026-10-06T03:58:04.135426+00:00",
+      "max_interval_between_attempt_starts_seconds": null,
+      "errors": []
+    },
+    {
+      "run_id": "ca207964-a19a-4d07-967a-0d5e6db2068e",
+      "endpoint": "http://data.gdeltproject.org/gdeltv2/20261006041500.gkg.csv.zip",
+      "session_status": "closed",
+      "invalidated_run": false,
+      "attempts": 1,
+      "outcomes": {
+        "success": 1
+      },
+      "http_statuses": {
+        "200": 1
+      },
+      "reported_items_across_attempts": 50,
+      "attempts_without_item_count": 0,
+      "first_attempt_started_at": "2026-10-06T04:15:57.812940+00:00",
+      "last_attempt_started_at": "2026-10-06T04:15:57.812940+00:00",
+      "max_interval_between_attempt_starts_seconds": null,
+      "errors": []
+    },
+    {
+      "run_id": "ca207964-a19a-4d07-967a-0d5e6db2068e",
+      "endpoint": "http://data.gdeltproject.org/gdeltv2/20261006043000.gkg.csv.zip",
+      "session_status": "closed",
+      "invalidated_run": false,
+      "attempts": 1,
+      "outcomes": {
+        "success": 1
+      },
+      "http_statuses": {
+        "200": 1
+      },
+      "reported_items_across_attempts": 50,
+      "attempts_without_item_count": 0,
+      "first_attempt_started_at": "2026-10-06T04:31:36.972341+00:00",
+      "last_attempt_started_at": "2026-10-06T04:31:36.972341+00:00",
+      "max_interval_between_attempt_starts_seconds": null,
+      "errors": []
+    },
+    {
+      "run_id": "ca207964-a19a-4d07-967a-0d5e6db2068e",
+      "endpoint": "https://api.gdeltproject.org/api/v2/doc/doc",
+      "session_status": "closed",
+      "invalidated_run": false,
+      "attempts": 11,
+      "outcomes": {
+        "failed": 11
+      },
+      "http_statuses": {
+        "200": 1,
+        "429": 10
+      },
+      "reported_items_across_attempts": 0,
+      "attempts_without_item_count": 11,
+      "first_attempt_started_at": "2026-10-06T03:41:24.638472+00:00",
+      "last_attempt_started_at": "2026-10-06T04:31:21.500403+00:00",
+      "max_interval_between_attempt_starts_seconds": 1037.261765,
+      "errors": [
+        "HTTPError: 429 Client Error: Too Many Requests for url: https://api.gdeltproject.org/api/v2/doc/doc?query=%28inflation+OR+%22interest+rate%22+OR+%22central+bank%22+OR+%22Federal+Reserve%22+OR+%22ECB%22%29&mode=ArtList&format=json&maxrecords=50&sort=datedesc",
+        "JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+      ]
+    },
+    {
+      "run_id": "ca207964-a19a-4d07-967a-0d5e6db2068e",
+      "endpoint": "https://data.gdeltproject.org/gdeltv2/lastupdate.txt",
+      "session_status": "closed",
+      "invalidated_run": false,
+      "attempts": 4,
+      "outcomes": {
+        "success": 4
+      },
+      "http_statuses": {
+        "200": 4
+      },
+      "reported_items_across_attempts": 12,
+      "attempts_without_item_count": 0,
+      "first_attempt_started_at": "2026-10-06T03:42:13.258425+00:00",
+      "last_attempt_started_at": "2026-10-06T04:31:36.423516+00:00",
+      "max_interval_between_attempt_starts_seconds": 1073.805985,
+      "errors": []
+    }
+  ],
+  "paper_ready": false,
+  "limitations": [
+    "Operational closure with recorded polling gaps; not continuous collection.",
+    "41 versions and 38 article identities do not imply 38 independent events.",
+    "Human reviews of batch02 items 1 and 2 need clarification against the development policy.",
+    "Prospective-since-baseline snapshot includes 20 corrected-smoke versions plus 21 first versions from this longer session."
+  ]
+}

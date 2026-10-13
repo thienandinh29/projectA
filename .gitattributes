@@ -1,0 +1,8 @@
+# Policy/guide and evidence hashes bind exact bytes. Preserve them on Windows
+# checkout as well as Linux checkout, regardless of core.autocrlf.
+docs/headline-eligibility-dev-v1.md -text
+docs/sentiment-annotation-dev-v1.md -text
+docs/sentiment-annotation-dev-v1-draft.md -text
+docs/*.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+# This review artifact contains the literal patch, including its context spacing.
+changes.txt -text -whitespace

@@ -1,0 +1,47 @@
+{
+  "kind": "development_annotation_tool_verification_v1",
+  "verified_at_utc": "2026-10-07T08:43:05.092846+00:00",
+  "paper_ready": false,
+  "tests": {
+    "local": 38,
+    "docker": 38,
+    "annotation_tests": 13
+  },
+  "snapshot_sha256": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+  "eligibility_selection_sha256": "2a6079494612ead1302e17a482f23cb087d62c4ce8a3434547955a032db6b6a3",
+  "guide_sha256": "4f5b13fa5f5660ba1e6e5015bee11712fe58561b8b92466d474412bec1916653",
+  "template": "/app/data/research/sentiment-teaching-batch01-20261007.json",
+  "template_sha256": "fd3c73adbdebffa24ea7f6ad979ed05981f3dca733cf4f713f8b5b599506ca59",
+  "empty_selection": "/app/data/research/sentiment-unlabeled-20261007",
+  "empty_selection_cutoff": "2026-10-07T08:43:05.027023+00:00",
+  "empty_selection_counts": {
+    "pending": 18
+  },
+  "human_labels_created": 0,
+  "existing_snapshot_and_eligibility_ledger_unchanged": true,
+  "read_only_database_counts": {
+    "bronze_events_raw": 2413,
+    "research_observations": 529
+  },
+  "inputs": [
+    {
+      "version_id": "37672e741f83bab6def7e4591a5e39281729205e5cb936c12ecba69e22758675",
+      "content_hash": "37672e741f83bab6def7e4591a5e39281729205e5cb936c12ecba69e22758675",
+      "title": "The September jobs report will be released Friday. Here's what to expect",
+      "source": "RSS"
+    },
+    {
+      "version_id": "ac41e9a94980764867bd8fbd31dc8777b722a801b7289e4e347abf8351557d49",
+      "content_hash": "ac41e9a94980764867bd8fbd31dc8777b722a801b7289e4e347abf8351557d49",
+      "title": "Microsoft’s blazing stock comeback isn’t even close to being over, analyst says",
+      "source": "RSS"
+    },
+    {
+      "version_id": "8839d140fe7571e1571b065ed747d9f45a2e06ba11825ed2fd09e07ec5194eac",
+      "content_hash": "8839d140fe7571e1571b065ed747d9f45a2e06ba11825ed2fd09e07ec5194eac",
+      "title": "Intel’s stock drops after Musk hints at an additional partner for big chip venture",
+      "source": "RSS"
+    }
+  ],
+  "evidence_path": "/app/data/research/sentiment-ledger-verification-20261007.json"
+}

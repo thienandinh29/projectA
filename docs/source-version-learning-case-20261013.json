@@ -1,0 +1,74 @@
+{
+  "kind": "development_source_version_learning_case_v1",
+  "inspected_at_utc": "2026-10-13T00:31:39.871576+00:00",
+  "paper_ready": false,
+  "snapshot_sha256": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+  "eligibility_selection_sha256": "2a6079494612ead1302e17a482f23cb087d62c4ce8a3434547955a032db6b6a3",
+  "case": {
+    "article_id": "4dfeaec4547e72c411c6b0095efdf700dae0dfb7fe26907026b2bc3e88c57478",
+    "url": "https://www.investing.com/news/economy-news/australias-abc-rejects-ai-copyright-carveout-believes-already-been-scraped-4933144",
+    "versions": [
+      {
+        "version_id": "147e7346a67ab1022632bb0f1a1c2b7f13e516c06a8cbad90c8f8a961511da6d",
+        "article_id": "4dfeaec4547e72c411c6b0095efdf700dae0dfb7fe26907026b2bc3e88c57478",
+        "title": "Anthropic tells Australia it’s open to laws requiring reporting of AI agent hacks",
+        "headline_utf8_sha256": "1a309bfcf83488cac78dac4f0acaa829334e947b5a9a0f2793b2fee6b6911c73",
+        "source_time": "2026-10-06T03:30:45+00:00",
+        "source_time_raw": "2026-10-06 03:30:45",
+        "source_time_kind": "feed:published_parsed",
+        "observed_at": "2026-10-06T03:54:49.273965+00:00",
+        "available_at": "2026-10-06T03:54:51.833747+00:00",
+        "eligibility_status": "pending"
+      },
+      {
+        "version_id": "836e144fd42442bc0b11c9d165814371d96d28f615509ece47cd543c23804515",
+        "article_id": "4dfeaec4547e72c411c6b0095efdf700dae0dfb7fe26907026b2bc3e88c57478",
+        "title": "Anthropic tells Australia it’s open to laws requiring reporting of AI agent hacks",
+        "headline_utf8_sha256": "1a309bfcf83488cac78dac4f0acaa829334e947b5a9a0f2793b2fee6b6911c73",
+        "source_time": "2026-10-06T04:18:34+00:00",
+        "source_time_raw": "2026-10-06 04:18:34",
+        "source_time_kind": "feed:published_parsed",
+        "observed_at": "2026-10-06T04:33:02.324827+00:00",
+        "available_at": "2026-10-06T04:33:05.613639+00:00",
+        "eligibility_status": "pending"
+      },
+      {
+        "version_id": "c34fb20b88d31a066035c015186597d042550dec8b29e72cc2ff27d464a3d03f",
+        "article_id": "4dfeaec4547e72c411c6b0095efdf700dae0dfb7fe26907026b2bc3e88c57478",
+        "title": "Anthropic tells Australia it’s open to laws requiring reporting of AI agent hacks",
+        "headline_utf8_sha256": "1a309bfcf83488cac78dac4f0acaa829334e947b5a9a0f2793b2fee6b6911c73",
+        "source_time": "2026-10-06T05:30:41+00:00",
+        "source_time_raw": "2026-10-06 05:30:41",
+        "source_time_kind": "feed:published_parsed",
+        "observed_at": "2026-10-06T05:51:14.086637+00:00",
+        "available_at": "2026-10-06T05:51:18.282628+00:00",
+        "eligibility_status": "pending"
+      }
+    ],
+    "distinct_versions": 3,
+    "distinct_headline_inputs": 1,
+    "source_version_changed_fields": [
+      "source_item.published",
+      "source_item.published_parsed[3]",
+      "source_item.published_parsed[4]",
+      "source_item.published_parsed[5]",
+      "source_time",
+      "source_time_raw"
+    ],
+    "human_review": null
+  },
+  "current_annotation_counts": {
+    "labeled": 14,
+    "unresolved": 4
+  },
+  "annotation_eligibility_and_snapshot_preserved": true,
+  "limits": [
+    "Case is in the pending eligibility inventory, not the currently included sentiment cohort.",
+    "Only publisher-reported timestamp fields changed in captured version material; captured headline/summary did not.",
+    "Full publisher article bodies were not captured; no claim their content stayed unchanged.",
+    "Headline digest is an inspection aid, not a changed production identity or automatic label-transfer rule.",
+    "Source-item version count is not an independent-story count or number of new NLP text inputs.",
+    "No records deleted, labels inherited, clustering changed, predictions or scores created."
+  ],
+  "report_path": "/app/data/research/source-version-learning-case-20261013.json"
+}
