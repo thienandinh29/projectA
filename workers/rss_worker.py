@@ -23,11 +23,9 @@ logging.basicConfig(
 logger = logging.getLogger("RSSWorker")
 
 # Curated high-yield Macro & Financial RSS Feeds
+# Panel v2 (2026-10-19): Yahoo Finance removed (HTTP 404); Guardian, BBC, NYT and
+# Seeking Alpha added for cross-publisher coverage. Sessions record this list.
 MACRO_FEEDS = [
-    {
-        "name": "Yahoo Finance Economy",
-        "url": "https://finance.yahoo.com/news/rssindex"
-    },
     {
         "name": "CNBC Economy",
         "url": "https://www.cnbc.com/id/20910258/device/rss/rss.html"
@@ -39,6 +37,22 @@ MACRO_FEEDS = [
     {
         "name": "Investing.com Economy",
         "url": "https://www.investing.com/rss/news_14.rss"
+    },
+    {
+        "name": "Guardian Business",
+        "url": "https://www.theguardian.com/uk/business/rss"
+    },
+    {
+        "name": "BBC Business",
+        "url": "https://feeds.bbci.co.uk/news/business/rss.xml"
+    },
+    {
+        "name": "NYT Business",
+        "url": "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml"
+    },
+    {
+        "name": "Seeking Alpha Market Currents",
+        "url": "https://seekingalpha.com/market_currents.xml"
     }
 ]
 

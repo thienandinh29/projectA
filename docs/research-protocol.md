@@ -139,6 +139,13 @@ empty feed/API response is `empty`; HTTP, timeout, parsing or shape failures are
 does not supply eligible sentiment headlines. RSS feeds with usable entries and
 parser warnings retain their warning rather than losing those entries.
 
+From 2026-10-19 a DOC HTTP 429 is one failed attempt (first 500 response characters
+kept) and waits for the next cycle; only 5xx and timeouts retry, 10 s apart.
+RSS panel v2 from 2026-10-19: Yahoo Finance removed (HTTP 404); Guardian Business,
+BBC Business, NYT Business and Seeking Alpha Market Currents added. CNBC, MarketWatch
+and Investing.com unchanged (Investing.com's TLS connection drops at 15 s from this
+host; failures stay recorded). Sessions before this date used panel v1.
+
 Session termination appends a normal or failed event. A killed process leaves an
 unfinished session/request. A subsequent worker holding the same exclusive topic
 lock appends interruption detection; this never invents its actual stop time.
