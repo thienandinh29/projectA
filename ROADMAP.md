@@ -1,129 +1,246 @@
-# Paper 1: frozen financial sentiment under duplicate-aware evaluation
+# Paper 1 Roadmap — Frozen Financial Sentiment under Duplicate-Aware Evaluation
 
-Today's active checklist: [TODAY.md](TODAY.md). Its time budgets are estimates;
-completion requires saved evidence, not time passing.
+Rewritten October 14, 2026 (Asia/Bangkok). The previous roadmap is preserved
+unchanged at [docs/archive/ROADMAP-v1-20261013.md](docs/archive/ROADMAP-v1-20261013.md).
+Daily checklist: [TODAY.md](TODAY.md). Temporal contract: [docs/research-protocol.md](docs/research-protocol.md).
 
-## Research objective
+**Primary question (unchanged):** how sensitive is a frozen model's measured
+performance to article duplication, story grouping and delayed label availability?
 
-Build a reproducible evaluation of a fixed financial-headline sentiment model
-on news captured during documented collection sessions. The study asks how
-duplicate handling and story weighting change reported sentiment performance.
-It does not update model weights during the evaluation period.
+**Three reporting conditions (unchanged):** (1) equal weight per eligible
+source-item version, (2) equal weight per reviewed story group, (3) first durably
+available eligible headline per story group. All three share one set of frozen
+predictions.
 
-Primary question: **How sensitive is a frozen model's measured performance to
-article duplication, story grouping, and delayed label availability?**
+---
 
-The three required reporting conditions are:
+## Part A — Assessment of the current state
 
-1. equal weight for every eligible article version;
-2. equal total weight for every reviewed story group; and
-3. the first observed eligible headline from every reviewed story group.
+### Scorecard
 
-These conditions must share frozen predictions and documented cohort rules.
-Changing label availability may change reporting membership, but it must never
-change an already frozen prediction.
+| Dimension | Score | Why |
+| --- | :---: | --- |
+| Engineering rigor | **8.5 / 10** | Outbox + at-least-once delivery with redelivery audit, Bronze raw bytes, transactional offset commits, transport-fault quarantine, migrations with backups, 117-test suite. This is above typical student/junior work. |
+| Scientific honesty | **9 / 10** | Limits are disclosed everywhere (Tier 3 recall 0.15 on n=20, "not a production rate", invalidated parser run kept with a marker instead of deleted). Rare and valuable. |
+| Research design | **7 / 10** | A good, publishable question with three clear conditions and point-in-time discipline. Gaps: single assisted annotator, no inter-annotator agreement plan, no model/contamination record, no sample-size target. |
+| Progress toward Paper 1 | **3 / 10** | After ~6 weeks: ~2–3 hours of prospective collection, 41 snapshot versions, 19 included headlines, 14 sentiment labels, **0 predictions, 0 scored tables**. The model is not even in `requirements.txt`. |
+| Scope focus | **3 / 10** | Kafka/Redpanda, Redis, 3-tier live dedup, SEC worker and Tier 3 semantic search all predate the paper, and the research path does not use the live dedup at all. SEC is excluded from headline sentiment. |
+| Process efficiency | **3 / 10** | The Oct 13 six-hour plan budgeted 45 minutes for 6–9 reviews and recorded 3. ~80 files in `docs/`, many hand-written per-batch JSONs. Evidence is being produced faster than data. |
+| Reproducibility packaging | **5 / 10** | Hashes and manifests are excellent, but dependencies are unpinned (`>=`), which contradicts the reproducibility goal. |
+| Readability for outsiders | **4 / 10** | README is two documents concatenated (infrastructure + paper); a 297 KB `changes.txt` sits at the root. A reviewer or recruiter cannot find the result in 5 minutes. |
+| **Overall** | **6 / 10** | **Excellent foundation, stalled output.** The system is ready; the study is not moving. |
 
-## 1. Establish the research database
+### The diagnosis in one paragraph
 
-- Use DuckDB at `/app/data/lakehouse.duckdb` in Docker volume `ingestion-data`
-  as the sole authoritative collection database.
-- Keep `data/lakehouse.duckdb` on the host as legacy development material.
-- Inspect an existing Docker database read-only before starting a writer.
-- Allow schema migration only after the pre-migration state is recorded. The
-  migration creates a timestamped backup when an existing database has tables.
-- Run audits and snapshot exports through the `research-tools` container so
-  they mount the same named volume as the writer.
-- Record the database identity, schema version, code revision, tree state,
-  cutoff, configuration, counts, and dataset hash in research evidence.
+The bottleneck is not code quality. It is that **collectors are not running**
+and **every unit of human work is wrapped in a full verification ceremony**.
+Prospective data only accumulates while collectors run, so each day they are
+stopped is a day of the final test set permanently lost. Meanwhile a 3-item
+review batch produces a preparation JSON, an approval JSON, a recorded JSON and
+a checklist update. The temporal contract is correct; the manual overhead around
+it is what has to shrink. Labeling 500 headlines at ~30 s each is ~4 hours of
+work — it should not take weeks.
 
-Gate: the collector configuration, writer, readiness audit, and exporter all
-identify `docker-volume:ingestion-data:/app/data/lakehouse.duckdb`. Its initial
-state is recorded and a repeatable quiet snapshot procedure is documented.
+### Where each old roadmap stage actually stands
 
-Prospective completeness begins at the active topic/partition boundary in
-`docs/collection-baseline-20260928T084655Z.json`. Earlier records remain available
-for development but are excluded from the final evaluation cohort because their
-complete Kafka delivery history cannot be established.
-Prospective exports enforce this boundary using both first-version transport
-coordinates and observation/availability times, then reconcile saved drain ranges
-against stored raw deliveries and outcomes. Development exports require an
-explicit mode and cannot be mistaken for the prospective cohort.
+| Old stage | Status | Evidence / what's missing |
+| --- | --- | --- |
+| 1. Research database | ✅ Done | CP0 (Oct 13) confirms `docker-volume:ingestion-data:/app/data/lakehouse.duckdb`, schema v5, backups verified. |
+| 2. Provenance & sessions | ✅ Done | Session/request ledger, trace evidence (Oct 6, corrected), invalidation markers. |
+| 3. Scheduled collection | ⚠️ Partial | 1 session (~2h14m, 78-min RSS gap, GDELT DOC 10/11 HTTP 429). Three clean sessions not done. Yahoo 404s, Investing.com timeouts, CNBC items median 132 h old at observation. |
+| 4. Development pilot | ⚠️ ~20% | 19 included / 2 excluded / 2 uncertain / 18 pending (after CP4 batch 1); 14 sentiment labels; target was 100. |
+| 5. Freeze & evaluate | ❌ Not started | No model artifact, no predictions, no scorer, no sample-size decision. |
 
-## 2. Complete provenance and session evidence
+---
 
-- Store feed identity or GDELT query configuration, domain/publisher, collector
-  version, request outcome, item count, and errors.
-- Record collection-session start/end and distinguish a successful empty result
-  from a failed request.
-- Preserve source, observation, and durable-availability timestamps separately.
-- Retain duplicate observations and corrected versions before study filtering.
-- Detect interrupted sessions and record planned shutdowns.
+## Part B — Operating rules (apply from today)
 
-RSS/GDELT now record append-only sessions and per-request outcomes in the shared
-delivery SQLite ledger. Observation request links travel to Bronze and research
-snapshots; exports archive and validate the ledger. Legacy rows have unknown
-request context. Interrupted-session detection records restart time, not an
-invented stop time. Real source coverage must still pass the live-session gate.
+1. **Collectors run 24/7 by default.** Stopping them needs a reason (code change,
+   migration). Every stopped day is lost prospective data.
+2. **Batch size for human review is 25, not 3.** One evidence file per batch,
+   generated by a script, never hand-written.
+3. **One command for evidence.** Build `scripts/checkpoint.py` that writes counts,
+   hashes, schema, revision and process state to one JSON. Replace hand-written
+   CP0-style markdown with its output + a 3-line note.
+4. **One doc per session, max.** New insights go into `research-protocol.md` or
+   this roadmap, not new dated files.
+5. **Thin slice before polish.** An ugly end-to-end result on 18 labels beats a
+   perfect component that has never produced a number.
+6. **Feature freeze on infrastructure** (see Part D) until Paper 1 is submitted.
+7. **Weekly metrics** (Sunday, 10 minutes) — the only progress that counts:
 
-Gate: one headline can be traced from source attempt through delivery, immutable
-content version, durable availability, and exported research row.
+| Metric | Today (Oct 14) | Nov 1 | Nov 22 | Dec 31 |
+| --- | ---: | ---: | ---: | ---: |
+| Hours of prospective collection | ~2–3 | ≥ 300 | ≥ 800 | ≥ 1,700 |
+| Eligible headlines reviewed | 23 | 100 | 300 | final cohort |
+| Sentiment labels (primary annotator) | 14 | 100 | 300 | final cohort |
+| Second-annotator labels | 0 | 0 | ≥ 100 | ≥ 25% of final |
+| Frozen predictions | 0 | dev set | pilot | final cohort |
+| Reproducible result tables | 0 | 1 (dev) | 1 (pilot) | final |
 
-## 3. Verify scheduled collection
+---
 
-- Run RSS, GDELT, and one lakehouse writer for three provisional sessions of
-  about two hours each.
-- Record actual observation windows, gaps, source coverage, outbox backlog,
-  broker lag, rejected records, and unsealed observations.
-- Stop collectors first, drain delivery and writing, then stop the writer.
-- Demonstrate restart/replay without multiplying logical content versions.
+## Part C — The roadmap
 
-Gate: real RSS and GDELT headlines reach Bronze and sealed research storage,
-backlogs recover, and snapshot counts reconcile with the database. This is an
-operational reliability check rather than a research sample-size claim.
+### Phase 0 — Unblock (Oct 14 – Oct 19)
 
-## 4. Produce the development pilot
+Goal: data flowing continuously, today's session closed, no new ceremony.
 
-- Version eligibility decisions for language, financial relevance, suitability,
-  and exclusion reason while keeping excluded items archived.
-- Exclude SEC metadata and synthetic GKG titles from headline sentiment.
-- Export a hashed development snapshot and deterministically select 100 eligible
-  headlines. Keep the pilot outside final testing.
-- Write the sentiment guide before labeling and append revisions to a dated
-  annotation ledger bound to exact content hashes.
-- Review a separate duplicate sample containing rewrites, hard negatives,
-  corrections, cross-session matches, and independently searched missed pairs.
+- [ ] **Close TODAY.md fast** (≤ 1 hour): record the remaining 6 CP4 reviews in
+      one batch; for CP5 record "no suitable financial rewrite positive found" if
+      none appears in 20 minutes. Archive the checklist.
+- [ ] **Fix the source panel** before restarting:
+  - GDELT DOC: one query per cycle, ≥ 10 s spacing between any DOC requests,
+    exponential backoff on 429 with a cool-down window; log the response body.
+  - Yahoo 404: find the current feed URL or drop it.
+  - Investing.com: raise the timeout once; drop it if still < 80 % success.
+  - Add 3–5 public financial RSS feeds with fresh items (verify each with
+    `--once`: HTTP 200, items < 24 h old). CNBC's median 132 h staleness makes it
+    weak for availability-delay analysis — keep it but don't rely on it.
+  - Record the panel change as a new run/configuration (as the protocol requires).
+- [ ] **Restart RSS + GDELT + writer continuously** in Docker with
+      `restart: unless-stopped`. DuckDB allows one owner, so exports need a short
+      quiet window (stop collectors → drain → stop writer → export → restart);
+      do this at most once a day, never for routine checks.
+- [ ] **Daily health check script** (one command, < 30 s): per-source success
+      rate last 24 h, max gap between attempts, outbox backlog, writer lag, new
+      eligible-candidate count. Alert yourself on gaps > 30 min.
+- [ ] **Pin dependencies**: `pip freeze > requirements.lock`, use it in the
+      Dockerfile, and record the image digest in exports.
+- [ ] **Measure yield**: after 72 h, how many *new unique* financial headlines per
+      day? If < 100/day, add sources before Phase 3's freeze.
 
-Gate: every pilot row has provenance, an eligibility decision, an immutable
-version, and a reproducible selection record.
+Exit gate: collectors have run ≥ 72 h with no gap > 30 min, and the health
+script output is saved once.
 
-Development annotation tooling now uses `docs/sentiment-annotation-dev-v1.md` and
-`scripts/review_sentiment.py`: it prepares blank inputs, stores assisted/unresolved
-human judgments and revisions, and selects one explicit annotator by cutoff.
-Availability markers are sampled after judgment contents commit; interrupted
-sealing requires present-time recovery. This does not complete human labeling,
-independent review, representative sampling or the final annotation freeze.
-Eligibility still samples its recording timestamp before its batch commit; its
-availability contract must be hardened before final freeze. Existing saved
-development selections use post-return cutoffs; preserve their history.
+### Phase 1 — Thin slice: first number end-to-end (Oct 20 – Nov 1)
 
-## 5. Freeze and evaluate Paper 1
+Goal: produce one reproducible table on the existing development labels. The
+numbers will be meaningless at n=14; the pipeline is the deliverable.
 
-- Use pilot evidence to choose collection duration, source panel, annotation
-  workload, and sample size based on desired uncertainty.
-- Freeze eligibility rules, story-grouping rules, dates, model artifact and
-  label mapping, baseline-training provenance, cohort definitions, and metrics.
-- Create immutable predictions before final label-aware reporting.
-- Report macro-F1 and per-class measures under all three weighting conditions,
-  with uncertainty based on independent story groups or time blocks.
-- Report actual collection and annotation delays separately from simulated
-  label-availability scenarios.
+- [ ] **Freeze the model artifact**: pick the frozen model (e.g. `ProsusAI/finbert`),
+      pin the exact Hugging Face revision SHA, record weights hash, tokenizer,
+      label mapping (positive/negative/neutral) and its training-data provenance
+      (Financial PhraseBank). Note that 2026 headlines post-date training — a
+      temporal-holdout strength to state in the paper.
+- [ ] **`scripts/predict_frozen.py`**: CPU inference over a snapshot; writes an
+      append-only predictions table keyed by content hash + model revision,
+      with logits and prediction time. Predictions are created label-blind and
+      never rewritten.
+- [ ] **`scripts/score.py`**: implements the three conditions from
+      `research-counting-draft-v1.md`; reports macro-F1, per-class P/R/F1 and a
+      cluster bootstrap CI over story groups.
+- [ ] **One command** (`make paper-dev` or a single script) regenerates the
+      table from snapshot + annotation selection + predictions + manifest.
+- [ ] Tests: prediction immutability, label-blind ordering, scorer weights on a
+      hand-computed toy example.
+- [ ] Optional cheap baseline: a lexicon model (Loughran–McDonald) for context.
 
-Gate: the dataset, annotations, predictions, grouping decisions, and manifest
-reproduce every reported table. Missing coverage and exclusions remain visible.
+Exit gate: `paper-dev` reproduces a byte-identical table twice from saved inputs.
 
-## Later work
+### Phase 2 — Development pilot at real scale (Nov 2 – Nov 22)
 
-Continual adaptation, replay, sequential fine-tuning, trading strategies,
-event-study returns, additional neural models, and semantic grouping are later
-extensions. Existing planning code for adaptation may remain in the repository,
-but it is not part of Paper 1's acceptance criteria.
+Goal: 100+ (stretch 300) labeled pilot headlines, a second annotator, and
+real story groups — enough to size the final study.
+
+- [ ] **Annotation throughput**: review in batches of 25 via the existing CLI
+      (or a spreadsheet import that writes the same append-only ledger). Target
+      ≤ 30 s per headline. Eligibility and sentiment can be done in one pass.
+- [ ] **Unassisted labels for anything that may enter the paper.** Keep
+      "assisted" labels as development material only; the final cohort must be
+      labeled without model or LLM suggestions visible.
+- [ ] **Second annotator**: recruit one person (classmate/colleague) to label
+      a ≥ 100-headline overlap using the frozen v1 guide. Report Cohen's κ and
+      adjudicate disagreements with recorded reasons.
+- [ ] **Story grouping for the pilot**: use Tier 2/Tier 3 only as a *candidate
+      generator*; a human confirms groups. Save a grouping ledger like the
+      annotation ledger. Include the duplicate sample (rewrites, hard negatives,
+      corrections, cross-session matches, searched missed pairs).
+- [ ] Run `paper-dev` on the pilot; save the table.
+- [ ] **Sample-size decision** from pilot bootstrap: choose n story groups for a
+      target CI half-width. Rule of thumb: ~300 independent groups ≈ ±0.05 on
+      accuracy; macro-F1 needs more. Convert to required collection days using
+      Phase 0's measured yield.
+
+Exit gate: pilot table + κ + grouping ledger saved; final n and collection
+window chosen with written justification.
+
+### Phase 3 — Freeze and collect the final cohort (Nov 23 – ~Jan 10)
+
+- [ ] **Protocol freeze document** (one file, hashed): source panel, collection
+      window dates, eligibility rules v-final, sentiment guide v-final, grouping
+      rules, model revision + label map, cohort definitions, metrics, CI method,
+      and what counts as a deviation. Optionally pre-register on OSF.
+- [ ] Final collection window begins **after** the freeze; pilot data stays out.
+- [ ] Label weekly in batches as data arrives (not all at the end), blind to
+      predictions. Second annotator on ≥ 25 % overlap.
+- [ ] Generate predictions for the final cohort **before** label-aware
+      reporting; hash and commit the predictions file.
+- [ ] Record actual collection→availability and annotation delays; keep them
+      separate from simulated label-availability scenarios.
+
+Exit gate: collection window closed, all eligible items labeled and grouped,
+predictions frozen before scoring.
+
+### Phase 4 — Evaluate and write (Jan 11 – Feb 28, 2027)
+
+- [ ] Run the frozen scorer once; produce all tables and figures from one command.
+- [ ] Sensitivity analyses: grouping threshold variants, excluding uncertain
+      items, time-block bootstrap vs. group bootstrap.
+- [ ] Write the paper (target: workshop paper, ~8 pages — e.g. a FinNLP-style
+      venue — then arXiv). Structure: question → data & temporal contract →
+      three conditions → results → threats to validity (single source panel,
+      English only, feed staleness, annotation agreement).
+- [ ] Release: code tag, frozen manifests, predictions, annotation ledger
+      (where source licences allow headline redistribution — check before
+      publishing raw text; hashes + URLs otherwise).
+
+Exit gate: an outsider can clone the tag and regenerate every table.
+
+### Parallel track — portfolio packaging (≈ 2 h/week, start Phase 1)
+
+This project is a strong portfolio piece once a result exists.
+
+- [ ] Split README: a short landing page (question, one figure, one result,
+      how to run in 5 minutes) + `docs/infrastructure.md` for the pipeline.
+- [ ] Move `changes.txt` out of the root (archive it under `docs/archive/`).
+- [ ] A `make demo` path on a small bundled sample that runs without live feeds.
+- [ ] Write one blog post now, without waiting for the paper: **"Why no cosine
+      threshold separates same-event rewrites from different events"** — Tier 3
+      calibration, precision 1.000 / recall 0.150, entity and polarity gates.
+      The evidence already exists in `scripts/calibration_results.json`.
+- [ ] Second post after Phase 2: "Duplicates inflate financial sentiment
+      benchmarks by X" (using pilot numbers, clearly labeled as pilot).
+
+---
+
+## Part D — Feature freeze (parked until Paper 1 ships)
+
+No work on these unless they block collection:
+
+- Redis canonical-assignment race and lease expiry (research path doesn't use it).
+- Tier 3 recall improvements, embedding model upgrades.
+- SEC worker and filings (out of Paper 1 scope).
+- Throughput/load targets, writer batch tuning, crowded-bucket memory.
+- Continual adaptation, replay, fine-tuning, trading/event-study work
+  (`scripts/plan_adaptation.py`).
+- Additional neural sentiment models (beyond one optional lexicon baseline).
+
+## Part E — Risks to watch
+
+| Risk | Signal | Response |
+| --- | --- | --- |
+| Too few fresh headlines | < 100 new eligible/day after Phase 0 | Add feeds before freeze; lengthen window. |
+| GDELT DOC stays blocked | 429 rate > 50 % after fixes | Drop DOC from the panel; state RSS-only scope. |
+| No second annotator | none found by Nov 8 | Self re-label 100 items after ≥ 2 weeks blind (intra-annotator agreement) and disclose. |
+| Ceremony creep returns | > 1 new doc per session, < 25 labels per review session | Re-read Part B. |
+| Story groups too rare to matter | < 10 % of items in multi-item groups | Still a valid (null-ish) result; report it honestly. |
+
+---
+
+## Next 3 actions (do these first)
+
+1. Finish CP4 in one 25-minute sitting; mark CP5/CP6 and archive TODAY.md.
+2. Fix GDELT spacing + Yahoo URL, restart collectors and writer with
+   `restart: unless-stopped`, and leave them running.
+3. Pin dependencies and pin the FinBERT revision — then start `predict_frozen.py`.

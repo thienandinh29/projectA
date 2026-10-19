@@ -1,0 +1,22 @@
+{
+  "kind": "development_counting_contract_draft_manifest_v1",
+  "checkpoint": "CP3",
+  "status": "draft_documented_not_frozen",
+  "contract_file": "docs/research-counting-draft-v1.md",
+  "contract_sha256": "87a59577829008d6ef387e086afb42e69b01349e2e4310d59d1d5aea1ce0a521",
+  "inventory_file": "docs/checkpoint3-counting-inventory-20261013.json",
+  "inventory_sha256": "69a42bd00ffeff493d2c0d7b6c25481b33f924919c74a04558e1c3a8f0912be3",
+  "primary_baseline": "equal_weight_per_eligible_source_version_in_declared_cohort",
+  "first_headline_order": [
+    "available_at",
+    "observed_at",
+    "version_id"
+  ],
+  "anchor_selection_uses_sentiment_labels": false,
+  "paired_comparison_requires_shared_scorable_anchor_story_subset": true,
+  "reference_clusters_are_human_stories": false,
+  "human_approved_or_finally_frozen": false,
+  "new_scores_or_predictions": false,
+  "source_files_unchanged": true,
+  "paper_ready": false
+}

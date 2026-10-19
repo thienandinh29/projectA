@@ -1,0 +1,83 @@
+{
+  "kind": "development_checkpoint1_copy_verification_v1",
+  "checkpoint": "CP1",
+  "verified_at_utc": "2026-10-13T01:20:03.897366+00:00",
+  "live_ledger_migrated": false,
+  "source_backup": "/app/data/research/checkpoint0-baseline-20261013T010717687653Z/eligibility.backup.sqlite3",
+  "source_backup_sha256": "6ec2dc82dea19b9b6854a30ab966a1b4ee54ffd9f4c0efd804ec0c2ceca4dfef",
+  "copy_ledger": "/app/data/research/checkpoint1-copy-verification-20261013T012003096137Z/eligibility-copy.sqlite3",
+  "original_decisions": 25,
+  "original_decision_columns_unchanged": true,
+  "new_confirmation_markers_in_copy": 20,
+  "confirmation_available_at": "2026-10-13T01:20:03.245882+00:00",
+  "strict_counts_before_confirmation": {
+    "pending": 41
+  },
+  "strict_counts_at_release_equality": {
+    "pending": 41
+  },
+  "strict_counts_after_confirmation": {
+    "included": 18,
+    "excluded": 1,
+    "uncertain": 1,
+    "pending": 21
+  },
+  "legacy_v1_requires_explicit_opt_in": true,
+  "legacy_eligibility_selection_sha256": "2a6079494612ead1302e17a482f23cb087d62c4ce8a3434547955a032db6b6a3",
+  "v2_copy_selection": "/app/data/research/checkpoint1-copy-verification-20261013T012003096137Z/eligibility-v2-selection",
+  "v2_copy_selection_sha256": "9656a9416f6ebee7cd24a52d828fa0964140e409edeb9029efa20a79adc9a0b9",
+  "sentiment_counts": {
+    "labeled": 14,
+    "unresolved": 4
+  },
+  "historical_sentiment_selection_reproduced": true,
+  "historical_sentiment_export_hashes_verified": true,
+  "sentiment_with_v2_eligibility": "/app/data/research/checkpoint1-copy-verification-20261013T012003096137Z/sentiment-v2-eligibility-selection",
+  "source_files_before": {
+    "/app/data/lakehouse.duckdb": "dd825b44e280d92c4328851c17cd48d35ad07d2d38080b1535a40d611c90ceaa",
+    "/app/data/research/eligibility.sqlite3": "308776ca146f5015bf3795364639f778046b6460a96b120b76fb8d4024901f83",
+    "/app/data/research/annotations.sqlite3": "bcf4c565038832cced129452cf3ebb74a3c9a9452e7236c963df87bead5a1421",
+    "/app/data/delivery-outbox.sqlite3": "33b264b8404ee3cf06db26aac6c20889a4490f5fb91a2abee4183b060b3e9eba",
+    "/app/data/research/session01-20261006-snapshot/dataset.jsonl": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+    "/app/data/research/session01-20261006-snapshot/manifest.json": "5f069a33d837e4e946f6feb15697fe86ee5feec6e33fb255ce1243d66a79ea9d",
+    "/app/data/research/eligibility-batch08-reviewed-20261006/selection.json": "2a6079494612ead1302e17a482f23cb087d62c4ce8a3434547955a032db6b6a3",
+    "/app/data/research/eligibility-batch08-reviewed-20261006/eligible.jsonl": "14da22ac006f45c507812e47b9ecf6986f46ecfd3bb67c82b127d799701ebdcc",
+    "/app/data/research/eligibility-batch08-reviewed-20261006/decisions.jsonl": "3f3e3427ec63e9192aca395f7d50467dada30b29e67184df6b76fb4694d051bd",
+    "/app/data/research/eligibility-batch08-reviewed-20261006/policy.md": "438f7b10fd5bf529d9135362c3108944c7f5f1d588cfa46d13c346b51f3ec0ed"
+  },
+  "source_files_after": {
+    "/app/data/lakehouse.duckdb": "dd825b44e280d92c4328851c17cd48d35ad07d2d38080b1535a40d611c90ceaa",
+    "/app/data/research/eligibility.sqlite3": "308776ca146f5015bf3795364639f778046b6460a96b120b76fb8d4024901f83",
+    "/app/data/research/annotations.sqlite3": "bcf4c565038832cced129452cf3ebb74a3c9a9452e7236c963df87bead5a1421",
+    "/app/data/delivery-outbox.sqlite3": "33b264b8404ee3cf06db26aac6c20889a4490f5fb91a2abee4183b060b3e9eba",
+    "/app/data/research/session01-20261006-snapshot/dataset.jsonl": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+    "/app/data/research/session01-20261006-snapshot/manifest.json": "5f069a33d837e4e946f6feb15697fe86ee5feec6e33fb255ce1243d66a79ea9d",
+    "/app/data/research/eligibility-batch08-reviewed-20261006/selection.json": "2a6079494612ead1302e17a482f23cb087d62c4ce8a3434547955a032db6b6a3",
+    "/app/data/research/eligibility-batch08-reviewed-20261006/eligible.jsonl": "14da22ac006f45c507812e47b9ecf6986f46ecfd3bb67c82b127d799701ebdcc",
+    "/app/data/research/eligibility-batch08-reviewed-20261006/decisions.jsonl": "3f3e3427ec63e9192aca395f7d50467dada30b29e67184df6b76fb4694d051bd",
+    "/app/data/research/eligibility-batch08-reviewed-20261006/policy.md": "438f7b10fd5bf529d9135362c3108944c7f5f1d588cfa46d13c346b51f3ec0ed"
+  },
+  "live_source_files_unchanged": true,
+  "source_code_sha256": {
+    "/app/research/eligibility.py": "bb1a673e4107afb41b5352c912faf413fc64d3dac5bf2a6ee2531ad61751b1b6",
+    "/app/research/annotations.py": "20a5231fe46ac19ca6e13e4df44117101e09ba2fc3b4f3c7dad6a0243421c4a1",
+    "/app/scripts/review_eligibility.py": "aad3bad7ca8927c329dfde228b282657c0026e35a436de9c033826aa511a8ef9",
+    "/app/scripts/review_sentiment.py": "0f8bcc8a326595b940532ee0d1470c54ca65638e57b93b7553f5a0d3d55cf29f"
+  },
+  "report_directory": "/app/data/research/checkpoint1-copy-verification-20261013T012003096137Z",
+  "paper_ready": false,
+  "limits": [
+    "Present-time confirmations were added only to a backup copy, not to live research history.",
+    "No new human judgments or classifier labels were generated.",
+    "Local unit checks and real-copy compatibility check; comprehensive CP2 Docker tests/live rollout remain pending.",
+    "Release marker commits separately; host clock assumptions remain."
+  ],
+  "local_verification": {
+    "command": "python -m unittest tests.test_eligibility tests.test_eligibility_releases tests.test_annotations tests.test_source_quality_review tests.test_research_pipeline",
+    "tests": 50,
+    "new_release_tests": 12,
+    "result": "OK"
+  },
+  "implementation_complete": true,
+  "comprehensive_cp2_verification_pending": true
+}

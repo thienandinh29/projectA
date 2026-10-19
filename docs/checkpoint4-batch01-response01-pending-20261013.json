@@ -1,0 +1,10 @@
+{
+  "kind": "development_response_preservation_marker_v1",
+  "status": "awaiting_explicit_eligibility_choices",
+  "response_path": "/app/data/research/checkpoint4-eligibility-20261013T020445788980Z/batch01-response01-pending.json",
+  "response_sha256": "57ca79f95cfdeaab8da4c04e3d3ee45033b53b5cc789806aa5002a809e0cdcd6",
+  "preserved_at_utc": "2026-10-13T02:41:03.088042+00:00",
+  "formal_eligibility_release": false,
+  "judgments_recorded": 0,
+  "source_ledgers_unchanged": true
+}

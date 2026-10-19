@@ -77,7 +77,10 @@ do not replace earlier released decisions. Labels are exported in the legacy
 
 Multi-annotator adjudication, agreement statistics, representative pilot sampling,
 final-test rules, prediction timestamps and the full evaluation harness remain open.
-The existing eligibility ledger samples its timestamp before its batch commit;
-saved selections used cutoffs after successful returns, but its generic availability
-contract needs hardening before final freeze. This annotation ledger does not alter
-or relabel existing eligibility history.
+Eligibility release v2 now persists new judgments before sampling release evidence.
+Archived v1 selections require the explicit `--allow-legacy-eligibility` CLI flag
+(or `allow_legacy=True` in the loader) for disclosed development replay. Add that
+flag to the examples above because their eligibility selection is v1. Current
+templates/reports name the eligibility timing contract. Frozen old files and the
+annotation ledger are not rewritten. See `eligibility-release-contract-v2.md` for
+new releases, recovery, legacy confirmation and rollout status.

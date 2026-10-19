@@ -1,0 +1,68 @@
+{
+  "kind": "development_checkpoint3_counting_inventory_v1",
+  "created_at_utc": "2026-10-13T01:34:24.107126+00:00",
+  "checkpoint": "CP3",
+  "status": "draft_contract_evidence",
+  "paper_ready": false,
+  "dataset_sha256": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+  "manifest_sha256": "5f069a33d837e4e946f6feb15697fe86ee5feec6e33fb255ce1243d66a79ea9d",
+  "eligibility_selection_sha256": "b2fc6d09739faffb0ef1720cdd123ff741e6ba4d107cc6de201798debc64917e",
+  "inventory": {
+    "all_snapshot": {
+      "stored_versions": 41,
+      "article_identities": 38,
+      "distinct_exact_headline_strings": 38,
+      "distinct_article_and_headline_pairs": 38,
+      "versions_without_url": 0
+    },
+    "currently_eligible": {
+      "stored_versions": 18,
+      "article_identities": 18,
+      "distinct_exact_headline_strings": 18,
+      "distinct_article_and_headline_pairs": 18,
+      "versions_without_url": 0
+    }
+  },
+  "three_version_case": {
+    "article_id": "4dfeaec4547e72c411c6b0095efdf700dae0dfb7fe26907026b2bc3e88c57478",
+    "counts": {
+      "stored_versions": 3,
+      "article_identities": 1,
+      "distinct_exact_headline_strings": 1,
+      "distinct_article_and_headline_pairs": 1,
+      "versions_without_url": 0
+    },
+    "version_ids": [
+      "147e7346a67ab1022632bb0f1a1c2b7f13e516c06a8cbad90c8f8a961511da6d",
+      "836e144fd42442bc0b11c9d165814371d96d28f615509ece47cd543c23804515",
+      "c34fb20b88d31a066035c015186597d042550dec8b29e72cc2ff27d464a3d03f"
+    ],
+    "headline_utf8_sha256": "1a309bfcf83488cac78dac4f0acaa829334e947b5a9a0f2793b2fee6b6911c73",
+    "in_eligible_cohort": false,
+    "human_event_judgment_created": false
+  },
+  "source_files_before": {
+    "/app/data/research/eligibility.sqlite3": "aa122fcd1b74cc037dfe3febf8af0a71c14bc63c1828ccb595f5b05d2df46df7",
+    "/app/data/research/annotations.sqlite3": "bcf4c565038832cced129452cf3ebb74a3c9a9452e7236c963df87bead5a1421",
+    "/app/data/lakehouse.duckdb": "dd825b44e280d92c4328851c17cd48d35ad07d2d38080b1535a40d611c90ceaa",
+    "/app/data/research/session01-20261006-snapshot/dataset.jsonl": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+    "/app/data/research/session01-20261006-snapshot/manifest.json": "5f069a33d837e4e946f6feb15697fe86ee5feec6e33fb255ce1243d66a79ea9d",
+    "/app/data/research/checkpoint2-release-rollout-20261013T012624497947Z/eligibility-v2-selection/selection.json": "b2fc6d09739faffb0ef1720cdd123ff741e6ba4d107cc6de201798debc64917e"
+  },
+  "source_files_after": {
+    "/app/data/research/eligibility.sqlite3": "aa122fcd1b74cc037dfe3febf8af0a71c14bc63c1828ccb595f5b05d2df46df7",
+    "/app/data/research/annotations.sqlite3": "bcf4c565038832cced129452cf3ebb74a3c9a9452e7236c963df87bead5a1421",
+    "/app/data/lakehouse.duckdb": "dd825b44e280d92c4328851c17cd48d35ad07d2d38080b1535a40d611c90ceaa",
+    "/app/data/research/session01-20261006-snapshot/dataset.jsonl": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+    "/app/data/research/session01-20261006-snapshot/manifest.json": "5f069a33d837e4e946f6feb15697fe86ee5feec6e33fb255ce1243d66a79ea9d",
+    "/app/data/research/checkpoint2-release-rollout-20261013T012624497947Z/eligibility-v2-selection/selection.json": "b2fc6d09739faffb0ef1720cdd123ff741e6ba4d107cc6de201798debc64917e"
+  },
+  "protected_sources_unchanged": true,
+  "report_directory": "/app/data/research/checkpoint3-counting-inventory-20261013T013424107126Z",
+  "limits": [
+    "Text/URL identities are descriptive counts, not independently reviewed story counts.",
+    "No grouping memberships, eligibility or sentiment judgments changed.",
+    "No predictions, performance scores or proposed weighting rules executed.",
+    "The three-version case remains pending eligibility and outside the labeled cohort."
+  ]
+}
