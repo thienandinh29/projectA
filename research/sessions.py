@@ -108,11 +108,11 @@ def read_session_evidence(path):
     conn.row_factory = sqlite3.Row
     try:
         conn.execute('BEGIN')
-        sessions = [dict(row) for row in conn.execute('SELECT * FROM collection_sessions ORDER BY started_at,run_id')]
+        sessions = [dict(row) for row in conn.execute('SELECT * FROM collection_sessions ORDER BY started_at,rowid')]
         events = [dict(row) for row in conn.execute('SELECT * FROM session_events ORDER BY recorded_at,rowid')]
         requests = [dict(row) for row in conn.execute('''SELECT q.*,r.finished_at,r.outcome,r.http_status,
             r.item_count,r.error,r.details FROM source_requests q
-            LEFT JOIN source_request_results r USING(request_id) ORDER BY q.started_at,q.request_id''')]
+            LEFT JOIN source_request_results r USING(request_id) ORDER BY q.started_at,q.rowid''')]
         for row in sessions:
             row['provenance'] = json.loads(row['provenance'])
             row['source_configuration'] = json.loads(row['source_configuration'])

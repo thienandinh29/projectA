@@ -223,16 +223,33 @@ class TestSourceOutcomes(unittest.TestCase):
         evidence = read_session_evidence(self.producer.outbox.path)
         self.assertEqual(evidence['requests'][0]['outcome'], 'empty')
 
-    def test_all_429_attempts_remain_failures_even_when_gkg_is_available(self):
-        rate = MagicMock(status_code=429, text='Rate limit')
+    def test_429_is_one_recorded_attempt_and_waits_for_next_cycle(self):
+        body = 'Please limit requests to one every 5 seconds. ' * 20
+        rate = MagicMock(status_code=429, text=body)
         rate.raise_for_status.side_effect = requests.HTTPError('429', response=rate)
-        with patch.object(gdelt_worker.requests, 'get', return_value=rate), \
-             patch.object(gdelt_worker.time, 'sleep'), \
+        with patch.object(gdelt_worker.requests, 'get', return_value=rate) as get, \
+             patch.object(gdelt_worker.time, 'sleep') as sleep, \
              patch.object(gdelt_worker, 'run_gdelt_raw_stream_cycle', side_effect=lambda p,d,s: p.finish_cycle(gdelt_worker.TOPIC_GDELT,s)):
             stats = gdelt_worker.run_gdelt_fetch_cycle(self.producer, self.dedup)
         evidence = read_session_evidence(self.producer.outbox.path)
-        self.assertEqual(len(evidence['requests']), 3)
-        self.assertTrue(all(r['outcome'] == 'failed' and r['http_status'] == 429 for r in evidence['requests']))
+        self.assertEqual(get.call_count, 1)
+        sleep.assert_not_called()
+        [row] = evidence['requests']
+        self.assertEqual((row['outcome'], row['http_status']), ('failed', 429))
+        self.assertEqual(row['details']['response_excerpt'], body[:500])
+        self.assertEqual(stats['errors'], 1)
+
+    def test_transient_server_errors_retry_with_spacing(self):
+        unavailable = MagicMock(status_code=503, text='Service unavailable')
+        unavailable.raise_for_status.side_effect = requests.HTTPError('503', response=unavailable)
+        with patch.object(gdelt_worker.requests, 'get', side_effect=[unavailable, requests.Timeout('slow'), unavailable]), \
+             patch.object(gdelt_worker.time, 'sleep') as sleep, \
+             patch.object(gdelt_worker, 'run_gdelt_raw_stream_cycle', side_effect=lambda p,d,s: p.finish_cycle(gdelt_worker.TOPIC_GDELT,s)):
+            stats = gdelt_worker.run_gdelt_fetch_cycle(self.producer, self.dedup)
+        evidence = read_session_evidence(self.producer.outbox.path)
+        self.assertEqual([r['http_status'] for r in evidence['requests']], [503, None, 503])
+        self.assertTrue(all(r['outcome'] == 'failed' for r in evidence['requests']))
+        self.assertEqual([c.args[0] for c in sleep.call_args_list], [10, 10])
         self.assertEqual(stats['errors'], 3)
 
     def test_malformed_doc_response_is_not_mislabeled_as_rate_limit(self):

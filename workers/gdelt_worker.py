@@ -22,6 +22,7 @@ logger = logging.getLogger("GDELT-Worker")
 
 GDELT_DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc"
 MACRO_QUERY = '(inflation OR "interest rate" OR "central bank" OR "Federal Reserve" OR "ECB")'
+GDELT_RETRY_SPACING_SECONDS = 10
 
 
 def parse_gdelt_timestamp(seendate_str: str) -> datetime:
@@ -80,15 +81,16 @@ def run_gdelt_fetch_cycle(producer: RedpandaProducer, dedup: RedisDeduplicator) 
             status = r.status_code if r is not None else None
             session.finish_request(request_id, 'failed', http_status=status,
                                    error=f'{type(e).__name__}: {e}',
-                                   response_excerpt=r.text[:200] if r is not None else None)
+                                   response_excerpt=r.text[:500] if r is not None else None)
             stats['errors'] += 1
             logger.warning('GDELT DOC attempt %s/%s failed (HTTP %s): %s', attempt, max_retries, status, e)
-            # Retrying permanent HTTP errors will not help. Preserve the failure
-            # and the separate fallback outcome, rather than relabeling as 429.
-            if status is not None and status not in (429, 500, 502, 503, 504):
+            # Retry only transient server errors and timeouts/connection failures.
+            # A 429 waits for the next cycle: retrying inside the cycle is a burst
+            # against the rate limit. Other HTTP errors are permanent.
+            if status is not None and status not in (500, 502, 503, 504):
                 break
             if attempt < max_retries:
-                time.sleep(6 if status == 429 else 3)
+                time.sleep(GDELT_RETRY_SPACING_SECONDS)
         else:
             session.finish_request(request_id, 'success' if articles else 'empty',
                                    http_status=r.status_code, item_count=len(articles))
