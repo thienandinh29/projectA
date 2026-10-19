@@ -109,7 +109,7 @@ def read_session_evidence(path):
     try:
         conn.execute('BEGIN')
         sessions = [dict(row) for row in conn.execute('SELECT * FROM collection_sessions ORDER BY started_at,run_id')]
-        events = [dict(row) for row in conn.execute('SELECT * FROM session_events ORDER BY recorded_at,event_id')]
+        events = [dict(row) for row in conn.execute('SELECT * FROM session_events ORDER BY recorded_at,rowid')]
         requests = [dict(row) for row in conn.execute('''SELECT q.*,r.finished_at,r.outcome,r.http_status,
             r.item_count,r.error,r.details FROM source_requests q
             LEFT JOIN source_request_results r USING(request_id) ORDER BY q.started_at,q.request_id''')]

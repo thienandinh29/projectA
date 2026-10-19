@@ -139,6 +139,16 @@ os._exit(0)
         finally:
             lake.close()
 
+    def test_equal_timestamp_events_keep_append_order(self):
+        # Coarse clocks can stamp consecutive events identically; random IDs must not reorder them.
+        session = self.start()
+        with patch('research.sessions.now', return_value='2026-10-06T00:00:00+00:00'),              patch('research.sessions.uuid.uuid4', side_effect=[uuid.UUID(int=2), uuid.UUID(int=1)]):
+            session.event('stop_requested', reason='SIGTERM')
+            session.event('closed', reason='SIGTERM')
+        evidence = read_session_evidence(self.path)
+        self.assertEqual([e['kind'] for e in evidence['session_events']], ['stop_requested', 'closed'])
+        self.assertEqual(evidence['sessions'][0]['status'], 'closed')
+
     def test_active_session_cannot_be_invalidated(self):
         session = self.start()
         with self.assertRaisesRegex(ValueError, 'Stop and record termination'):
