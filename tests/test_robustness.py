@@ -56,8 +56,8 @@ class TestPipelineRobustness(unittest.TestCase):
 
         # 1. Concurrent cursor query on the active database
         cursor = writer.conn.cursor()
-        df = cursor.execute("SELECT COUNT(*) FROM silver_financial_news").df()
-        self.assertEqual(df.iloc[0, 0], 1)
+        count = cursor.execute("SELECT COUNT(*) FROM silver_financial_news").fetchone()[0]
+        self.assertEqual(count, 1)
 
         # 2. Close writer (simulating completion of sync micro-batch)
         writer.close()

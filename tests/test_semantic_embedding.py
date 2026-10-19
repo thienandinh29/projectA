@@ -209,6 +209,11 @@ class TestSemanticRedisWindow(unittest.TestCase):
     def setUp(self):
         import redis
         self.redis_client = redis.Redis(host="localhost", port=6379, db=15)
+        try:
+            self.redis_client.ping()
+        except redis.exceptions.ConnectionError:
+            self.redis_client.close()
+            self.skipTest("Redis container is not reachable")
         self.redis_client.flushdb()
 
     def tearDown(self):

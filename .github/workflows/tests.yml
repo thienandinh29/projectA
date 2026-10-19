@@ -5,12 +5,16 @@ on:
   pull_request:
 
 jobs:
-  unittest:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+  linux:
+    runs-on: ubuntu-latest
+    # Real Redis so the dedup tests run instead of skipping.
+    services:
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s
+          --health-timeout 3s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,4 +23,16 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       # Live Kafka/storage tests stay opt-in; they skip without RUN_* variables.
+      - run: python -m unittest discover -s tests -v
+
+  windows:
+    runs-on: windows-latest
+    # Hosted Windows runners cannot run service containers; Redis tests skip here.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
       - run: python -m unittest discover -s tests -v
