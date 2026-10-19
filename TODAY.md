@@ -4,6 +4,9 @@ Goal: **get collection running continuously and finish reviewing the frozen
 41-version snapshot.** Roadmap stage: Phase 0 (Unblock) in [ROADMAP.md](ROADMAP.md).
 Previous checklist: [docs/archive/TODAY-20261013.md](docs/archive/TODAY-20261013.md).
 
+**Run on Monday, October 19, 2026** (the Oct 14 plan, unchanged in scope). Collection
+started 2026-10-19 09:16:25 UTC / 16:16:25 Bangkok on clean commit `a0b3d88`.
+
 Time blocks are elapsed session time (~5 h), not appointments. Check a box only
 after its output exists. Today's rules (ROADMAP Part B): one closure note at
 the end, no hand-written per-batch JSON, and review batches of up to 25.
@@ -30,8 +33,8 @@ docker compose ps -a
 docker compose --profile tools run --rm --no-deps research-tools -m scripts.inspect_collection_sessions
 ```
 
-- [ ] Broker and Redis healthy; collectors and writer stopped (as at CP0 on Oct 13).
-- [ ] No unexpected session containers (`paper1-*`) still running.
+- [x] Broker and Redis healthy; collectors and writer stopped (last ran Oct 6, not Oct 13).
+- [x] No unexpected session containers (`paper1-*`) still running (all exited Oct 6).
 
 No new baseline document is needed: yesterday's CP0 is still the reference.
 
@@ -42,16 +45,18 @@ Do all code changes **before** CP2, so collection does not need a restart later.
 **GDELT DOC (`workers/gdelt_worker.py`, lines ~59–91).** Today the code retries
 3× inside one cycle, sleeping 6 s after a 429. That is a burst against a
 rate-limited API.
-- [ ] On HTTP 429: record the failed request with its response body (first
+- [x] On HTTP 429: record the failed request with its response body (first
       500 chars), **do not retry in this cycle**, and wait for the next cycle.
-- [ ] Keep retries only for 5xx/timeouts, with ≥ 10 s spacing.
-- [ ] Add a regression test: a 429 produces exactly one recorded attempt.
+- [x] Keep retries only for 5xx/timeouts, with ≥ 10 s spacing.
+- [x] Add a regression test: a 429 produces exactly one recorded attempt (`3b9d62d`; it also
+      exposed and fixed random tie ordering of ledger requests/sessions).
 
 **RSS panel (`workers/rss_worker.py`, `MACRO_FEEDS`).**
-- [ ] Yahoo Finance returned 404 (2/18 on Oct 6). Check the URL in a browser;
-      replace or remove it.
-- [ ] Investing.com: 11/18 timeouts. Try a 30 s timeout for this feed only.
-- [ ] Add 2–3 public financial RSS feeds from **different publishers** (needed
+- [x] Yahoo Finance returned 404 (2/18 on Oct 6). Check the URL in a browser;
+      replace or remove it. Removed: both Yahoo RSS URLs return 404.
+- [x] Investing.com: 11/18 timeouts. Try a 30 s timeout for this feed only. Not applied:
+      the server drops TLS at exactly 15 s even with a 30 s timeout. Kept; failures recorded.
+- [x] Add 2–3 public financial RSS feeds from **different publishers** (needed
       for cross-publisher duplicates). Check each before adding:
 
   ```powershell
@@ -59,7 +64,8 @@ rate-limited API.
   ```
 
   Keep a feed only if it returns HTTP 200, English headlines, and items under 24 h old.
-- [ ] Record the panel change in one line in `docs/research-protocol.md`
+  Added Guardian Business, BBC Business, NYT Business, Seeking Alpha Market Currents (`341ab86`).
+- [x] Record the panel change in one line in `docs/research-protocol.md`
       ("panel v2 from 2026-10-14: …"). This counts as a new configuration.
 
 **Investigate quickly (15 min max, findings in the closure note).** In yesterday's
@@ -77,17 +83,17 @@ CP4 set, 3 of 9 Investing.com items have a URL slug that doesn't match the title
       work hasn't had yet. Note it for grouping; don't change identity rules today.
 
 **Pin dependencies.**
-- [ ] Build the image once, then freeze it:
+- [x] Build the image once, then freeze it (`requirements.lock`, 42 packages, `a0b3d88`):
   ```powershell
   docker compose --profile tools build research-tools
   docker compose --profile tools run --rm --no-deps --entrypoint pip research-tools freeze > requirements.lock
   ```
-- [ ] Change the Dockerfile to `pip install -r requirements.lock`.
+- [x] Change the Dockerfile to `pip install -r requirements.lock`. 124 tests pass in the pinned image.
 
 **Verify and commit.**
-- [ ] Run the collection regression set from `docs/research-protocol.md` (the
+- [x] Run the collection regression set from `docs/research-protocol.md` (the
       `python -m unittest tests.test_collection_sessions … -q` line), plus the new GDELT test.
-- [ ] `git commit` so the worktree is **clean** before CP2.
+- [x] `git commit` so the worktree is **clean** before CP2 (main = `a0b3d88`).
 
 ## CP2 — Start continuous collection (30 min)
 
@@ -99,12 +105,15 @@ docker compose --profile workers up -d lakehouse-writer worker-rss worker-gdelt
 docker compose --profile workers logs --tail 50 lakehouse-writer worker-rss worker-gdelt
 ```
 
-- [ ] `COLLECTION_WORKTREE_STATE` is `clean`.
-- [ ] Start the regular services, **not** bounded `paper1-*` session containers.
+- [x] `COLLECTION_WORKTREE_STATE` is `clean`.
+- [x] Start the regular services, **not** bounded `paper1-*` session containers.
       They use `restart: unless-stopped`, so they survive a Docker restart. Leave them running.
-- [ ] After ~15 min: every RSS feed shows HTTP 200 in the logs, GDELT shows either
+- [x] After ~15 min: every RSS feed shows HTTP 200 in the logs, GDELT shows either
       success or a single 429 per cycle, and the writer shows `batch_committed`.
-- [ ] Write the start time (Bangkok + UTC) down for the closure note.
+      15-min check: 6 feeds 200 every cycle, Investing.com 1/5, GDELT one failed attempt
+      per cycle (a 429, then a non-JSON 200), 18 writer batches, no errors.
+- [x] Write the start time (Bangkok + UTC) down for the closure note: 16:16:25 Bangkok /
+      09:16:25 UTC, 2026-10-19.
 
 Don't stop the writer for inspection today. CP3–CP4 only read the frozen snapshot
 directory and the SQLite ledgers, not DuckDB.
@@ -114,8 +123,13 @@ directory and the SQLite ledgers, not DuckDB.
 Status: 19 included / 2 excluded / 2 uncertain / **18 pending**. Clear all 18 in
 one batch (6 left from yesterday's CP4 plus 12 never prepared).
 
-Snapshot: `/app/data/research/checkpoint2-corrected-20261006-snapshot` (check that
-it matches the dataset hash `2913b351…`). Policy: frozen eligibility v1.
+Snapshot: `/app/data/research/session01-20261006-snapshot` (dataset hash `2913b351…`;
+the earlier `checkpoint2-corrected` name was wrong). Policy: `/app/docs/headline-eligibility-dev-v1.md`
+(frozen v1, `438f7b10…`).
+
+Prepared: `/app/data/research/eligibility-20261019/` holds `template.jsonl` (the 18 pending
+rows only, blank) and `worksheet.txt` (line N = headline N). Skip step 1; fill the template
+and save it as `reviews.jsonl` in the same folder.
 
 ```powershell
 # 1. Blank template for the snapshot (the tool writes every row; fill only pending ones)
@@ -161,8 +175,10 @@ docker compose --profile workers logs --since 3h lakehouse-writer | Select-Strin
 - [ ] Per source: attempts, successes, failures, max gap between attempts.
 - [ ] Note if any gap is > 30 min. If GDELT is still nearly all 429 after the
       fix, record that; the decision to drop it comes on Friday, not today.
-- [ ] Optional if time is left: turn these three commands into
+- [x] Optional if time is left: turn these three commands into
       `scripts/collection_health.py` (one JSON, < 30 s). It becomes the daily check.
+      Done (`d6834a6`, ~9 s): `docker compose --profile tools run --rm --no-deps research-tools
+      -m scripts.collection_health --hours 3`. Writer health is still the log count above.
 
 ## CP6 — Close (15 min)
 
