@@ -22,9 +22,14 @@ Plan and gates: ROADMAP.md. Daily checklist: TODAY.md.
 ## Environment (Windows 11)
 
 - Shells: Git Bash and PowerShell 5.1. Python 3.11 at the system level (no venv).
-- `gh` CLI is not installed; use git + the public GitHub API (repo is public:
-  thienandinh29/projectA). CI logs require sign-in, so ask the user to paste them.
+- `gh` is installed at `C:\Program Files\GitHub CLI\gh.exe` (may be missing from PATH
+  until the app restarts); it works only after the user runs `gh auth login`. Without
+  it, use git + the public GitHub API (60 requests/hour; repo thienandinh29/projectA).
 - Docker Desktop is often stopped. WSL Ubuntu exists but has no python3-venv.
+- Run `docker compose` from the main checkout: the Compose project name comes from the
+  folder (`financial-ingestion-pipeline`), so a worktree sees a different, empty project.
+- Daily collection check: `docker compose --profile tools run --rm --no-deps
+  research-tools -m scripts.collection_health --hours 24` (ledger only, read-only).
 - Local test runs are slow (~35 min for the full suite; embedding tests dominate).
   Prefer focused runs, e.g.
   `python -m unittest tests.test_eligibility tests.test_annotations tests.test_collection_sessions`.
