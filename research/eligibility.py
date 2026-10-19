@@ -97,23 +97,85 @@ def initialize(conn):
         CREATE TRIGGER IF NOT EXISTS eligibility_policy_no_delete
             BEFORE DELETE ON eligibility_policies
             BEGIN SELECT RAISE(ABORT, 'Eligibility policies are immutable'); END;
+        CREATE TABLE IF NOT EXISTS eligibility_release_requirements (
+            decision_id TEXT PRIMARY KEY REFERENCES eligibility_decisions(decision_id),
+            data_available_at TEXT NOT NULL,
+            origin TEXT NOT NULL CHECK(origin IN ('new', 'legacy')));
+        CREATE TABLE IF NOT EXISTS eligibility_releases (
+            decision_id TEXT PRIMARY KEY REFERENCES eligibility_release_requirements(decision_id),
+            released_at TEXT NOT NULL,
+            release_kind TEXT NOT NULL CHECK(release_kind IN
+                ('initial', 'recovery', 'legacy_confirmation', 'legacy_recovery')));
     ''')
+    for table in ('eligibility_release_requirements', 'eligibility_releases'):
+        for action in ('UPDATE', 'DELETE'):
+            conn.execute(f'''CREATE TRIGGER IF NOT EXISTS {table}_no_{action.lower()}
+                BEFORE {action} ON {table}
+                BEGIN SELECT RAISE(ABORT, 'Eligibility release evidence is append-only'); END''')
+
+
+def _connect(path):
+    conn = sqlite3.connect(path, timeout=30)
+    conn.row_factory = sqlite3.Row
+    conn.execute('PRAGMA foreign_keys=ON')
+    conn.execute('PRAGMA synchronous=FULL')
+    return conn
+
+
+def _seal(conn, decision_ids, recovery=False):
+    """Sample the clock only after judgment/requirement contents have committed.
+
+    Markers commit separately; selection excludes missing markers. Recovery
+    confirms persisted contents now, never at a legacy recording timestamp.
+    """
+    conn.execute('BEGIN IMMEDIATE')
+    try:
+        stamp = datetime.now(timezone.utc).isoformat()
+        result = []
+        for decision_id in decision_ids:
+            row = conn.execute('''SELECT d.*, q.data_available_at, q.origin
+                FROM eligibility_decisions d JOIN eligibility_release_requirements q USING(decision_id)
+                WHERE d.decision_id=?''', (decision_id,)).fetchone()
+            if row is None:
+                raise ValueError('Unknown eligibility release requirement')
+            if conn.execute('SELECT 1 FROM eligibility_releases WHERE decision_id=?',
+                            (decision_id,)).fetchone():
+                continue
+            if utc(stamp) < max(utc(row['decision_available_at']), utc(row['data_available_at'])):
+                raise ValueError('Release clock precedes recorded judgment/data availability')
+            prior = conn.execute('''SELECT r.released_at FROM eligibility_decisions d
+                JOIN eligibility_releases r USING(decision_id)
+                WHERE d.version_id=? AND d.policy_sha256=? AND d.sequence<?
+                ORDER BY d.sequence DESC LIMIT 1''',
+                (row['version_id'], row['policy_sha256'], row['sequence'])).fetchone()
+            if prior and utc(stamp) <= utc(prior[0]):
+                raise ValueError('Release clock did not advance')
+            kind = ('legacy_recovery' if recovery else 'legacy_confirmation') if row['origin'] == 'legacy' \
+                else ('recovery' if recovery else 'initial')
+            conn.execute('INSERT INTO eligibility_releases VALUES (?,?,?)', (decision_id, stamp, kind))
+            result.append({'decision_id': decision_id, 'version_id': row['version_id'],
+                           'decision_available_at': stamp, 'release_kind': kind})
+        conn.commit()
+        return result
+    except BaseException:
+        conn.rollback()
+        raise
 
 
 def append_reviews(ledger, rows, dataset_sha256, policy, reviewer, reviews):
-    """Record a whole development review batch atomically, without backdating.
+    """Persist judgment contents first, then append post-content-commit releases.
 
     No caller-supplied historical decision timestamp is accepted. A revision must
     explicitly identify the preceding decision; stale concurrent reviews fail.
-    decision_available_at is currently sampled BEFORE the content commit. It is
-    a recording timestamp, not post-commit availability proof. Use saved cutoffs
-    after successful return; harden this contract before final research freeze.
+    The legacy SQL column decision_available_at retains its recording-time meaning;
+    it is never rewritten. read_decisions exposes recorded_at separately and derives
+    decision_available_at from release evidence. Unsealed content requires recovery.
     """
     if not reviewer.strip():
         raise ValueError('Reviewer identity is required')
     validated = [Review.model_validate(value) for value in reviews]
     by_id = {row['version_id']: row for row in rows}
-    if not validated or len({r.version_id for r in validated}) != len(validated):
+    if len(by_id) != len(rows) or not validated or len({r.version_id for r in validated}) != len(validated):
         raise ValueError('Provide a nonempty batch with distinct reviewed versions')
     for review in validated:
         row = by_id.get(review.version_id)
@@ -126,23 +188,29 @@ def append_reviews(ledger, rows, dataset_sha256, policy, reviewer, reviews):
         raise ValueError('Policy text/hash mismatch')
     path = Path(ledger)
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path, timeout=30)
+    conn = _connect(path)
+    committed = False
     try:
-        conn.execute('PRAGMA foreign_keys=ON')
         initialize(conn)
         conn.execute('BEGIN IMMEDIATE')
         conn.execute('INSERT OR IGNORE INTO eligibility_policies VALUES (?,?)', policy)
         stamp = datetime.now(timezone.utc).isoformat()
-        recorded = []
+        ids = []
         for review in validated:
             if utc(by_id[review.version_id]['available_at']) > utc(stamp):
                 raise ValueError('Cannot review research data before it is available')
-            latest = conn.execute('''SELECT decision_id, decision_available_at FROM eligibility_decisions
-                WHERE version_id=? AND policy_sha256=? ORDER BY sequence DESC LIMIT 1''',
+            latest = conn.execute('''SELECT d.decision_id, d.decision_available_at,
+                q.decision_id AS requires_release, r.released_at
+                FROM eligibility_decisions d
+                LEFT JOIN eligibility_release_requirements q USING(decision_id)
+                LEFT JOIN eligibility_releases r USING(decision_id)
+                WHERE d.version_id=? AND d.policy_sha256=? ORDER BY d.sequence DESC LIMIT 1''',
                 (review.version_id, policy_hash)).fetchone()
-            if review.supersedes_decision_id != (latest[0] if latest else None):
+            if latest and latest['requires_release'] and latest['released_at'] is None:
+                raise ValueError('An unsealed judgment must be recovered before revising')
+            if review.supersedes_decision_id != (latest['decision_id'] if latest else None):
                 raise ValueError('Revision must reference the latest decision under this policy')
-            if latest and utc(latest[1]) >= utc(stamp):
+            if latest and utc(latest['released_at'] or latest['decision_available_at']) >= utc(stamp):
                 raise ValueError('Decision clock did not advance; preserve history and retry')
             decision_id = str(uuid.uuid4())
             conn.execute('''INSERT INTO eligibility_decisions
@@ -150,12 +218,90 @@ def append_reviews(ledger, rows, dataset_sha256, policy, reviewer, reviews):
                  decision_available_at,review_json) VALUES (?,?,?,?,?,?,?,?)''',
                 (decision_id, review.version_id, review.content_hash, dataset_sha256,
                  policy_hash, reviewer.strip(), stamp, canonical_json(review.model_dump())))
-            recorded.append({'decision_id': decision_id, 'version_id': review.version_id,
-                             'decision_available_at': stamp})
+            conn.execute('INSERT INTO eligibility_release_requirements VALUES (?,?,?)',
+                         (decision_id, by_id[review.version_id]['available_at'], 'new'))
+            ids.append(decision_id)
         conn.commit()
-        return recorded
-    except BaseException:
+        committed = True
+        return _seal(conn, ids)
+    except BaseException as exc:
         conn.rollback()
+        if committed:
+            raise RuntimeError('Judgments are committed but not released. Run recover; do not resubmit.') from exc
+        raise
+    finally:
+        conn.close()
+
+
+def recover_pending(ledger):
+    """Recover registered new/legacy releases; never auto-confirm old decisions."""
+    if not Path(ledger).exists():
+        raise ValueError('Eligibility ledger does not exist')
+    conn = _connect(ledger)
+    try:
+        initialize(conn)
+        ids = [r[0] for r in conn.execute('''SELECT d.decision_id FROM eligibility_decisions d
+            JOIN eligibility_release_requirements q USING(decision_id)
+            LEFT JOIN eligibility_releases r USING(decision_id)
+            WHERE r.decision_id IS NULL ORDER BY d.sequence''')]
+        return _seal(conn, ids, recovery=True) if ids else []
+    finally:
+        conn.close()
+
+
+def confirm_legacy(ledger, rows, policy_hash):
+    """Explicitly confirm latest legacy contents now, without new human judgments.
+
+    Superseded historical decisions and original columns remain untouched. Exact
+    snapshot versions supply the data availability bound; confirmation is not
+    retrospective proof of the old recording timestamp or annotation quality.
+    """
+    if not Path(ledger).exists():
+        raise ValueError('Eligibility ledger does not exist')
+    by_id = {r['version_id']: r for r in rows}
+    if len(by_id) != len(rows):
+        raise ValueError('Snapshot versions must be distinct')
+    conn = _connect(ledger)
+    committed = False
+    try:
+        initialize(conn)
+        conn.execute('BEGIN IMMEDIATE')
+        policy = conn.execute('SELECT text FROM eligibility_policies WHERE sha256=?', (policy_hash,)).fetchone()
+        if policy is None or hashlib.sha256(policy[0].encode()).hexdigest() != policy_hash:
+            raise ValueError('Unknown or invalid stored eligibility policy')
+        latest = conn.execute('''SELECT d.*, q.decision_id AS requires_release, r.released_at
+            FROM eligibility_decisions d
+            LEFT JOIN eligibility_release_requirements q USING(decision_id)
+            LEFT JOIN eligibility_releases r USING(decision_id)
+            WHERE d.policy_sha256=? AND NOT EXISTS
+                (SELECT 1 FROM eligibility_decisions newer WHERE newer.version_id=d.version_id
+                 AND newer.policy_sha256=d.policy_sha256 AND newer.sequence>d.sequence)
+            ORDER BY d.sequence''', (policy_hash,)).fetchall()
+        ids = []
+        for decision in latest:
+            row = by_id.get(decision['version_id'])
+            if row is None:
+                continue
+            item = Review.model_validate_json(decision['review_json'])
+            if item.version_id != row['version_id'] or item.content_hash != row['content_hash'] \
+                    or decision['content_hash'] != item.content_hash:
+                raise ValueError('Legacy confirmation content identity mismatch')
+            if decision['requires_release']:
+                if decision['released_at'] is None:
+                    raise ValueError('An unsealed judgment must be recovered before confirmation')
+                continue
+            if utc(decision['decision_available_at']) < utc(row['available_at']):
+                raise ValueError('Legacy recording precedes research data availability')
+            conn.execute('INSERT INTO eligibility_release_requirements VALUES (?,?,?)',
+                         (decision['decision_id'], row['available_at'], 'legacy'))
+            ids.append(decision['decision_id'])
+        conn.commit()
+        committed = True
+        return _seal(conn, ids) if ids else []
+    except BaseException as exc:
+        conn.rollback()
+        if committed:
+            raise RuntimeError('Confirmation contents committed but not released. Run recover; do not resubmit.') from exc
         raise
     finally:
         conn.close()
@@ -172,22 +318,59 @@ def read_decisions(ledger, policy_hash):
             return []
         if hashlib.sha256(policy[0].encode()).hexdigest() != policy_hash:
             raise ValueError('Stored policy hash mismatch')
-        return [dict(row) for row in conn.execute('''SELECT * FROM eligibility_decisions
-            WHERE policy_sha256=? ORDER BY sequence''', (policy_hash,))]
+        tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        release_tables = {'eligibility_release_requirements', 'eligibility_releases'}
+        if tables & release_tables and not release_tables <= tables:
+            raise ValueError('Incomplete eligibility release schema')
+        joined = release_tables <= tables
+        sql = '''SELECT d.*, q.data_available_at, q.origin, r.released_at, r.release_kind
+            FROM eligibility_decisions d
+            LEFT JOIN eligibility_release_requirements q USING(decision_id)
+            LEFT JOIN eligibility_releases r USING(decision_id)
+            WHERE d.policy_sha256=? ORDER BY d.sequence''' if joined else '''SELECT *
+            FROM eligibility_decisions WHERE policy_sha256=? ORDER BY sequence'''
+        result = []
+        for row in conn.execute(sql, (policy_hash,)):
+            value = dict(row)
+            value['recorded_at'] = value['decision_available_at']
+            value['decision_available_at'] = value.pop('released_at', None)
+            value['availability_contract'] = 'post_content_commit_v2' if value.get('origin') else 'legacy_precommit_v1'
+            value.setdefault('data_available_at', None)
+            value.setdefault('origin', None)
+            value.setdefault('release_kind', None)
+            result.append(value)
+        return result
     finally:
         conn.close()
 
 
-def select_as_of(rows, decisions, cutoff):
-    """Strict pre-cutoff decisions; pending/uncertain rows are never auto-included."""
+def select_as_of(rows, decisions, cutoff, *, timing_contract='post_content_commit_v2'):
+    """Strict release selection by default; explicit legacy replay is development only."""
+    if timing_contract not in ('post_content_commit_v2', 'legacy_precommit_v1'):
+        raise ValueError('Unknown eligibility timing contract')
     cutoff = utc(cutoff)
     latest = {}
     for decision in sorted(decisions, key=lambda d: d['sequence']):
-        if utc(decision['decision_available_at']) < cutoff:
-            latest[decision['version_id']] = decision
+        if timing_contract == 'legacy_precommit_v1':
+            if decision.get('origin') == 'new':
+                raise ValueError('New release judgments cannot enter legacy replay')
+            stamp = decision.get('recorded_at', decision['decision_available_at'])
+        else:
+            if decision.get('availability_contract') != 'post_content_commit_v2':
+                continue
+            stamp = decision['decision_available_at']
+            if decision.get('origin') not in ('new', 'legacy') or (stamp is not None and
+                    decision.get('release_kind') not in ({'initial', 'recovery'} if decision['origin'] == 'new'
+                                                        else {'legacy_confirmation', 'legacy_recovery'})):
+                raise ValueError('Stored eligibility release provenance mismatch')
+            if stamp is not None and utc(stamp) < max(utc(decision['recorded_at']), utc(decision['data_available_at'])):
+                raise ValueError('Stored release precedes judgment/data availability')
+        if stamp is not None and utc(stamp) < cutoff:
+            latest[decision['version_id']] = (decision, stamp)
     results = []
     for row in rows:
-        decision = latest.get(row['version_id'])
+        pair = latest.get(row['version_id'])
+        decision, stamp = pair if pair else (None, None)
         status = 'pending'
         if utc(row['available_at']) >= cutoff:
             status = 'data_not_available_before_cutoff'
@@ -198,7 +381,9 @@ def select_as_of(rows, decisions, cutoff):
                 raise ValueError('Stored review content identity mismatch')
             if decision['content_hash'] != review.content_hash:
                 raise ValueError('Stored decision content identity mismatch')
-            if utc(decision['decision_available_at']) < utc(row['available_at']):
+            if timing_contract == 'post_content_commit_v2' and utc(decision['data_available_at']) != utc(row['available_at']):
+                raise ValueError('Stored release data availability identity mismatch')
+            if utc(stamp) < utc(row['available_at']):
                 raise ValueError('Stored decision precedes research data availability')
             values = (review.english, review.financially_relevant, review.genuine_headline)
             status = 'excluded' if 'no' in values else 'uncertain' if 'uncertain' in values else 'included'

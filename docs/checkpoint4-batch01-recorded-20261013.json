@@ -1,0 +1,131 @@
+{
+  "kind": "development_checkpoint4_eligibility_batch_recorded_v1",
+  "batch": 1,
+  "paper_ready": false,
+  "verified_at_utc": "2026-10-13T02:45:03.010820+00:00",
+  "raw_human_approval": "okay change all",
+  "approval_path": "/app/data/research/checkpoint4-eligibility-20261013T020445788980Z/batch01-approval01.json",
+  "approval_sha256": "c30ef29cf1f923a6245e8098cf82d8daee1f347ffbbf740be465a0c38819ef6f",
+  "original_response_path": "/app/data/research/checkpoint4-eligibility-20261013T020445788980Z/batch01-response01-pending.json",
+  "original_response_sha256": "57ca79f95cfdeaab8da4c04e3d3ee45033b53b5cc789806aa5002a809e0cdcd6",
+  "completed_reviews_path": "/app/data/research/checkpoint4-eligibility-20261013T020445788980Z/batch01-completed-reviews.json",
+  "completed_reviews_sha256": "c41931c60f1ad33bfc1cc7cd3993874e6074055794b97926cf15b443fa88ee94",
+  "recorded": [
+    {
+      "decision_id": "255f0cd0-b9fe-418b-bfae-439bb9a9062c",
+      "version_id": "147e7346a67ab1022632bb0f1a1c2b7f13e516c06a8cbad90c8f8a961511da6d",
+      "decision_available_at": "2026-10-13T02:45:02.395662+00:00",
+      "release_kind": "initial",
+      "status": "uncertain"
+    },
+    {
+      "decision_id": "23b762ec-baf0-4aa9-abf4-3474d83d8beb",
+      "version_id": "aacbd6acb65bd9a3cf240e765b81363fe0e80475259b17e9033f8334beaaf0b1",
+      "decision_available_at": "2026-10-13T02:45:02.395662+00:00",
+      "release_kind": "initial",
+      "status": "excluded"
+    },
+    {
+      "decision_id": "b854021d-29ec-46bb-a365-1a6c041c82a6",
+      "version_id": "8af5ff09054e0f3a3bc7ecc371155e9c1d3f2a7cae74f00f8855950608ffe1e5",
+      "decision_available_at": "2026-10-13T02:45:02.395662+00:00",
+      "release_kind": "initial",
+      "status": "included"
+    }
+  ],
+  "history_decisions_before": 25,
+  "history_decisions_after": 28,
+  "prior_decision_history_unchanged": true,
+  "earlier_cutoff_unchanged": true,
+  "release_equality_excludes_new_reviews": true,
+  "counts_before": {
+    "included": 18,
+    "excluded": 1,
+    "uncertain": 1,
+    "pending": 21
+  },
+  "counts_after": {
+    "included": 19,
+    "excluded": 2,
+    "uncertain": 2,
+    "pending": 18
+  },
+  "cutoff": "2026-10-13T02:45:02.442484+00:00",
+  "selection_directory": "/app/data/research/checkpoint4-eligibility-20261013T020445788980Z/batch01-v2-selection",
+  "selection_sha256": "0632f67df208c2908c7425547bf14bbf4966d8337041dbd4a8af8a662720c707",
+  "protected_non_eligibility_files_unchanged": true,
+  "source_files_before": {
+    "/app/data/research/annotations.sqlite3": "bcf4c565038832cced129452cf3ebb74a3c9a9452e7236c963df87bead5a1421",
+    "/app/data/lakehouse.duckdb": "dd825b44e280d92c4328851c17cd48d35ad07d2d38080b1535a40d611c90ceaa",
+    "/app/data/delivery-outbox.sqlite3": "33b264b8404ee3cf06db26aac6c20889a4490f5fb91a2abee4183b060b3e9eba",
+    "/app/data/research/session01-20261006-snapshot/dataset.jsonl": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+    "/app/data/research/session01-20261006-snapshot/manifest.json": "5f069a33d837e4e946f6feb15697fe86ee5feec6e33fb255ce1243d66a79ea9d",
+    "/app/data/research/checkpoint4-eligibility-20261013T020445788980Z/template.json": "898f328f8f88fd2749543346ffe4863d61eca134ad7789fb3ecef5884245ef1a",
+    "/app/data/research/checkpoint4-eligibility-20261013T020445788980Z/batch01-response01-pending.json": "57ca79f95cfdeaab8da4c04e3d3ee45033b53b5cc789806aa5002a809e0cdcd6",
+    "/app/data/research/checkpoint2-release-rollout-20261013T012624497947Z/eligibility-v2-selection/selection.json": "b2fc6d09739faffb0ef1720cdd123ff741e6ba4d107cc6de201798debc64917e",
+    "/app/data/research/checkpoint2-release-rollout-20261013T012624497947Z/eligibility-v2-selection/eligible.jsonl": "14da22ac006f45c507812e47b9ecf6986f46ecfd3bb67c82b127d799701ebdcc",
+    "/app/data/research/checkpoint2-release-rollout-20261013T012624497947Z/eligibility-v2-selection/decisions.jsonl": "332c935c7da0d0a01b17eea9190f1a76698c30e4affc02edfe1c6d7c013e7438",
+    "/app/data/research/checkpoint2-release-rollout-20261013T012624497947Z/eligibility-v2-selection/policy.md": "438f7b10fd5bf529d9135362c3108944c7f5f1d588cfa46d13c346b51f3ec0ed"
+  },
+  "new_sentiment_labels": 0,
+  "assisted_development_only": true,
+  "reviewed_in_cp4": 3,
+  "remaining_in_cp4": 6,
+  "next_batch_inputs": [
+    {
+      "number": 4,
+      "batch": 2,
+      "version_id": "2d087bae82f91e460baf3e512471901c5686e850abc3b181d7a639370bab47b9",
+      "content_hash": "2d087bae82f91e460baf3e512471901c5686e850abc3b181d7a639370bab47b9",
+      "article_id": "5815679078af8a0a2ea13de83b4836e1231f250b101e8b53e67621b1660564a7",
+      "title": "Asian shares track Wall Street higher, Treasury yields near multi-decade highs",
+      "source": "RSS",
+      "url": "https://www.investing.com/news/economy-news/asian-shares-track-wall-street-higher-treasury-yields-near-multidecade-highs-4933238",
+      "title_provenance": "source_feed",
+      "observed_at": "2026-10-06T03:55:01.116654+00:00",
+      "available_at": "2026-10-06T03:55:04.504448+00:00",
+      "english": null,
+      "financially_relevant": null,
+      "genuine_headline": null,
+      "reason": "",
+      "supersedes_decision_id": null
+    },
+    {
+      "number": 5,
+      "batch": 2,
+      "version_id": "272b57ad31e22a5f70a41fd8f2846e20dc174cf744c8e0b6586e3cacea33a5cd",
+      "content_hash": "272b57ad31e22a5f70a41fd8f2846e20dc174cf744c8e0b6586e3cacea33a5cd",
+      "article_id": "5e3dcc5056ef47633db2ef1433ae0569b10568fc55602c31e9a495a3cf948c32",
+      "title": "Trump signs order allowing road use of tax-exempt dyed diesel",
+      "source": "RSS",
+      "url": "https://www.investing.com/news/economy-news/trump-signs-order-allowing-road-use-of-taxexempt-dyed-diesel-4933160",
+      "title_provenance": "source_feed",
+      "observed_at": "2026-10-06T03:55:01.206852+00:00",
+      "available_at": "2026-10-06T03:55:04.504448+00:00",
+      "english": null,
+      "financially_relevant": null,
+      "genuine_headline": null,
+      "reason": "",
+      "supersedes_decision_id": null
+    },
+    {
+      "number": 6,
+      "batch": 2,
+      "version_id": "7ac0dbaac2a665c4f4cccc5fb8b38b1a35a7713cf0fa71e607d4cb914e05ae35",
+      "content_hash": "7ac0dbaac2a665c4f4cccc5fb8b38b1a35a7713cf0fa71e607d4cb914e05ae35",
+      "article_id": "2065899d0e63179c73b800037071b63f24af8c1ab2997f03228ebbd862210a5e",
+      "title": "Nasdaq notches record high close as investors focus on earnings",
+      "source": "RSS",
+      "url": "https://www.investing.com/news/economy-news/wall-st-futures-dip-as-tech-stocks-take-a-breather-4931591",
+      "title_provenance": "source_feed",
+      "observed_at": "2026-10-06T03:55:01.291001+00:00",
+      "available_at": "2026-10-06T03:55:04.504448+00:00",
+      "english": null,
+      "financially_relevant": null,
+      "genuine_headline": null,
+      "reason": "",
+      "supersedes_decision_id": null
+    }
+  ],
+  "summary_path": "/app/data/research/checkpoint4-eligibility-20261013T020445788980Z/batch01-recorded-summary.json"
+}

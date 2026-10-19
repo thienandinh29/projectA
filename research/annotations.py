@@ -59,14 +59,20 @@ def load_guide(path):
     return hashlib.sha256(raw).hexdigest(), text
 
 
-def load_selection(snapshot_dir, selection_dir, eligibility_cutoff=None):
+def load_selection(snapshot_dir, selection_dir, eligibility_cutoff=None, *, allow_legacy=False):
     """Verify saved eligibility evidence; never reuse a judgment for changed text."""
     rows, manifest, dataset_hash, manifest_hash = load_snapshot(snapshot_dir)
     folder = Path(selection_dir)
     report_raw = (folder/'selection.json').read_bytes()
     report = json.loads(report_raw)
-    if report.get('kind') != 'development_eligibility_selection_v1':
+    kind = report.get('kind')
+    if kind not in ('development_eligibility_selection_v1', 'development_eligibility_selection_v2'):
         raise ValueError('A saved development eligibility selection is required')
+    contract = 'legacy_precommit_v1' if kind.endswith('_v1') else report.get('timing_contract')
+    if contract == 'legacy_precommit_v1' and not allow_legacy:
+        raise ValueError('Legacy eligibility requires explicit allow_legacy for development replay')
+    if kind.endswith('_v2') and contract != 'post_content_commit_v2':
+        raise ValueError('Unknown eligibility selection timing contract')
     if (report['input_dataset_sha256'], report['input_manifest_sha256']) != (dataset_hash, manifest_hash):
         raise ValueError('Eligibility selection refers to another snapshot')
     for filename, key in [('eligible.jsonl', 'eligible_rows_sha256'),
@@ -74,10 +80,12 @@ def load_selection(snapshot_dir, selection_dir, eligibility_cutoff=None):
         if hashlib.sha256((folder/filename).read_bytes()).hexdigest() != report[key]:
             raise ValueError('Eligibility selection evidence hash mismatch')
     decisions = [json.loads(line) for line in (folder/'decisions.jsonl').read_bytes().splitlines()]
-    if any(d['policy_sha256'] != report['policy_sha256'] or
-           utc(d['decision_available_at']) >= utc(report['cutoff']) for d in decisions):
+    if any(d['policy_sha256'] != report['policy_sha256'] or d['decision_available_at'] is None or
+           utc(d['decision_available_at']) >= utc(report['cutoff']) or
+           (contract == 'post_content_commit_v2' and d.get('availability_contract') != contract)
+           for d in decisions):
         raise ValueError('Eligibility history does not match its policy/cutoff')
-    selected = select_eligibility(rows, decisions, report['cutoff'])
+    selected = select_eligibility(rows, decisions, report['cutoff'], timing_contract=contract)
     if selected != report['versions']:
         raise ValueError('Eligibility decisions do not reproduce the saved selection')
     included = {s['version_id'] for s in selected if s['status'] == 'included'}
@@ -86,7 +94,7 @@ def load_selection(snapshot_dir, selection_dir, eligibility_cutoff=None):
     if saved != eligible:
         raise ValueError('Eligible rows differ from their exact snapshot versions')
     if eligibility_cutoff is not None:
-        earlier = select_eligibility(rows, decisions, eligibility_cutoff)
+        earlier = select_eligibility(rows, decisions, eligibility_cutoff, timing_contract=contract)
         included = {s['version_id'] for s in earlier if s['status'] == 'included'}
         eligible = [r for r in rows if r['version_id'] in included]
     return eligible, manifest, dataset_hash, hashlib.sha256(report_raw).hexdigest()

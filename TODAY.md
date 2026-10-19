@@ -1,166 +1,195 @@
-# Today's checkpoint — October 13, 2026
+# Work session — Wednesday, October 14, 2026
 
-## Active work — source versions and research counting
+Goal: **get collection running continuously and finish reviewing the frozen
+41-version snapshot.** Roadmap stage: Phase 0 (Unblock) in [ROADMAP.md](ROADMAP.md).
+Previous checklist: [docs/archive/TODAY-20261013.md](docs/archive/TODAY-20261013.md).
 
-- [x] Resume from the saved snapshot and archive the October12 checklist in
-  `docs/day-checkpoints-20261012-final.md`.
-- [x] Start Docker Desktop after its API was unavailable; recheck collectors and
-  writer stopped with exit code 0. No collection restart.
-- [x] Inspect three versions of one URL: headline/summary identical, parsed
-  publisher timestamps changed, headline digest equal, source version IDs different.
-- [x] Verify snapshot/manifest/eligibility/annotation hashes unchanged and included18
-  counts still 14 labeled / 4 unresolved.
-- [x] Complete the assisted learning check: three source-item versions can contain
-  one distinct headline text. Headline-only FinBERT receives text, not timestamps;
-  it does not automatically merge records. Sending all three can mean three calls.
-- [ ] Review article/headline/event counting rules using real examples, preserving
-  updates and availability rather than deleting raw evidence.
-- [ ] Obtain genuinely reviewed financial same-event rewrite/update pairs and
-  independent hard-negative/missed-pair review; current examples do not close that gate.
+Time blocks are elapsed session time (~5 h), not appointments. Check a box only
+after its output exists. Today's rules (ROADMAP Part B): one closure note at
+the end, no hand-written per-batch JSON, and review batches of up to 25.
 
-Today's lesson: `docs/source-version-learning-20261013.md`.
-Evidence: `docs/source-version-learning-case-20261013.json`.
-Case remains pending eligibility and is not added to the sentiment cohort.
-The current source-item version hash includes source metadata, so a changed
-publisher timestamp can yield another stored version with identical headline text.
-This is an observation about existing identity rules, not a code/schema change.
+| Elapsed | Checkpoint | Done when |
+| --- | --- | --- |
+| 00:00–00:15 | CP0 Quick start | Stack state known, nothing running that shouldn't be |
+| 00:15–01:30 | CP1 Fix sources + pin deps | Tests pass, fixes committed on a clean tree |
+| 01:30–02:00 | CP2 Start continuous collection | Writer + RSS + GDELT up; first cycle logged OK |
+| 02:00–02:15 | Break | — |
+| 02:15–03:15 | CP3 Finish eligibility on the snapshot | 0 pending of 41 |
+| 03:15–04:00 | CP4 Sentiment labels for new includes | Every included version labeled or unresolved |
+| 04:00–04:15 | Break | — |
+| 04:15–04:45 | CP5 Collection health check | First health numbers saved |
+| 04:45–05:00 | CP6 Close | Closure note + roadmap metrics updated |
 
-Before the requested GitHub commit preparation, no fitting, inference, score,
-new label, grouping change, commit or push occurred.
-Open work still includes eligibility timing hardening, source coverage failures,
-representative larger pilot, independent annotation/adjudication, model/checkpoint
-provenance, prediction logs and final protocol/testing freeze.
+---
 
-### Completion check after the learning discussion
+## CP0 — Quick start (15 min)
 
-Today's source-version inspection and assisted explanation are complete. The full
-data/research work for today is not complete: the counting-rule review is partial,
-and financial same-event rewrite validation remains open. This checklist update
-checks saved evidence; it does not repeat the earlier live Docker/database audit.
+```powershell
+git status --short
+docker compose ps -a
+docker compose --profile tools run --rm --no-deps research-tools -m scripts.inspect_collection_sessions
+```
 
-Next checkpoint: document how source versions, URL/article identities, distinct
-headline text and reviewed events enter each evaluation condition. Preserve all
-raw versions and availability; keep article-level, story-weighted and first-seen
-story results separate. Explicitly handle metadata-only revisions and changed
-headline text before implementing any selection or prediction-reuse policy.
-The current three-version example has pending eligibility, so it cannot be used
-as a financial duplicate positive or added to the labeled evaluation cohort.
+- [ ] Broker and Redis healthy; collectors and writer stopped (as at CP0 on Oct 13).
+- [ ] No unexpected session containers (`paper1-*`) still running.
 
-The saved snapshot remains 41 versions / 38 article IDs / 38 exact titles.
-Eligibility remains 18 included / 1 excluded / 1 uncertain / 21 pending; the 18
-included first sentiment reviews are complete (14 class labels / 4 unresolved).
-These are development counts, not a completed representative research sample.
+No new baseline document is needed: yesterday's CP0 is still the reference.
 
-### Code review and GitHub save checkpoint
+## CP1 — Fix the source panel and pin dependencies (75 min)
 
-- [x] Review pending eligibility, sentiment and source-quality tooling against the
-  development scope and cutoff rules; retain explicit research-readiness limits.
-- [x] Pass 38 focused tests locally and in Docker, plus 20 local collection-session
-  and collection-boundary regressions (58 local tests total).
-- [x] Protect hashed guide/policy and JSON evidence bytes from Git line-ending
-  conversion. Do not change frozen guides or historical database records.
-- [x] Review and stage the code/documentation for the requested GitHub save.
+Do all code changes **before** CP2, so collection does not need a restart later.
 
-changes.txt contains the staged patch, excluding itself. The resulting commit and
-remote-push verification are reported with the GitHub link in the conversation;
-they do not close the remaining research checkpoints.
+**GDELT DOC (`workers/gdelt_worker.py`, lines ~59–91).** Today the code retries
+3× inside one cycle, sleeping 6 s after a 429. That is a burst against a
+rate-limited API.
+- [ ] On HTTP 429: record the failed request with its response body (first
+      500 chars), **do not retry in this cycle**, and wait for the next cycle.
+- [ ] Keep retries only for 5xx/timeouts, with ≥ 10 s spacing.
+- [ ] Add a regression test: a 429 produces exactly one recorded attempt.
 
-Review details and remaining limitations: docs/code-review-checkpoint-20261013.md.
+**RSS panel (`workers/rss_worker.py`, `MACRO_FEEDS`).**
+- [ ] Yahoo Finance returned 404 (2/18 on Oct 6). Check the URL in a browser;
+      replace or remove it.
+- [ ] Investing.com: 11/18 timeouts. Try a 30 s timeout for this feed only.
+- [ ] Add 2–3 public financial RSS feeds from **different publishers** (needed
+      for cross-publisher duplicates). Check each before adding:
 
-## October 12 historical checklist and evidence
+  ```powershell
+  python -c "import feedparser,sys,time; f=feedparser.parse(sys.argv[1]); print(f.get('status'), len(f.entries)); [print(time.strftime('%Y-%m-%d %H:%M', e.published_parsed) if e.get('published_parsed') else '-', e.title[:80]) for e in f.entries[:5]]" <FEED_URL>
+  ```
 
-## Completed: first sentiment review of currently included18
+  Keep a feed only if it returns HTTP 200, English headlines, and items under 24 h old.
+- [ ] Record the panel change in one line in `docs/research-protocol.md`
+      ("panel v2 from 2026-10-14: …"). This counts as a new configuration.
 
-14 labeled / 4 unresolved / 0 awaiting first review.
-The last Medicare-rebate judgment was human-approved unresolved and sealed at
-17:08:22 Bangkok / 10:08:22 UTC. Original answers/reasons are preserved. Earlier
-cutoffs and prior 17 decisions remain unchanged. All judgments disclose assistance.
-This closes the small development exercise, not the full dataset or research pilot.
+**Investigate quickly (15 min max, findings in the closure note).** In yesterday's
+CP4 set, 3 of 9 Investing.com items have a URL slug that doesn't match the title:
 
-Closure: docs/annotation-first-review-closure-20261012.json.
-Current selection: /app/data/research/sentiment-teaching-batch06-final-current-20261012.
-Unresolved cases stay visible and excluded from three-class labels.
+| # | Title | URL slug |
+| --- | --- | --- |
+| 1 | Anthropic tells Australia it's open to laws requiring reporting of AI agent hacks | australias-abc-rejects-ai-copyright-carveout… |
+| 6 | Nasdaq notches record high close as investors focus on earnings | wall-st-futures-dip-as-tech-stocks-take-a-breather |
+| 7 | Nasdaq hits record as dollar and Treasury yields climb, oil prices ease | stocks-upbeat-dollar-wobbles-as-fed-hike-bets-recede |
 
-## Active next work: duplicate-story review
+- [ ] Open 2 of these URLs. Does Investing.com rewrite headlines under the same
+      URL (live-updated stories), or is the feed mixing up items? If it's rewrites,
+      **these are real same-article headline changes**, the positives the dedup
+      work hasn't had yet. Note it for grouping; don't change identity rules today.
 
-- [x] Read-only inventory: 41 versions / 38 article IDs / 38 exact title strings.
-- [x] Inspect two multi-version articles: unchanged titles, changed source timestamps.
-- [x] Compare reference grouping: all41=38 groups; included18=18 groups under each
-  article/exact/lexical method. No distinct-article lexical pair reaches 0.75.
-- [x] Check six forward-prefix replays and preserved dataset/ledger hashes.
-- [ ] Human review of candidate event pairs with reasons and real review timing.
-- [ ] Gather verified same-event rewrites and hard negatives; independently search
-  missed pairs. Do not claim validated syndication or recall from lexical candidates.
-- [ ] Review additional21 eligibility records and the uncertain eligibility case.
-- [ ] Plan representative larger collection/pilot and independent annotation.
+**Pin dependencies.**
+- [ ] Build the image once, then freeze it:
+  ```powershell
+  docker compose --profile tools build research-tools
+  docker compose --profile tools run --rm --no-deps --entrypoint pip research-tools freeze > requirements.lock
+  ```
+- [ ] Change the Dockerfile to `pip install -r requirements.lock`.
 
-Next explanation/exercise: docs/duplicate-review-next-20261012.md.
-Audit summary: docs/duplicate-inventory-20261012.json.
-Full audit: /app/data/research/duplicate-inventory-20261012.json.
-The current included cohort has no extra merges under the reference rules; this is
-not proof of no semantic duplicates. It cannot yet demonstrate a duplicate-control
-performance effect. Reference groups are not ground-truth independent events.
+**Verify and commit.**
+- [ ] Run the collection regression set from `docs/research-protocol.md` (the
+      `python -m unittest tests.test_collection_sessions … -q` line), plus the new GDELT test.
+- [ ] `git commit` so the worktree is **clean** before CP2.
 
-Collectors and writer remain stopped; no collection restart, code changes, training,
-prediction, scores, commit or push occurred. October7 tests remain historical evidence;
-today's work used live ledger/export and read-only grouping checks.
+## CP2 — Start continuous collection (30 min)
 
-Before final freeze: eligibility availability hardening, source failures/gaps, real
-duplicate validation, independent adjudication, representative sampling/power,
-checkpoint provenance/contamination, immutable predictions and complete scoring.
-History: docs/sentiment-ledger-checkpoint-20261007.md.
-Previous checklist: docs/day-checkpoints-20261012-before-duplicate-review.md.
+```powershell
+$env:COLLECTION_CODE_REVISION = git rev-parse HEAD
+$env:COLLECTION_WORKTREE_STATE = if (git status --porcelain) { 'dirty' } else { 'clean' }
+docker compose --profile workers --profile tools build lakehouse-writer worker-rss worker-gdelt research-tools
+docker compose --profile workers up -d lakehouse-writer worker-rss worker-gdelt
+docker compose --profile workers logs --tail 50 lakehouse-writer worker-rss worker-gdelt
+```
 
+- [ ] `COLLECTION_WORKTREE_STATE` is `clean`.
+- [ ] Start the regular services, **not** bounded `paper1-*` session containers.
+      They use `restart: unless-stopped`, so they survive a Docker restart. Leave them running.
+- [ ] After ~15 min: every RSS feed shows HTTP 200 in the logs, GDELT shows either
+      success or a single 429 per cycle, and the writer shows `batch_committed`.
+- [ ] Write the start time (Bangkok + UTC) down for the closure note.
 
-## First duplicate-pair learning response — recorded at 17:27 Bangkok
+Don't stop the writer for inspection today. CP3–CP4 only read the frozen snapshot
+directory and the SQLite ledgers, not DuckDB.
 
-The human judged the jobs-report announcement and inflation-report announcement
-as different events. The original source/weekday rationale is preserved. Verified
-source context identifies both article publishers as www.cnbc.com; "Fed" is the
-organization discussed in the second title, not a different article publisher.
-Assistant feedback identifies the clearer event-topic distinction: employment
-versus inflation. That feedback is not falsely attributed as a new human statement.
-Different publishers or posting weekdays alone do not establish different events.
+## CP3 — Finish eligibility on the frozen snapshot (60 min)
 
-Response: /app/data/research/duplicate-pair01-response01-20261012.json.
-Post-content-persistence availability marker:
-/app/data/research/duplicate-pair01-response01-availability-20261012.json.
-Local evidence: docs/duplicate-pair01-review-20261012.json.
-Decision 618a7f85-bc07-4800-8952-54ef14ac5022 became available at
-2026-10-12T10:27:39.062761+00:00 after response contents were flushed/fsynced.
-The marker commits separately. Dataset, manifest, eligibility, annotation ledger
-and original audit hashes remain unchanged; no cluster or classifier label changed.
-This is an assisted development response, not independent adjudicated ground truth
-or an estimate of grouping precision/recall.
-Next learning check: two publishers report the same specific employment release
-on different days; decide whether that alone creates a different underlying event.
+Status: 19 included / 2 excluded / 2 uncertain / **18 pending**. Clear all 18 in
+one batch (6 left from yesterday's CP4 plus 12 never prepared).
 
+Snapshot: `/app/data/research/checkpoint2-corrected-20261006-snapshot` (check that
+it matches the dataset hash `2913b351…`). Policy: frozen eligibility v1.
 
-## Second candidate-pair response — recorded at 17:50 Bangkok
+```powershell
+# 1. Blank template for the snapshot (the tool writes every row; fill only pending ones)
+docker compose --profile tools run --rm --no-deps research-tools -m scripts.review_eligibility prepare --snapshot-dir <SNAPSHOT> --policy-file <POLICY_V1> --ledger /app/data/research/eligibility.sqlite3 --output /app/data/research/eligibility-20261014/template.jsonl
+# 2. Fill english / financially_relevant / genuine_headline / reason for the 18 pending rows.
+#    Remove already-decided rows. Unsure -> leave it uncertain with a reason; don't force it.
+# 3. Record
+docker compose --profile tools run --rm --no-deps research-tools -m scripts.review_eligibility record --snapshot-dir <SNAPSHOT> --policy-file <POLICY_V1> --ledger /app/data/research/eligibility.sqlite3 --reviews /app/data/research/eligibility-20261014/reviews.jsonl --reviewer <YOU>
+# 4. New selection (cutoff = a moment after step 3 returns, in UTC)
+docker compose --profile tools run --rm --no-deps research-tools -m scripts.review_eligibility select --snapshot-dir <SNAPSHOT> --policy-file <POLICY_V1> --ledger /app/data/research/eligibility.sqlite3 --cutoff <UTC_NOW> --output /app/data/research/eligibility-20261014/selection
+```
 
-The human judged the two September-employment articles different and noted their
-different outcomes/tones. Original reasoning is preserved, not replaced. Captured
-feed context identifies the first as a BLS nonfarm-payrolls/unemployment release;
-the second headline identifies an ADP private-sector jobs release. Both article
-publishers are CNBC. The stronger difference is underlying report identity.
+Use the exact snapshot and policy paths from
+`docs/checkpoint2-release-rollout-20261013.md`.
 
-Assistant feedback: shared month/topic and different sentiment alone do not prove
-same or different event. Different financial subjects/angles can produce different
-sentiments about one event. Keep same-event relation separate from same-information
-relation; new facts or another angle must remain as their own input version, label,
-provenance and availability even if assigned to one event family.
+- [ ] Pending = 0. Save the record command's printed JSON output as the only evidence file.
+- [ ] Target pace: ~1 min per headline. Use the headline only and the policy as written.
 
-Response: /app/data/research/duplicate-pair02-response01-20261012.json.
-Availability marker: /app/data/research/duplicate-pair02-response01-availability-20261012.json.
-Local evidence: docs/duplicate-pair02-review-20261012.json.
-Decision 594d9970-87d1-487d-b3ed-c4eb820a7418 became available at
-2026-10-12T10:50:39.355732+00:00 after content flush/fsync. The marker is separate.
-The captured summary was used only for event identity, not to change the headline-
-only sentiment labels. Dataset, manifest, annotation/eligibility ledgers and audit
-hashes stayed unchanged. No live dedup, cluster or label changed.
+## CP4 — Sentiment labels for the new includes (45 min)
 
-This is an assisted development response with source-context feedback, not independent
-adjudicated ground truth or measured duplicate recall. We still need genuine same-event
-rewrites, updates and independently searched missed pairs, not only negative examples.
-Teaching examples of profits rising while shares fall are hypothetical and cannot be
-recorded as real-feed validation or added to experiment samples.
+```powershell
+docker compose --profile tools run --rm --no-deps research-tools -m scripts.review_sentiment prepare --snapshot-dir <SNAPSHOT> --eligibility-selection /app/data/research/eligibility-20261014/selection --guide-file <SENTIMENT_GUIDE_V1> --ledger /app/data/research/annotations.sqlite3 --output /app/data/research/sentiment-20261014/template.json
+# fill labels -> record (--reviews, --annotator <YOU>) -> select (--cutoff <UTC_NOW>, --output ...)
+```
+
+- [ ] Label every newly included version in **one** batch: positive / negative /
+      neutral, or unresolved with a reason. Unresolved is not neutral.
+- [ ] **Label without assistance.** Write your label before asking anyone,
+      including an AI, so these labels can count as independent development data.
+      Mark any label you changed after discussion as assisted.
+- [ ] Revisit the 4 earlier unresolved items only if a guide rule now decides them.
+
+## CP5 — First collection health check (30 min)
+
+By now collection has run ~3 h.
+
+```powershell
+docker compose --profile tools run --rm --no-deps research-tools -m scripts.inspect_collection_sessions
+docker compose --profile workers logs --since 3h worker-gdelt | Select-String "429|failed"
+docker compose --profile workers logs --since 3h lakehouse-writer | Select-String "batch_committed" | Measure-Object
+```
+
+- [ ] Per source: attempts, successes, failures, max gap between attempts.
+- [ ] Note if any gap is > 30 min. If GDELT is still nearly all 429 after the
+      fix, record that; the decision to drop it comes on Friday, not today.
+- [ ] Optional if time is left: turn these three commands into
+      `scripts/collection_health.py` (one JSON, < 30 s). It becomes the daily check.
+
+## CP6 — Close (15 min)
+
+- [ ] Collectors and writer **still running** (`docker compose ps`). Do not stop them.
+- [ ] Write the closure note at `docs/session-20261014.md`, about 15 lines:
+      commit hash, collection start time, panel v2, Investing.com finding,
+      eligibility counts, sentiment counts, health numbers, open problems.
+- [ ] Update the metrics table in ROADMAP.md Part B: collection hours, reviewed
+      headlines, labels.
+- [ ] Commit docs and code (not data).
+
+---
+
+## Completion boundary
+
+The day is a success if **collection is running on a clean commit** and the
+**41-version snapshot has 0 pending eligibility**. If CP1 overruns, cut the new
+feeds and the Investing.com check before you cut CP2. Starting collection matters
+more than a perfect panel.
+
+## Not today (parked)
+
+FinBERT/predictions (start Oct 20), story-grouping script (starts at ~200
+eligible headlines from ≥ 4 sources), Redis race, Tier 3, SEC, README rewrite.
+
+## Tomorrow (preview)
+
+Let collection run. Do the first daily quiet snapshot (stop collectors → drain →
+stop writer → export → restart everything), then review eligibility and sentiment
+for the new headlines in batches of 25.

@@ -7,10 +7,13 @@ Labels, eligibility decisions, and story-grouping judgments may arrive later and
 change which predictions qualify for a report, but they do not trigger training
 or prediction replacement.
 
-The required evaluation conditions give equal weight to each article, equal
-total weight to each reviewed story, and weight only the first observed eligible
-headline from each reviewed story. Their exact cohort rules will be frozen after
-the development pilot. Continual adaptation code is outside Paper 1.
+The required evaluation conditions give equal weight to each eligible source-item
+version, equal total weight to each reviewed story, and weight only the first
+durably available eligible headline from each reviewed story. This clarifies the
+earlier article/first-observed wording; metadata-only repeats are not silently
+removed from the baseline. Proposed shared-cohort and label-blind anchor rules are
+in `research-counting-draft-v1.md`. Their final rules will be frozen after the
+development pilot. Continual adaptation code is outside Paper 1.
 
 ## Data paths and authoritative storage
 
@@ -46,6 +49,15 @@ Content and provenance hashes exclude observation time. Repeated delivery of an
 identical version retains its first captured item, while a correction at the
 same URL appends a new version. Bronze stores the exact Kafka payload received,
 not the publisher's original HTTP response bytes.
+
+New eligibility judgments use the v2 post-content-commit release contract in
+`eligibility-release-contract-v2.md`: missing markers exclude strict selection.
+Original legacy recording timestamps are retained and cannot supply release proof.
+Archived v1 replay requires an explicit development opt-in; present-time legacy
+confirmation does not establish historical availability. CP1 verified a backup
+copy; CP2 passed Docker checks and applied live confirmations at
+`2026-10-13T01:26:25.835474+00:00`. Frozen policy/guide bytes remain unchanged.
+Current selection paths and cutoff are in `checkpoint2-release-rollout-20261013.md`.
 
 ## First-time database procedure
 

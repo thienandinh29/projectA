@@ -1,0 +1,232 @@
+{
+  "kind": "development_checkpoint2_release_rollout_v1",
+  "checkpoint": "CP2",
+  "status": "complete",
+  "started_at_utc": "2026-10-13T01:26:24.497947+00:00",
+  "completed_at_utc": "2026-10-13T01:26:26.320953+00:00",
+  "live_ledger_migrated": true,
+  "paper_ready": false,
+  "eligibility_ledger": "/app/data/research/eligibility.sqlite3",
+  "backup": {
+    "path": "/app/data/research/checkpoint2-release-rollout-20261013T012624497947Z/eligibility.before-release-v2.sqlite3",
+    "sha256": "6ec2dc82dea19b9b6854a30ab966a1b4ee54ffd9f4c0efd804ec0c2ceca4dfef",
+    "integrity_check": "ok",
+    "logical_sha256": "bc125b4d279919317b327e4d1517c9ebc089a644126456859b700924ee2edf3f",
+    "contents_match_pre_rollout": true
+  },
+  "original_decision_count": 25,
+  "original_policy_count": 1,
+  "original_columns_unchanged": true,
+  "original_columns_sha256": "6c33793eaecc3fd2197c9d00a48d63b0630f0f13875f3af99c96fdd917d28a98",
+  "new_release_requirements": 20,
+  "new_release_markers": 20,
+  "unreleased_requirements": 0,
+  "release_kind": "legacy_confirmation",
+  "release_available_at_utc": "2026-10-13T01:26:25.835474+00:00",
+  "counts_before_release": {
+    "pending": 41
+  },
+  "counts_at_release_equality": {
+    "pending": 41
+  },
+  "counts_after_release": {
+    "included": 18,
+    "excluded": 1,
+    "uncertain": 1,
+    "pending": 21
+  },
+  "cutoff": "2026-10-13T01:26:25.843919+00:00",
+  "eligibility_selection": "/app/data/research/checkpoint2-release-rollout-20261013T012624497947Z/eligibility-v2-selection",
+  "eligibility_selection_sha256": "b2fc6d09739faffb0ef1720cdd123ff741e6ba4d107cc6de201798debc64917e",
+  "sentiment_selection": "/app/data/research/checkpoint2-release-rollout-20261013T012624497947Z/sentiment-v2-eligibility-selection",
+  "sentiment_counts": {
+    "labeled": 14,
+    "unresolved": 4
+  },
+  "sentiment_class_counts": {
+    "negative": 7,
+    "neutral": 2,
+    "positive": 5
+  },
+  "historical_eligibility_replay_requires_opt_in": true,
+  "historical_sentiment_selection_reproduced": true,
+  "historical_label_export_bytes_reproduced": true,
+  "legacy_replay_directory": "/app/data/research/checkpoint2-release-rollout-20261013T012624497947Z/historical-sentiment-replay",
+  "protected_files_before": {
+    "/app/data/lakehouse.duckdb": "dd825b44e280d92c4328851c17cd48d35ad07d2d38080b1535a40d611c90ceaa",
+    "/app/data/research/eligibility.sqlite3": "308776ca146f5015bf3795364639f778046b6460a96b120b76fb8d4024901f83",
+    "/app/data/research/annotations.sqlite3": "bcf4c565038832cced129452cf3ebb74a3c9a9452e7236c963df87bead5a1421",
+    "/app/data/delivery-outbox.sqlite3": "33b264b8404ee3cf06db26aac6c20889a4490f5fb91a2abee4183b060b3e9eba",
+    "/app/data/research/session01-20261006-snapshot/dataset.jsonl": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+    "/app/data/research/session01-20261006-snapshot/manifest.json": "5f069a33d837e4e946f6feb15697fe86ee5feec6e33fb255ce1243d66a79ea9d",
+    "/app/data/research/eligibility-batch08-reviewed-20261006/selection.json": "2a6079494612ead1302e17a482f23cb087d62c4ce8a3434547955a032db6b6a3",
+    "/app/data/research/eligibility-batch08-reviewed-20261006/eligible.jsonl": "14da22ac006f45c507812e47b9ecf6986f46ecfd3bb67c82b127d799701ebdcc",
+    "/app/data/research/eligibility-batch08-reviewed-20261006/decisions.jsonl": "3f3e3427ec63e9192aca395f7d50467dada30b29e67184df6b76fb4694d051bd",
+    "/app/data/research/eligibility-batch08-reviewed-20261006/policy.md": "438f7b10fd5bf529d9135362c3108944c7f5f1d588cfa46d13c346b51f3ec0ed",
+    "/app/data/research/session01-20261006-snapshot/collection-sessions.json": "635c140a20a033c953d78e25141ff2c5da703c9b56eba6f61b1b75d5314fb133",
+    "/app/data/research/sentiment-teaching-batch06-final-current-20261012/labels.jsonl": "cc9b2e3634594ff7c4429fe54f37a7e6c31ed3039b37a80e6d0bdcfb07c27d94",
+    "/app/data/research/sentiment-teaching-batch06-final-current-20261012/selection.json": "09d612965c448b93330e846b741e4e1def9417943edb18eeccfe5e687bea3c59",
+    "/app/data/research/sentiment-teaching-batch06-final-current-20261012/guide.md": "4f5b13fa5f5660ba1e6e5015bee11712fe58561b8b92466d474412bec1916653",
+    "/app/data/research/sentiment-teaching-batch06-final-current-20261012/decisions.jsonl": "d543d182386a7725d743429cab9751857406af157a753c7b4676c13c54d9d7b3"
+  },
+  "protected_files_after": {
+    "/app/data/lakehouse.duckdb": "dd825b44e280d92c4328851c17cd48d35ad07d2d38080b1535a40d611c90ceaa",
+    "/app/data/research/eligibility.sqlite3": "aa122fcd1b74cc037dfe3febf8af0a71c14bc63c1828ccb595f5b05d2df46df7",
+    "/app/data/research/annotations.sqlite3": "bcf4c565038832cced129452cf3ebb74a3c9a9452e7236c963df87bead5a1421",
+    "/app/data/delivery-outbox.sqlite3": "33b264b8404ee3cf06db26aac6c20889a4490f5fb91a2abee4183b060b3e9eba",
+    "/app/data/research/session01-20261006-snapshot/dataset.jsonl": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+    "/app/data/research/session01-20261006-snapshot/manifest.json": "5f069a33d837e4e946f6feb15697fe86ee5feec6e33fb255ce1243d66a79ea9d",
+    "/app/data/research/eligibility-batch08-reviewed-20261006/selection.json": "2a6079494612ead1302e17a482f23cb087d62c4ce8a3434547955a032db6b6a3",
+    "/app/data/research/eligibility-batch08-reviewed-20261006/eligible.jsonl": "14da22ac006f45c507812e47b9ecf6986f46ecfd3bb67c82b127d799701ebdcc",
+    "/app/data/research/eligibility-batch08-reviewed-20261006/decisions.jsonl": "3f3e3427ec63e9192aca395f7d50467dada30b29e67184df6b76fb4694d051bd",
+    "/app/data/research/eligibility-batch08-reviewed-20261006/policy.md": "438f7b10fd5bf529d9135362c3108944c7f5f1d588cfa46d13c346b51f3ec0ed",
+    "/app/data/research/session01-20261006-snapshot/collection-sessions.json": "635c140a20a033c953d78e25141ff2c5da703c9b56eba6f61b1b75d5314fb133",
+    "/app/data/research/sentiment-teaching-batch06-final-current-20261012/labels.jsonl": "cc9b2e3634594ff7c4429fe54f37a7e6c31ed3039b37a80e6d0bdcfb07c27d94",
+    "/app/data/research/sentiment-teaching-batch06-final-current-20261012/selection.json": "09d612965c448b93330e846b741e4e1def9417943edb18eeccfe5e687bea3c59",
+    "/app/data/research/sentiment-teaching-batch06-final-current-20261012/guide.md": "4f5b13fa5f5660ba1e6e5015bee11712fe58561b8b92466d474412bec1916653",
+    "/app/data/research/sentiment-teaching-batch06-final-current-20261012/decisions.jsonl": "d543d182386a7725d743429cab9751857406af157a753c7b4676c13c54d9d7b3"
+  },
+  "all_non_eligibility_sources_unchanged": true,
+  "ledger_integrity_check": "ok",
+  "repeated_confirmation_added_nothing": true,
+  "recovery_has_no_pending_records": true,
+  "database_inspection": {
+    "database": "/app/data/lakehouse.duckdb",
+    "database_id": "docker-volume:ingestion-data:/app/data/lakehouse.duckdb",
+    "exists": true,
+    "schema_version": 5,
+    "counts": {
+      "bronze_events_raw": 2413,
+      "silver_financial_news": 137,
+      "silver_sec_filings": 0,
+      "research_observations": 529,
+      "lakehouse_message_outcomes": 2413
+    },
+    "tables": [
+      "bronze_events_raw",
+      "lakehouse_conflicts",
+      "lakehouse_message_outcomes",
+      "lakehouse_migrations",
+      "lakehouse_rejections",
+      "lakehouse_transport_fault_resolutions",
+      "lakehouse_transport_faults",
+      "research_observations",
+      "silver_financial_news",
+      "silver_sec_filings",
+      "view_canonical_news_pit"
+    ]
+  },
+  "outbox_pending": 0,
+  "source_code_sha256": {
+    "/app/research/eligibility.py": "bb1a673e4107afb41b5352c912faf413fc64d3dac5bf2a6ee2531ad61751b1b6",
+    "/app/research/annotations.py": "20a5231fe46ac19ca6e13e4df44117101e09ba2fc3b4f3c7dad6a0243421c4a1",
+    "/app/scripts/review_eligibility.py": "aad3bad7ca8927c329dfde228b282657c0026e35a436de9c033826aa511a8ef9",
+    "/app/scripts/review_sentiment.py": "0f8bcc8a326595b940532ee0d1470c54ca65638e57b93b7553f5a0d3d55cf29f"
+  },
+  "environment_file": "/app/data/research/checkpoint2-release-rollout-20261013T012624497947Z/environment.json",
+  "environment_sha256": "a2adaff4af037c1acd91a488fe9e18851f1a059704f4da20be62817922893c19",
+  "python": "3.11.17",
+  "report_directory": "/app/data/research/checkpoint2-release-rollout-20261013T012624497947Z",
+  "limits": [
+    "Legacy confirmation establishes persisted contents at current time, not historical availability or independent annotation quality.",
+    "No new human judgments or sentiment labels were added; old SQL column recording timestamps are unchanged.",
+    "Frozen legacy exports retain development semantics; strict v2 historical membership differs before this release.",
+    "No new collection, Kafka drain/offset verification, model inference or research performance measurement.",
+    "Dependencies/image are recorded, not a final locked experiment environment."
+  ],
+  "image_id": "sha256:5ed7cb0c5e2fca6e0ce24007aeedf599db9b69642b1eaa7c817342ef5c5dcfa4",
+  "test_verification": {
+    "cp1_local_focused": {
+      "tests": 50,
+      "result": "OK",
+      "evidence": "docs/checkpoint1-copy-verification-20261013.json"
+    },
+    "cp2_local_collection_boundary": {
+      "command": "python -m unittest tests.test_collection_sessions tests.test_collection_boundary",
+      "tests": 20,
+      "result": "OK",
+      "exit_code": 0,
+      "earlier_cp1_focused_tests": 50
+    },
+    "cp2_docker": {
+      "command": "docker compose --profile tools run --rm --no-deps research-tools -m unittest tests.test_eligibility tests.test_eligibility_releases tests.test_annotations tests.test_source_quality_review tests.test_research_pipeline tests.test_collection_sessions tests.test_collection_boundary",
+      "tests": 70,
+      "result": "OK",
+      "exit_code": 0,
+      "code_from_rebuilt_image": true
+    },
+    "image_build": {
+      "dependency_install_layer": "cached",
+      "current_code_copied": true
+    }
+  },
+  "process_state_after": {
+    "queried_between_utc": [
+      "2026-10-13 01:27:09 UTC",
+      "2026-10-13 01:27:14 UTC"
+    ],
+    "collectors_and_writer_stopped": true,
+    "processes": [
+      {
+        "name": "checkpoint2-gdelt-corrected-20261006",
+        "service": "worker-gdelt",
+        "state": "exited",
+        "status": "Exited (0) 6 days ago"
+      },
+      {
+        "name": "checkpoint2-gdelt-smoke-20261006",
+        "service": "worker-gdelt",
+        "state": "exited",
+        "status": "Exited (0) 6 days ago"
+      },
+      {
+        "name": "checkpoint2-rss-corrected-20261006",
+        "service": "worker-rss",
+        "state": "exited",
+        "status": "Exited (0) 6 days ago"
+      },
+      {
+        "name": "checkpoint2-rss-smoke-20261006",
+        "service": "worker-rss",
+        "state": "exited",
+        "status": "Exited (0) 6 days ago"
+      },
+      {
+        "name": "lakehouse-writer",
+        "service": "lakehouse-writer",
+        "state": "exited",
+        "status": "Exited (0) 6 days ago"
+      },
+      {
+        "name": "paper1-gdelt-session01-20261006",
+        "service": "worker-gdelt",
+        "state": "exited",
+        "status": "Exited (0) 6 days ago"
+      },
+      {
+        "name": "paper1-rss-session01-20261006",
+        "service": "worker-rss",
+        "state": "exited",
+        "status": "Exited (0) 6 days ago"
+      },
+      {
+        "name": "redis-cache",
+        "service": "redis",
+        "state": "running",
+        "status": "Up 57 minutes (healthy)"
+      },
+      {
+        "name": "redpanda-broker",
+        "service": "redpanda",
+        "state": "running",
+        "status": "Up 57 minutes (healthy)"
+      },
+      {
+        "name": "redpanda-console",
+        "service": "console",
+        "state": "running",
+        "status": "Up 57 minutes"
+      }
+    ]
+  }
+}

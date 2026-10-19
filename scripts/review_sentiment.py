@@ -26,6 +26,8 @@ def main():
     parser.add_argument('--limit', type=int, help='Prepare first N eligible versions in chronological order')
     parser.add_argument('--version-id', action='append', help='Explicit teaching subset; record its selection reason')
     parser.add_argument('--selection-reason', help='Disclose why an explicit teaching subset was chosen')
+    parser.add_argument('--allow-legacy-eligibility', action='store_true',
+                        help='Explicit development-only replay of archived v1 eligibility recording times')
     args = parser.parse_args()
     if args.annotator is not None:
         args.annotator = args.annotator.strip()
@@ -42,7 +44,11 @@ def main():
         if cutoff > datetime.now(timezone.utc):
             raise ValueError('Selection cutoff cannot be in the future')
     rows, _, dataset_hash, selection_hash = load_selection(
-        args.snapshot_dir, args.eligibility_selection, eligibility_cutoff=cutoff)
+        args.snapshot_dir, args.eligibility_selection, eligibility_cutoff=cutoff,
+        allow_legacy=args.allow_legacy_eligibility)
+    eligibility_report = json.loads((Path(args.eligibility_selection)/'selection.json').read_bytes())
+    eligibility_contract = 'legacy_precommit_v1' if eligibility_report['kind'].endswith('_v1') \
+        else eligibility_report['timing_contract']
     guide = load_guide(args.guide_file)
     context = {'dataset_sha256': dataset_hash, 'eligibility_selection_sha256': selection_hash,
                'guide_sha256': guide[0]}
@@ -62,6 +68,7 @@ def main():
         if not selected:
             raise ValueError('No included versions to prepare')
         template = {'kind': 'development_sentiment_template_v1', **context,
+            'eligibility_timing_contract': eligibility_contract,
             'prepared_at_utc': datetime.now(timezone.utc).isoformat(),
             'selection_reason': args.selection_reason if args.version_id else
                 'First eligible versions ordered by availability, observation and version ID; development only.',
@@ -84,6 +91,8 @@ def main():
         if template.get('kind') != 'development_sentiment_template_v1' or any(
                 template.get(key) != value for key, value in context.items()):
             raise ValueError('Review template belongs to a different snapshot, selection or guide')
+        if template.get('eligibility_timing_contract', 'legacy_precommit_v1') != eligibility_contract:
+            raise ValueError('Review template eligibility timing contract mismatch')
         by_id = {r['version_id']: r for r in rows}
         inputs = template['inputs']
         annotations = template['annotations']
@@ -111,6 +120,7 @@ def main():
                    'decisions.jsonl': ''.join(canonical_json(r)+'\n' for r in history).encode(),
                    'guide.md': guide[1].encode()}
         report = {'kind': 'development_sentiment_selection_v1', 'paper_ready': False, **context,
+            'eligibility_timing_contract': eligibility_contract,
             'annotator': args.annotator, 'cutoff': cutoff.isoformat(), 'eligible_versions_at_cutoff': len(rows),
             'selected_at_utc': datetime.now(timezone.utc).isoformat(),
             'counts': dict(Counter(r['status'] for r in selected)), 'versions': selected,

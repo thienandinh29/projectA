@@ -181,11 +181,12 @@ class TestAnnotations(unittest.TestCase):
                               'cutoff': (T+timedelta(hours=1)).isoformat()}).encode()
         (snapshot/'manifest.json').write_bytes(manifest)
         with patch('research.eligibility.datetime') as clock:
-            clock.now.return_value = T+timedelta(hours=1)
+            clock.now.side_effect = [T+timedelta(hours=1), T+timedelta(hours=1, seconds=1)]
             append_reviews(self.root/'eligibility.sqlite3', self.rows, dataset_hash, POLICY, 'human', [review(self.rows[0])])
         decisions = read_decisions(self.root/'eligibility.sqlite3', POLICY[0])
         history = (canonical_json(decisions[0])+'\n').encode()
-        report = {'kind': 'development_eligibility_selection_v1', 'input_dataset_sha256': dataset_hash,
+        report = {'kind': 'development_eligibility_selection_v2', 'timing_contract': 'post_content_commit_v2',
+            'input_dataset_sha256': dataset_hash,
             'input_manifest_sha256': hashlib.sha256(manifest).hexdigest(),
             'eligible_rows_sha256': dataset_hash, 'decision_history_sha256': hashlib.sha256(history).hexdigest(),
             'policy_sha256': POLICY[0], 'cutoff': (T+timedelta(hours=2)).isoformat(),

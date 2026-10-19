@@ -44,7 +44,7 @@ class TestEligibility(unittest.TestCase):
 
     def save(self, reviews, at=T+timedelta(hours=1)):
         with patch('research.eligibility.datetime') as clock:
-            clock.now.return_value = at
+            clock.now.side_effect = [at, at+timedelta(seconds=1)]
             return append_reviews(self.ledger, self.rows, 'snapshot-hash', POLICY, 'human-fixture', reviews)
 
     def history(self):
