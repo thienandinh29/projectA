@@ -6,6 +6,8 @@ Previous checklist: [docs/archive/TODAY-20261013.md](docs/archive/TODAY-20261013
 
 **Run on Monday, October 19, 2026** (the Oct 14 plan, unchanged in scope). Collection
 started 2026-10-19 09:16:25 UTC / 16:16:25 Bangkok on clean commit `a0b3d88`.
+**Outage:** Docker stopped after the last attempt at 2026-10-19 10:07 UTC; collection resumed
+2026-10-20 06:33 UTC (~20.4 h gap, unrecoverable). Ledger marks the old sessions interrupted.
 
 Time blocks are elapsed session time (~5 h), not appointments. Check a box only
 after its output exists. Today's rules (ROADMAP Part B): one closure note at
@@ -77,10 +79,15 @@ CP4 set, 3 of 9 Investing.com items have a URL slug that doesn't match the title
 | 6 | Nasdaq notches record high close as investors focus on earnings | wall-st-futures-dip-as-tech-stocks-take-a-breather |
 | 7 | Nasdaq hits record as dollar and Treasury yields climb, oil prices ease | stocks-upbeat-dollar-wobbles-as-fed-hike-bets-recede |
 
-- [ ] Open 2 of these URLs. Does Investing.com rewrite headlines under the same
+- [x] Open 2 of these URLs. Does Investing.com rewrite headlines under the same
       URL (live-updated stories), or is the feed mixing up items? If it's rewrites,
       **these are real same-article headline changes**, the positives the dedup
       work hasn't had yet. Note it for grouping; don't change identity rules today.
+      Finding (Oct 20): pages unreachable from this network (TLS dropped at 15 s, same as the
+      feed). From saved feed entries: #6/#7 look like live-updated Reuters market reports: oldest
+      article numbers, published after the US close, slug = the earlier pre-market headline.
+      #1 (Anthropic/ABC) is ambiguous: unrelated slug, re-published 3x with new times. Summaries
+      are empty and no pre-update version was captured: indirect evidence, not a recorded change.
 
 **Pin dependencies.**
 - [x] Build the image once, then freeze it (`requirements.lock`, 42 packages, `a0b3d88`):
