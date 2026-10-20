@@ -152,8 +152,11 @@ docker compose --profile tools run --rm --no-deps research-tools -m scripts.revi
 Use the exact snapshot and policy paths from
 `docs/checkpoint2-release-rollout-20261013.md`.
 
-- [ ] Pending = 0. Save the record command's printed JSON output as the only evidence file.
-- [ ] Target pace: ~1 min per headline. Use the headline only and the policy as written.
+- [x] Pending = 0. Save the record command's printed JSON output as the only evidence file.
+      Done Oct 20: 18 decisions by `project-owner`, released 07:23:56 UTC (`initial`);
+      evidence `eligibility-20261019/record-output.json`. Selection at cutoff 07:24:02 UTC:
+      **34 included / 5 excluded / 2 uncertain / 0 pending** (`eligibility-20261019/selection`).
+- [x] Target pace: ~1 min per headline. Use the headline only and the policy as written.
 
 ## CP4 — Sentiment labels for the new includes (45 min)
 
