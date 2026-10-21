@@ -188,8 +188,9 @@ docker compose --profile workers logs --since 3h worker-gdelt | Select-String "4
 docker compose --profile workers logs --since 3h lakehouse-writer | Select-String "batch_committed" | Measure-Object
 ```
 
-- [ ] Per source: attempts, successes, failures, max gap between attempts.
-- [ ] Note if any gap is > 30 min. If GDELT is still nearly all 429 after the
+- [x] Per source: attempts, successes, failures, max gap between attempts. Saved Oct 21:
+      `/app/data/research/health-20261021.json` (see `docs/session-20261014.md`).
+- [x] Note if any gap is > 30 min. If GDELT is still nearly all 429 after the
       fix, record that; the decision to drop it comes on Friday, not today.
 - [x] Optional if time is left: turn these three commands into
       `scripts/collection_health.py` (one JSON, < 30 s). It becomes the daily check.
@@ -198,13 +199,13 @@ docker compose --profile workers logs --since 3h lakehouse-writer | Select-Strin
 
 ## CP6 — Close (15 min)
 
-- [ ] Collectors and writer **still running** (`docker compose ps`). Do not stop them.
-- [ ] Write the closure note at `docs/session-20261014.md`, about 15 lines:
+- [x] Collectors and writer **still running** (`docker compose ps`). Do not stop them.
+- [x] Write the closure note at `docs/session-20261014.md`, about 15 lines:
       commit hash, collection start time, panel v2, Investing.com finding,
       eligibility counts, sentiment counts, health numbers, open problems.
-- [ ] Update the metrics table in ROADMAP.md Part B: collection hours, reviewed
+- [x] Update the metrics table in ROADMAP.md Part B: collection hours, reviewed
       headlines, labels.
-- [ ] Commit docs and code (not data).
+- [x] Commit docs and code (not data).
 
 ---
 

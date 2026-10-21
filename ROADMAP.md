@@ -69,14 +69,19 @@ work — it should not take weeks.
 6. **Feature freeze on infrastructure** (see Part D) until Paper 1 is submitted.
 7. **Weekly metrics** (Sunday, 10 minutes) — the only progress that counts:
 
-| Metric | Today (Oct 14) | Nov 1 | Nov 22 | Dec 31 |
-| --- | ---: | ---: | ---: | ---: |
-| Hours of prospective collection | ~2–3 | ≥ 300 | ≥ 800 | ≥ 1,700 |
-| Eligible headlines reviewed | 23 | 100 | 300 | final cohort |
-| Sentiment labels (primary annotator) | 14 | 100 | 300 | final cohort |
-| Second-annotator labels | 0 | 0 | ≥ 100 | ≥ 25% of final |
-| Frozen predictions | 0 | dev set | pilot | final cohort |
-| Reproducible result tables | 0 | 1 (dev) | 1 (pilot) | final |
+| Metric | Oct 14 | Oct 21 | Nov 1 | Nov 22 | Dec 31 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Hours of prospective collection | ~2–3 | ~9–10 ¹ | ≥ 300 | ≥ 800 | ≥ 1,700 |
+| Eligible headlines reviewed | 23 | 41 ² | 100 | 300 | final cohort |
+| Sentiment labels (primary annotator) | 14 | 26 ³ | 100 | 300 | final cohort |
+| Second-annotator labels | 0 | 0 | 0 | ≥ 100 | ≥ 25% of final |
+| Frozen predictions | 0 | 0 | dev set | pilot | final cohort |
+| Reproducible result tables | 0 | 0 | 1 (dev) | 1 (pilot) | final |
+
+¹ 6.8 h in four windows from Oct 19 09:16 to Oct 21 13:47 UTC (13% of 52.8 h): the PC is
+switched off between sessions. ≥ 300 h by Nov 1 needs the always-on server
+(`docs/cloud-collection-server.md`). ² All 41 snapshot versions decided: 34 included /
+5 excluded / 2 uncertain. ³ Plus 8 unresolved; 3 of the 16 Oct 21 judgments are assisted.
 
 ---
 
