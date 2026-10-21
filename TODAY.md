@@ -165,11 +165,17 @@ docker compose --profile tools run --rm --no-deps research-tools -m scripts.revi
 # fill labels -> record (--reviews, --annotator <YOU>) -> select (--cutoff <UTC_NOW>, --output ...)
 ```
 
-- [ ] Label every newly included version in **one** batch: positive / negative /
+- [x] Label every newly included version in **one** batch: positive / negative /
       neutral, or unresolved with a reason. Unresolved is not neutral.
-- [ ] **Label without assistance.** Write your label before asking anyone,
+      Done Oct 21: 16 versions (15 new includes + the Oct 13 BIS include) by `project-owner`,
+      released 08:37:22 UTC: 6 positive / 4 negative / 2 neutral / 4 unresolved. Selection at cutoff
+      08:37:22 UTC: **26 labeled / 8 unresolved** of 34 included (`sentiment-20261020/selection`).
+- [x] **Label without assistance.** Write your label before asking anyone,
       including an AI, so these labels can count as independent development data.
       Mark any label you changed after discussion as assisted.
+      3 of 16 marked assisted: #1 (the assistant's format example used this headline with
+      its eventual label) and #12/#13 (neutral+mixed rejected by the guide rule; changed to
+      unresolved after options were offered). 13 unassisted.
 - [ ] Revisit the 4 earlier unresolved items only if a guide rule now decides them.
 
 ## CP5 — First collection health check (30 min)
