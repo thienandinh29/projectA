@@ -1,0 +1,15 @@
+# Override for an internet-facing collection server (docs/cloud-collection-server.md).
+# Use with: docker compose -f docker-compose.yml -f docker-compose.server.yml ...
+#
+# Docker publishes ports past the host firewall, and Redis/Redpanda here have no
+# authentication. Services reach each other over the internal Compose network, so
+# nothing needs a public port. The console listens on the server's loopback only;
+# reach it through an SSH tunnel (ssh -L 8080:localhost:8080 ...).
+services:
+  redpanda:
+    ports: !reset []
+  console:
+    ports: !override
+      - "127.0.0.1:8080:8080"
+  redis:
+    ports: !reset []
