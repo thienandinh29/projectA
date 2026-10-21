@@ -25,6 +25,14 @@ generated evidence instead of hand-written JSON, review batches of up to 25.
 If the session is short, do CP0–CP2 only. **The server matters more than the model**:
 every day on the PC loses most of the day's data.
 
+## Before the session (10 min, the evening before)
+
+- [ ] Pick a VPS provider and region; create the account and add a payment method.
+- [ ] Make the SSH key now (guide step 2) and keep the printed public key ready:
+      `ssh-keygen -t ed25519 -C "paper1-collection"`, then `Get-Content $HOME\.ssh\id_ed25519.pub`.
+- [ ] Optional: run `"/c/Program Files/GitHub CLI/gh.exe" auth login` so CI can be checked without limits.
+- [ ] Keep the PC awake overnight if you can: every hour collected now still counts.
+
 ---
 
 ## CP0 — Quick start (15 min)
