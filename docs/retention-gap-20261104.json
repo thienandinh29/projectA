@@ -1,0 +1,75 @@
+{
+  "kind": "collection_retention_gap_evidence_v1",
+  "captured_at_utc": "2026-11-04T06:54:21Z",
+  "captured_before_writer_restart": true,
+  "summary": "Writer stopped 2026-10-26T03:07:45Z while collectors ran until 05:13Z. Seven-day broker retention deleted the unread messages while the PC was off.",
+  "cause_of_writer_stop": "Unknown. Exit 137 and no automatic restart under unless-stopped suggest a manual stop; not proven.",
+  "writer_container": {
+    "exit_code": 137,
+    "oom_killed": false,
+    "started_at": "2026-10-26T03:05:53.50239003Z",
+    "finished_at": "2026-10-26T03:07:45.101032278Z",
+    "restart_policy": "unless-stopped"
+  },
+  "lost_messages": {
+    "financial.research.observations": {
+      "writer_committed_next_offset": 42339,
+      "broker_log_start_offset": 50270,
+      "lost_offsets_first": 42339,
+      "lost_offsets_last": 50269,
+      "count": 7931
+    },
+    "financial.news.rss": {
+      "writer_committed_next_offset": 1234,
+      "broker_log_start_offset": 1243,
+      "lost_offsets_first": 1234,
+      "lost_offsets_last": 1242,
+      "count": 9
+    }
+  },
+  "stored_before_gap": {
+    "bronze_events_raw": {
+      "financial.research.observations": {
+        "min": 0,
+        "max": 42338,
+        "rows": 42339
+      },
+      "financial.news.rss": {
+        "min": 255,
+        "max": 1233,
+        "rows": 979
+      }
+    },
+    "research_observations_distinct_versions": 3593,
+    "transport_faults": 0,
+    "rejections": 0
+  },
+  "source_requests_in_gap_window": {
+    "from_utc": "2026-10-26T03:09:14Z",
+    "to_utc": "2026-10-26T05:13:44Z",
+    "requests": 297,
+    "success": 262,
+    "failed": 35,
+    "items_reported": 7954
+  },
+  "oldest_retained_observation": {
+    "offset": 50270,
+    "broker_timestamp_utc": "2026-11-04T06:48:47.318Z"
+  },
+  "retention_before_change": {
+    "retention.ms": 604800000
+  },
+  "consequences": [
+    "Distinct content in the lost range cannot be recovered or counted.",
+    "The delivery-completeness check from the 2026-09-28 baseline can no longer pass.",
+    "A new prospective baseline starts at the server migration."
+  ],
+  "raw_rpk_output": {
+    "financial.news.gdelt.txt": "PARTITION  LEADER  EPOCH  REPLICAS  LOG-START-OFFSET  HIGH-WATERMARK\n0          0       27     [0]       50                50\n",
+    "financial.news.rss.txt": "PARTITION  LEADER  EPOCH  REPLICAS  LOG-START-OFFSET  HIGH-WATERMARK\n0          0       27     [0]       1243              1425\n",
+    "financial.research.observations.txt": "PARTITION  LEADER  EPOCH  REPLICAS  LOG-START-OFFSET  HIGH-WATERMARK\n0          0       13     [0]       50270             50682\n",
+    "group.txt": "GROUP        lakehouse-writer-v1\nCOORDINATOR  0\nSTATE        Empty\nBALANCER     \nMEMBERS      0\nTOTAL-LAG    8534\n\nTOPIC                            PARTITION  CURRENT-OFFSET  LOG-START-OFFSET  LOG-END-OFFSET  LAG   MEMBER-ID  CLIENT-ID  HOST\nfinancial.news.rss               0          1234            1243              1425            191                         \nfinancial.research.observations  0          42339           50270             50682           8343                        \n",
+    "topics.txt": "NAME                             PARTITIONS  REPLICAS\n_schemas                         1           1\nfinancial.filings.sec            1           1\nfinancial.news.gdelt             1           1\nfinancial.news.rss               1           1\nfinancial.research.observations  1           1\n",
+    "writer_tail.txt": "2026-10-26 03:06:56,071 INFO lakehouse.db Inserted 1 new events into silver_financial_news\n2026-10-26 03:06:58,933 INFO __main__ {\"event\": \"batch_committed\", \"bronze_inserted\": 398, \"silver_inserted\": 146, \"replayed\": 0, \"rejected\": 0, \"transport_rejected\": 0, \"conflicts\": 0, \"enrichment\": 0, \"redelivered\": 0, \"research_inserted\": 202, \"batch_ms\": 14072.383895, \"committed_next_offsets\": [{\"topic\": \"financial.news.rss\", \"partition\": 0, \"offset\": 1234}, {\"topic\": \"financial.research.observations\", \"partition\": 0, \"offset\": 42339}], \"consumer_lag\": {\"financial.news.rss:0\": 0, \"financial.research.observations:0\": 0}, \"storage_delay_seconds_max\": 56.238621}\n2026-10-26 03:07:41,999 WARNING __main__ Discarded 0 unpersisted records on partition revocation\n"
+  }
+}

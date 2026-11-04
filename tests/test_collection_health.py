@@ -1,7 +1,7 @@
 """Collection health: per-feed attempts, gaps and failures from session evidence."""
 import unittest
 
-from scripts.collection_health import build_health
+from scripts.collection_health import assess_broker, build_health
 
 
 def request(n, topic, minute, outcome='success', status=200, feed=None, items=3):
@@ -51,6 +51,49 @@ class TestCollectionHealth(unittest.TestCase):
         self.assertEqual(report['sources']['rss | A']['attempts'], 1)
         self.assertEqual(report['problems'], [])
         self.assertEqual([s['run_id'] for s in report['unfinished_sessions']], ['run'])
+
+
+class TestBrokerHealth(unittest.TestCase):
+    NOW = '2026-11-04T06:00:00+00:00'
+    NOW_SECONDS = 1793772000
+    DAY_MS = 86400000
+
+    def ms_ago(self, hours):
+        return (self.NOW_SECONDS - hours * 3600) * 1000
+
+    def state(self, members=1, **partition):
+        values = {'committed': 100, 'log_start': 0, 'high': 100, 'retention_ms': 7 * self.DAY_MS,
+                  'oldest_unread_ms': None}
+        values.update(partition)
+        return {'writer_members': members, 'partitions': {'obs:0': values}}
+
+    def test_healthy_writer_has_no_problems(self):
+        self.assertEqual(assess_broker(self.state(), self.NOW), [])
+
+    def test_stopped_writer_is_flagged_even_with_no_backlog(self):
+        self.assertEqual(assess_broker(self.state(members=0), self.NOW),
+                         ['writer not running: consumer group has no members'])
+
+    def test_retention_passing_the_commit_counts_lost_messages(self):
+        # The 2026-10-26 incident: commit 42339, retained log starts at 50270.
+        problems = assess_broker(self.state(members=0, committed=42339, log_start=50270, high=50501,
+                                            oldest_unread_ms=self.ms_ago(1)), self.NOW)
+        self.assertIn('obs:0: 7931 unread messages already deleted by retention', problems)
+
+    def test_backlog_warns_only_past_half_of_retention(self):
+        young = self.state(committed=100, high=150, oldest_unread_ms=self.ms_ago(83))
+        old = self.state(committed=100, high=150, oldest_unread_ms=self.ms_ago(85))
+        self.assertEqual(assess_broker(young, self.NOW), [])
+        self.assertEqual(assess_broker(old, self.NOW),
+                         ['obs:0: oldest unread message is 85.0 h old; retention deletes it at 168 h'])
+
+    def test_unreachable_broker_is_a_problem_not_a_crash(self):
+        self.assertEqual(assess_broker({'error': 'timeout'}, self.NOW), ['broker unavailable: timeout'])
+
+    def test_broker_problems_appear_in_the_report(self):
+        report = build_health({'sessions': [], 'requests': []}, '2026-11-04T00:00:00+00:00', self.NOW,
+                              broker=self.state(members=0))
+        self.assertEqual(report['problems'], ['writer not running: consumer group has no members'])
 
 
 if __name__ == '__main__':

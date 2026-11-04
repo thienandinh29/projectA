@@ -146,6 +146,13 @@ BBC Business, NYT Business and Seeking Alpha Market Currents added. CNBC, Market
 and Investing.com unchanged (Investing.com's TLS connection drops at 15 s from this
 host; failures stay recorded). Sessions before this date used panel v1.
 
+Retention gap, recorded 2026-11-04 (`docs/retention-gap-20261104.json`): the writer stopped
+2026-10-26 03:07:45 UTC while collectors ran until 05:13 UTC, and seven-day broker retention
+deleted 7,931 observation and 9 RSS messages before they were stored. Their content cannot be
+recovered, so completeness from the 2026-09-28 baseline can no longer pass. The writer restarted
+2026-11-04 06:55 UTC and resumed from the retained log start. Topic retention is now 30 days.
+A new prospective baseline starts at the server migration; earlier data is development only.
+
 Session termination appends a normal or failed event. A killed process leaves an
 unfinished session/request. A subsequent worker holding the same exclusive topic
 lock appends interruption detection; this never invents its actual stop time.

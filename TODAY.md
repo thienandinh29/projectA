@@ -43,7 +43,11 @@ docker compose --profile workers ps
 docker compose --profile tools run --rm --no-deps research-tools -m scripts.collection_health --hours 24
 ```
 
-- [ ] Note whether the PC stack is running and the last attempt time (start of today's gap).
+- [x] Note whether the PC stack is running and the last attempt time (start of today's gap).
+      Done 2026-11-04: 13.2 of 381.9 h collected since Oct 19. Writer found stopped since
+      Oct 26; retention deleted 7,931 observation and 9 RSS messages
+      (`docs/retention-gap-20261104.json`). Writer restarted 06:55 UTC; retention now 30 days.
+      Decided: new baseline at the server move, which needs a new capture script (not written).
 
 ## CP1 — Create the server and test the sources (45 min)
 

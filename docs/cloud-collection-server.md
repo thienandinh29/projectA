@@ -4,11 +4,13 @@ Why: from 2026-10-19 to 2026-10-21 the PC collected under 5 of ~47 hours, in gap
 21–22 h whenever it was switched off. A prospective study needs continuous collection.
 
 This guide **moves the existing stack**: all three Docker volumes go to the server, so
-the database, the collection ledgers and the Kafka offsets that define the prospective
-boundary (`docs/collection-baseline-20260928T084655Z.json`) continue unchanged. The
-move creates one disclosed collection gap. Starting a fresh broker or database on the
-server instead would invalidate the baseline and begin a new cohort. Don't do that
-without deciding it as a protocol change.
+the database, the collection ledgers and the Kafka offsets carry over. The 2026-09-28
+baseline can no longer certify completeness because retention deleted unread messages
+(`docs/retention-gap-20261104.json`). **The migration therefore starts a new prospective
+baseline**; earlier data stays available as development material.
+
+**Before migrating, a new-baseline capture script is required.** None exists yet; the old
+baseline file was captured once and `scripts/drain_delivery.py` only validates one.
 
 Local commands are PowerShell, run in the main project folder. Server commands are bash.
 `SERVER` means the server's IP address.
@@ -91,6 +93,9 @@ dc create redpanda redis      # creates the Compose volumes empty; starts nothin
 This is the protocol's normal stop: collectors first, drain with the writer still
 running, and stop the writer only after the drain succeeds. Write down the time of the
 collector stop (UTC); it is the start of the migration gap.
+
+The drain below validates against the baseline it is given. It **fails against the 2026-09-28
+file** because of the retention gap, so run it with the new baseline once that script exists.
 
 ```powershell
 docker compose --profile workers stop worker-rss worker-gdelt worker-sec

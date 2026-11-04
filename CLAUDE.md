@@ -11,6 +11,9 @@ Plan and gates: ROADMAP.md. Daily checklist: TODAY.md.
 - Never backdate. Availability timestamps are sampled after content commits.
 - Frozen, hashed files must keep exact bytes: docs/headline-eligibility-dev-v1.md,
   docs/sentiment-annotation-dev-v1*.md, docs/*.json (see .gitattributes).
+- Never leave the writer stopped while collectors run: broker retention deletes unread
+  messages (lost 7,931 on 2026-10-26, `docs/retention-gap-20261104.json`). Use the protocol
+  stop order (collectors, drain, writer) and restart afterwards.
 - Do not start, stop or restart collectors/writer (docker compose) or touch the
   `ingestion-data` volume without the user's explicit go-ahead: it changes the
   prospective research record.
@@ -31,7 +34,8 @@ Plan and gates: ROADMAP.md. Daily checklist: TODAY.md.
 - Planned move of collection to a cloud server: docs/cloud-collection-server.md. On the
   server, always add `-f docker-compose.server.yml` (no public ports). Never run collectors
   on two hosts at once.
-- Daily collection check: `docker compose --profile tools run --rm --no-deps
+- Daily collection check (ledger and broker: writer down, retention gaps, old backlog):
+  `docker compose --profile tools run --rm --no-deps
   research-tools -m scripts.collection_health --hours 24` (ledger only, read-only).
 - Local test runs are slow (~35 min for the full suite; embedding tests dominate).
   Prefer focused runs, e.g.
