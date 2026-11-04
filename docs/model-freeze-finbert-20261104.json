@@ -1,0 +1,59 @@
+{
+  "kind": "frozen_model_v1",
+  "repository": "ProsusAI/finbert",
+  "revision": "0bc2ac10dda6929bcb1f77ccc43c7ec5c424f031",
+  "revision_last_modified": "2026-10-12T09:04:17.000Z",
+  "license": "cc-by-nc-sa-4.0",
+  "frozen_at_utc": "2026-11-04T07:17:37.112871+00:00",
+  "tool_revision": "fb6ad4b4a651f4ccd8a43c062578cdaa73ce366b",
+  "files": {
+    "README.md": {
+      "size": 4590,
+      "sha256": "32d38310f6343e42bb827b47b8342babf6173cfb47f4d28b8b557b4d92f80cb1",
+      "git_blob_sha1": "001b655adf73ad7308d1743d0616d85793a64fdb"
+    },
+    "config.json": {
+      "size": 758,
+      "sha256": "f6449ddda85eb726207a40be59c0cd3bd4b142ccb27298d5e45f9ae3396b1abe",
+      "git_blob_sha1": "e3d6323dc93e170f3eef66cebb32dbaf4589aee0"
+    },
+    "model.safetensors": {
+      "size": 437965908,
+      "sha256": "e5897858ff819aad7629b96ce521ae5477952d03634ef5dd30ed2d76357a9f00",
+      "lfs_sha256": "e5897858ff819aad7629b96ce521ae5477952d03634ef5dd30ed2d76357a9f00"
+    },
+    "special_tokens_map.json": {
+      "size": 112,
+      "sha256": "303df45a03609e4ead04bc3dc1536d0ab19b5358db685b6f3da123d05ec200e3",
+      "git_blob_sha1": "e7b0375001f109a6b8873d756ad4f7bbb15fbaa5"
+    },
+    "tokenizer_config.json": {
+      "size": 252,
+      "sha256": "ffc7913f6084b138dad68de5a0c2f0ee25ac983709260901e01f53be5796b9d9",
+      "git_blob_sha1": "cd79adc84d3c96daa03456853766c63141aef734"
+    },
+    "vocab.txt": {
+      "size": 231508,
+      "sha256": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3",
+      "git_blob_sha1": "fb140275c155a9c7c5a3b3e0e77a9e839594a938"
+    }
+  },
+  "label_map": {
+    "0": "positive",
+    "1": "negative",
+    "2": "neutral"
+  },
+  "architecture": [
+    "BertForSequenceClassification"
+  ],
+  "tokenizer": {
+    "do_lower_case": true,
+    "model_max_length": 512,
+    "name_or_path": "bert-base-uncased"
+  },
+  "tensor_count": 202,
+  "classifier_weight_shape": [
+    3,
+    768
+  ]
+}

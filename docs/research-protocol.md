@@ -59,6 +59,40 @@ copy; CP2 passed Docker checks and applied live confirmations at
 `2026-10-13T01:26:25.835474+00:00`. Frozen policy/guide bytes remain unchanged.
 Current selection paths and cutoff are in `checkpoint2-release-rollout-20261013.md`.
 
+## Frozen model artifact
+
+Frozen 2026-11-04 by `scripts/freeze_model.py`; the record is
+`model-freeze-finbert-20261104.json`, holding every file's size and SHA-256. Each
+download was checked against the hub's own hash before publishing. Check the bytes at
+any time with `-m scripts.freeze_model --revision <sha> --verify <manifest>`.
+
+- **Model:** `ProsusAI/finbert`, the plan's default. No reason was found to choose
+  another: it is a published financial sentiment model with public weights and
+  documented training data, and it does not depend on this study's data.
+- **Revision:** `0bc2ac10dda6929bcb1f77ccc43c7ec5c424f031` (2026-10-12), not `main`.
+- **Stored at:** `/app/data/models/ProsusAI__finbert@0bc2ac10dda6929bcb1f77ccc43c7ec5c424f031/`
+  in the data volume, with the manifest beside the directory.
+- **Weights:** `model.safetensors`, SHA-256
+  `e5897858ff819aad7629b96ce521ae5477952d03634ef5dd30ed2d76357a9f00`, chosen so that
+  loading runs no pickle code. The file was added at the pinned commit's parent. The
+  hub's hashes for `pytorch_model.bin`, `config.json`, `vocab.txt` and both tokenizer
+  files are the same at this revision and at `4556d13015211d73dccd3fdd39d39232506f3e43`
+  (2023), so the October 2026 commits changed no existing weight or tokenizer file.
+  **Not yet checked:** that the safetensors tensors equal those in `pytorch_model.bin`.
+- **Label map, read from `config.json`:** `0` positive, `1` negative, `2` neutral. The
+  classifier weight has shape `[3, 768]`, which matches.
+- **Tokenizer:** the `vocab.txt` and `tokenizer_config.json` files above; lower-casing
+  on, maximum length 512, derived from `bert-base-uncased`.
+- **Training data, per the model card:** fine-tuned on Financial PhraseBank (Malo et al.
+  2014, CC BY-NC-SA 3.0); the underlying language model was further pre-trained on a
+  subset of Reuters TRC2. Described by Araci (2019), arXiv:1908.10063.
+- **License:** CC BY-NC-SA 4.0 (non-commercial, share-alike). The model card leaves
+  compliance to the user.
+
+For the paper: the 2026 headlines post-date the model's training data, so results
+measure a fixed older model on later news and are exposed to vocabulary and topic
+drift. Sources in this study may also differ in style from PhraseBank's sentences.
+
 ## First-time database procedure
 
 Set the code identity before building or running collection containers:

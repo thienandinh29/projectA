@@ -76,12 +76,14 @@ Guide steps 5–8. Follow the protocol stop order exactly: collectors → saved 
 
 Roadmap Phase 1, first item. Record in `docs/research-protocol.md` (not a new doc).
 
-- [ ] Model: `ProsusAI/finbert` unless there's a reason to choose another; write the reason.
-- [ ] Pin the exact Hugging Face **revision SHA** (not `main`); store the downloaded files in
+- [x] Model: `ProsusAI/finbert` unless there's a reason to choose another; write the reason.
+- [x] Pin the exact Hugging Face **revision SHA** (not `main`); store the downloaded files in
       the data volume (`/app/data/models/<model>@<sha>/`) and record each file's SHA-256.
-- [ ] Record the tokenizer, the label mapping (index → positive/negative/neutral, read from
+- [x] Record the tokenizer, the label mapping (index → positive/negative/neutral, read from
       the model config, not assumed) and the training-data provenance (Financial PhraseBank).
-- [ ] Note for the paper: the 2026 headlines post-date the model's training data.
+- [x] Note for the paper: the 2026 headlines post-date the model's training data.
+      Done 2026-11-04: revision `0bc2ac10`, `docs/model-freeze-finbert-20261104.json`. For CP4:
+      the lock file has no torch or transformers, and safetensors = `.bin` is still unchecked.
 
 ## CP4 — Label-blind predictions (75 min)
 
