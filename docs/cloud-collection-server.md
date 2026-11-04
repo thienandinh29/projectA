@@ -9,8 +9,9 @@ baseline can no longer certify completeness because retention deleted unread mes
 (`docs/retention-gap-20261104.json`). **The migration therefore starts a new prospective
 baseline**; earlier data stays available as development material.
 
-**Before migrating, a new-baseline capture script is required.** None exists yet; the old
-baseline file was captured once and `scripts/drain_delivery.py` only validates one.
+`scripts/capture_baseline.py` writes the new baseline in step 7. It refuses to write unless
+collectors and the writer are stopped, the outbox is empty, every retained message is
+committed, the database is sealed, and the code is a recorded clean commit.
 
 Local commands are PowerShell, run in the main project folder. Server commands are bash.
 `SERVER` means the server's IP address.
@@ -90,18 +91,16 @@ dc create redpanda redis      # creates the Compose volumes empty; starts nothin
 
 ## 6. Stop and package the PC's data (local)
 
-This is the protocol's normal stop: collectors first, drain with the writer still
-running, and stop the writer only after the drain succeeds. Write down the time of the
-collector stop (UTC); it is the start of the migration gap.
-
-The drain below validates against the baseline it is given. It **fails against the 2026-09-28
-file** because of the retention gap, so run it with the new baseline once that script exists.
+Stop collectors first and let the writer finish; stop the writer only after nothing is left to
+read. Write down the time of the collector stop (UTC); it is the start of the migration gap.
+The old `drain_delivery` step is not used here: it fails against the 2026-09-28 baseline because
+of the retention gap. Step 7's capture makes the same checks and refuses if anything is unread.
 
 ```powershell
 docker compose --profile workers stop worker-rss worker-gdelt worker-sec
 if ($LASTEXITCODE -ne 0) { throw 'Collector stop failed' }
-docker compose --profile tools run --rm --no-deps research-tools -m scripts.drain_delivery --timeout 120 --baseline-path /app/docs/collection-baseline-20260928T084655Z.json --output /app/data/research/migration-drain-20261021.json
-if ($LASTEXITCODE -ne 0) { throw 'Drain failed: keep the writer running and investigate' }
+# Repeat until every partition shows "unread": 0; never stop the writer before that.
+docker compose --profile tools run --rm --no-deps research-tools -m scripts.collection_health --hours 1
 docker compose --profile workers stop lakehouse-writer
 docker compose stop console redpanda redis
 
@@ -131,7 +130,27 @@ export COLLECTION_CODE_REVISION=$(git rev-parse HEAD)
 export COLLECTION_WORKTREE_STATE=$( [ -z "$(git status --porcelain)" ] && echo clean || echo dirty )
 echo "$COLLECTION_CODE_REVISION $COLLECTION_WORKTREE_STATE"    # must say clean
 dc --profile workers --profile tools build lakehouse-writer worker-rss worker-gdelt research-tools
-dc up -d redpanda redis console
+dc up -d redpanda redis console     # broker only: writer and collectors stay stopped
+
+# Must print "ready": true. If it lists blockers, fix them; never work around them.
+dc --profile tools run --rm --no-deps research-tools -m scripts.capture_baseline --check
+B=collection-baseline-$(date -u +%Y%m%dT%H%M%SZ).json
+dc --profile tools run --rm --no-deps research-tools -m scripts.capture_baseline --output /app/data/research/$B --activate --reason "Oct 26 retention gap; server migration"
+dc --profile tools run -T --rm --no-deps --entrypoint cat research-tools /app/data/research/$B > ~/$B
+```
+
+If the check reports pending outbox messages, start the collectors for one cycle so they
+deliver them, stop them, let the writer catch up, stop it, and check again.
+
+The baseline must be in the repo before collection starts, so the running code can read it.
+On the PC: `scp paper1@SERVER:~/<B> docs/`, point `COLLECTION_BASELINE_PATH` in
+`docker-compose.yml` at it, commit and push. Then on the server:
+
+```bash
+cd ~/financial-ingestion-pipeline && git pull
+export COLLECTION_CODE_REVISION=$(git rev-parse HEAD)
+export COLLECTION_WORKTREE_STATE=$( [ -z "$(git status --porcelain)" ] && echo clean || echo dirty )
+dc --profile workers --profile tools build lakehouse-writer worker-rss worker-gdelt research-tools
 dc --profile workers up -d lakehouse-writer worker-rss worker-gdelt
 date -u                       # end of the migration gap
 ```
@@ -151,7 +170,7 @@ reset offsets.
 
 Add one dated line to `docs/research-protocol.md`, next to the panel v2 entry: collector
 stop time and server start time (the gap), server provider/region, the commit, and the
-drain report path. Commit and push it from the PC.
+new baseline file. Commit and push it from the PC.
 `RESEARCH_DATABASE_ID` stays the same because the volume and its contents are the same;
 the protocol line discloses the host change.
 
