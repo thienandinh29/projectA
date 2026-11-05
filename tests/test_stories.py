@@ -28,6 +28,14 @@ def _audit(event, args):
 sys.addaudithook(_audit)
 
 
+def later_than_now():
+    """Waits out coarse clocks, so anything released so far is strictly before the result."""
+    start = datetime.now(timezone.utc)
+    while datetime.now(timezone.utc) <= start:
+        pass
+    return datetime.now(timezone.utc)
+
+
 def row(title, article_id, seconds):
     observed = T + timedelta(seconds=seconds)
     obs = make_observation(source='RSS', article_id=article_id, title=title, url=f'https://www.example.test/{article_id}',
@@ -190,8 +198,8 @@ class TestLedger(Case):
         self.assertEqual(chosen['review_id'], first)
 
     def test_anchor_is_the_first_available_member_not_the_first_listed(self):
-        chosen = stories.select_as_of(self.ledger, self.cohort, self.eligible_sha256, datetime.now(timezone.utc) + timedelta(days=1)) \
-            if self.append() else None
+        self.append()
+        chosen = stories.select_as_of(self.ledger, self.cohort, self.eligible_sha256, datetime.now(timezone.utc) + timedelta(days=1))
         story = next(s for s in chosen['stories'] if s['kind'] == 'multi')
         self.assertEqual(story['anchor_version_id'], self.cohort[0]['version_id'])
 
@@ -221,10 +229,7 @@ class TestCommandLine(Case):
         self.run_cli('prepare', '--worksheet-dir', str(self.worksheet))
         self.record()
         output = self.root / 'selected'
-        self.run_cli('select', '--cutoff', (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(), '--output', str(output)) \
-            if False else None
-        cutoff = datetime.now(timezone.utc).isoformat()
-        self.run_cli('select', '--cutoff', cutoff, '--output', str(output))
+        self.run_cli('select', '--cutoff', later_than_now().isoformat(), '--output', str(output))
         report = json.loads((output / 'story-groups.json').read_text(encoding='utf-8'))
         self.assertEqual(report['counts'], {'multi_headline_stories': 1, 'reviewed_alone': 2, 'versions_in_stories': 4, 'uncertain_versions': 0})
         self.assertFalse(report['paper_ready'])
@@ -260,7 +265,7 @@ class TestBlindness(Case):
         AUDIT['paths'] = []
         try:
             for call in calls:
-                argv = ['x', *[datetime.now(timezone.utc).isoformat() if part is None else part for part in call]]
+                argv = ['x', *[later_than_now().isoformat() if part is None else part for part in call]]
                 with unittest.mock.patch('sys.argv', argv), unittest.mock.patch('builtins.print'), unittest.mock.patch.dict(
                         os.environ, {'COLLECTION_CODE_REVISION': 'abc', 'COLLECTION_WORKTREE_STATE': 'clean'}):
                     review_stories.main()
