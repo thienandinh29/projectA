@@ -1,135 +1,102 @@
-# Work session — next session (from Thursday, October 22, 2026)
+# Work plan — CV version, then pause (from November 5, 2026)
 
-Goal: **collection runs 24/7 on a server, and Phase 1 starts with a frozen model
-and label-blind predictions.** Roadmap: finish Phase 0 (its 72 h exit gate needs the
-server), begin Phase 1 in [ROADMAP.md](ROADMAP.md).
-Previous checklist: [docs/archive/TODAY-20261021.md](docs/archive/TODAY-20261021.md);
-its closure: [docs/session-20261014.md](docs/session-20261014.md).
+Goal: **one reproducible pilot result and a project an outsider can understand in five
+minutes, then a clean stop until after December 20.** Decided by the user on 2026-11-05.
+Previous checklist: [docs/archive/TODAY-20261104.md](docs/archive/TODAY-20261104.md).
+Roadmap: this finishes Phase 1 and the portfolio track in [ROADMAP.md](ROADMAP.md).
 
-Time blocks are elapsed session time (~5 h), not appointments. Check a box only
-after its output exists. Part B rules apply: one doc per session (the closure note),
-generated evidence instead of hand-written JSON, review batches of up to 25.
+About 2–3 sessions. Check a box only after its output exists. The order matters: your
+judgments come before anyone sees a prediction.
 
-| Elapsed | Checkpoint | Done when |
-| --- | --- | --- |
-| 00:00–00:15 | CP0 Quick start | Stack state and last health numbers known |
-| 00:15–01:00 | CP1 Create server + test sources | Server ready; Investing.com/GDELT results from it saved |
-| 01:00–02:00 | CP2 Migrate collection | Collectors running on the server; PC stack stopped |
-| 02:00–02:15 | Break | — |
-| 02:15–03:00 | CP3 Freeze the model artifact | Model, revision SHA, file hashes, label map recorded |
-| 03:00–04:15 | CP4 `scripts/predict_frozen.py` | Tested; predictions for the 41-version snapshot stored |
-| 04:15–04:30 | Break | — |
-| 04:30–04:45 | CP5 Source decisions | GDELT and Investing.com kept or dropped, with evidence |
-| 04:45–05:00 | CP6 Close | Closure note, metrics, commit |
+| Step | Work | Whose | Done when |
+| --- | --- | --- | --- |
+| CP1 | Close open labels (optional) | You | Decided or left unresolved, before predictions exist |
+| CP2 | Story grouping | Tool, then you | Groups for the included headlines in an append-only ledger |
+| CP3 | Run predictions | Your go-ahead | 41 versions stored; printed summary saved |
+| CP4 | `scripts/score.py` | Tool, your go-ahead to run | Pilot table for conditions A, B and C |
+| CP5 | One-command table | Tool | Same table byte-for-byte twice from saved inputs |
+| CP6 | README and demo | Tool, your review | Short landing page; demo runs without live feeds |
+| CP7 | Clean stop and tag | Your go-ahead | Stack stopped in protocol order; volumes backed up; tag pushed |
 
-If the session is short, do CP0–CP2 only. **The server matters more than the model**:
-every day on the PC loses most of the day's data.
+## CP1 — Close open labels (optional, 15 min)
 
-## Before the session (10 min, the evening before)
+Must happen before CP3: once predictions exist, you could no longer review blind to them.
 
-- [ ] Pick a VPS provider and region; create the account and add a payment method.
-- [ ] Make the SSH key now (guide step 2) and keep the printed public key ready:
-      `ssh-keygen -t ed25519 -C "paper1-collection"`, then `Get-Content $HOME\.ssh\id_ed25519.pub`.
-- [ ] Optional: run `"/c/Program Files/GitHub CLI/gh.exe" auth login` so CI can be checked without limits.
-- [ ] Keep the PC awake overnight if you can: every hour collected now still counts.
+- [ ] Revisit the 4 earlier unresolved labels, or leave them unresolved. Unresolved is not
+      neutral and is counted separately.
 
----
+## CP2 — Story grouping (tool 1 session; your review about 30 min)
 
-## CP0 — Quick start (15 min)
+Conditions B and C need reviewed stories. None exist yet, and reference clusters must not be
+presented as verified stories (`docs/research-counting-draft-v1.md`, section 6).
 
-```powershell
-git pull
-docker compose --profile workers ps
-docker compose --profile tools run --rm --no-deps research-tools -m scripts.collection_health --hours 24
-```
+- [ ] Tool: worksheet of the included headlines plus an append-only grouping ledger. It shows
+      no sentiment labels or predictions.
+- [ ] You: assign the groups. Mark unclear relations as uncertain; they stay visible and don't
+      silently become single-headline stories.
 
-- [x] Note whether the PC stack is running and the last attempt time (start of today's gap).
-      Done 2026-11-04: 13.2 of 381.9 h collected since Oct 19. Writer found stopped since
-      Oct 26; retention deleted 7,931 observation and 9 RSS messages
-      (`docs/retention-gap-20261104.json`). Writer restarted 06:55 UTC; retention now 30 days.
-      Decided: new baseline at the server move, using `scripts/capture_baseline.py`.
+## CP3 — Run predictions (10 min)
 
-## CP1 — Create the server and test the sources (45 min)
+From the main folder, on a clean pushed commit. The commands are in
+`docs/research-protocol.md` under "Predictions". The first build takes about 12 minutes. Docker
+has only about 4 GB of memory and went down during a Nov 4 image rebuild (cause unknown), so
+check the stack after building.
 
-Follow [docs/cloud-collection-server.md](docs/cloud-collection-server.md) steps 1–4.
-
-- [ ] Server created: Ubuntu 24.04, 2 vCPU / 4 GB / 40 GB, SSH-key login. Note provider + region.
-- [ ] Step 3 source test run **before anything else**. Paste the output into the closure note.
-      If Investing.com still fails, try one other region before continuing.
-- [ ] Step 4 done: `paper1` user, ufw (SSH only), UTC + NTP synchronized, swap, Docker.
-
-## CP2 — Migrate collection (60 min)
-
-Guide steps 5–8. Follow the protocol stop order exactly: collectors → saved drain
-(exit 0) → writer.
-
-- [ ] Server: repo in `~/financial-ingestion-pipeline`, `dc` alias, volumes created.
-- [ ] PC: drain report `migration-drain-*.json` saved; the three volume archives' SHA-256 noted.
-- [ ] Server: hashes match; restored; `COLLECTION_WORKTREE_STATE=clean`; stack up with
-      `docker-compose.server.yml`; old sessions show as interrupted; writer shows `batch_committed`.
-- [ ] One dated line in `docs/research-protocol.md`: gap start/end (UTC), provider/region,
-      commit, drain report path.
-- [ ] **PC collectors stay stopped from now on.** Turn off Docker autostart on the PC if it
-      is on, so the old stack can't come back by accident.
-
-## CP3 — Freeze the model artifact (45 min)
-
-Roadmap Phase 1, first item. Record in `docs/research-protocol.md` (not a new doc).
-
-- [x] Model: `ProsusAI/finbert` unless there's a reason to choose another; write the reason.
-- [x] Pin the exact Hugging Face **revision SHA** (not `main`); store the downloaded files in
-      the data volume (`/app/data/models/<model>@<sha>/`) and record each file's SHA-256.
-- [x] Record the tokenizer, the label mapping (index → positive/negative/neutral, read from
-      the model config, not assumed) and the training-data provenance (Financial PhraseBank).
-- [x] Note for the paper: the 2026 headlines post-date the model's training data.
-      Done 2026-11-04: revision `0bc2ac10`, `docs/model-freeze-finbert-20261104.json`.
-      Safetensors and `.bin` compared: all 202 tensors identical.
-
-## CP4 — Label-blind predictions (75 min)
-
-`scripts/predict_frozen.py`: CPU inference over a frozen snapshot.
-
-- [x] Append-only predictions table keyed by content hash + model revision, with logits,
-      probabilities, predicted class and prediction time. Re-running never rewrites a row.
-- [x] **Label-blind:** the script must not open the annotation ledger or selections.
-      A test enforces it.
-- [x] Tests: immutability, label-blind isolation, identical output on a re-run, and a
-      wrong model hash being rejected.
+- [ ] Build `research-inference`; `--check` prints `"ready": true`.
 - [ ] Run on `session01-20261006-snapshot` (all 41 versions; scoring filters later).
-      Save the run's printed summary as the evidence.
+- [ ] Save the printed summary as the evidence. Run once more: `inserted` 0, nothing mismatched.
 
-## CP5 — Source decisions (15 min; Friday's decision)
+## CP4 — `scripts/score.py` (1 session)
 
-Use the server's step 3 test plus its first hours of the health check.
+- [ ] Conditions A, B and C from the counting draft, sharing one set of frozen predictions.
+- [ ] Macro-F1 and per-class precision/recall/F1 from weighted confusion matrices, with a
+      bootstrap interval over story groups.
+- [ ] Report counts for unresolved, excluded, assisted and ungrouped items.
+- [ ] Tests: hand-computed toy example (`v1,v2,v3` weights `1,1,1`, `1/3,1/3,1/3`, `1,0,0`);
+      unresolved is never scored as neutral.
+- [ ] Run on the development labels. **The table is labeled pilot:** 26 labels show that the
+      method works, not a finding about the model.
 
-- [ ] GDELT DOC: keep if the server gets any successes; otherwise drop it from the panel
-      and record that GKG stays audit-only. Record either way in the protocol.
-- [ ] Investing.com: roadmap rule: drop if < 80% success **on the server**.
-- [ ] A panel change counts as a new configuration: protocol line + collector restart on the server.
+## CP5 — One-command table (30 min)
 
-## CP6 — Close (15 min)
+- [ ] One command regenerates the table from snapshot, selection, grouping, predictions and manifest.
+- [ ] Run twice; the files are byte-identical. This is the Phase 1 exit gate.
 
-- [ ] Server health: `dc --profile tools run --rm --no-deps research-tools -m scripts.collection_health --hours 24`.
-- [ ] Closure note `docs/session-<date>.md` (about 15 lines): server provider/region, migration
-      gap, source test results, model + revision SHA, prediction counts, open problems.
-- [ ] ROADMAP Part B metrics: new date column.
-- [ ] Commit and push docs and code (not data).
+## CP6 — README and demo (1 session)
+
+- [ ] Landing page: the question, the pipeline diagram, the pilot table, how to run it, and
+      limits. Move the infrastructure details to `docs/infrastructure.md`.
+- [ ] Move `changes.txt` to `docs/archive/` only after checking what refers to it.
+- [ ] Small demo on invented headlines that needs no live feeds.
+- [ ] Say plainly what is not done: a research prototype and pilot, not a finished study.
+- [ ] Optional: blog post on why no cosine threshold separates rewrites from different events.
+
+## CP7 — Clean stop and tag (30 min)
+
+Stopping changes the research record, so it runs only on your go-ahead.
+
+- [ ] `docker compose --profile workers stop worker-rss worker-gdelt worker-sec`
+- [ ] Health check until every partition shows `"unread": 0`, then stop `lakehouse-writer`.
+      Rebuild `research-tools` first: the PC image predates the broker check.
+- [ ] Back up the three Docker volumes outside the PC and note their SHA-256. This PC holds
+      the only copy.
+- [ ] Closure note `docs/session-<date>.md`: final numbers, gaps, and how to resume.
+- [ ] ROADMAP Part B metrics: new date column. Commit, push and tag the release.
+- [ ] Check that CI passed on the tagged commit.
 
 ---
 
 ## Completion boundary
 
-The session is a success if **collection runs on the server from a clean commit** and the PC
-stack is stopped. CP3–CP4 can move to the next session; CP1–CP2 cannot.
+Success means an outsider can clone the tag, read the limits, and regenerate the pilot table.
+Do not describe this as a paper or a finished study, and do not quote the pilot numbers as a
+result about FinBERT.
 
-## Not today (parked)
+## Not in this plan (after December 20)
 
-`scripts/score.py` and the `paper-dev` one-command table (next session, after predictions);
-story-grouping script (at ~200 eligible headlines from ≥ 4 sources); revisiting the 4 earlier
-unresolved labels (optional); second annotator (Phase 2); Redis race, Tier 3, SEC, README.
+Cloud server and migration (`docs/cloud-collection-server.md`), the new baseline, GDELT and
+Investing.com decisions, more labels, the second annotator, sample-size decision, final
+collection, and the paper. Redis race, Tier 3 and SEC stay parked.
 
-## Next session (preview)
-
-Let the server collect. Build `scripts/score.py` for the three weighting conditions on the
-development labels (26 labeled), then `paper-dev` to reproduce the table twice. After 72 h of
-gap-free collection: Phase 0 exit gate, then measure yield (new unique financial headlines/day).
+Until CP7 the PC keeps collecting while it's on, but this data can't support completeness
+claims: the 2026-09-28 baseline stopped being valid after the Oct 26 retention gap.

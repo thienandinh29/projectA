@@ -4,6 +4,10 @@ Rewritten October 14, 2026 (Asia/Bangkok). The previous roadmap is preserved
 unchanged at [docs/archive/ROADMAP-v1-20261013.md](docs/archive/ROADMAP-v1-20261013.md).
 Daily checklist: [TODAY.md](TODAY.md). Temporal contract: [docs/research-protocol.md](docs/research-protocol.md).
 
+**Status 2026-11-05:** the user chose to finish Phase 1 and the portfolio track, then pause until
+after December 20. The server move and Phases 2–4 resume after that, so the dates below need
+resetting on return. Estimated finish on resuming: about late April 2027.
+
 **Primary question (unchanged):** how sensitive is a frozen model's measured
 performance to article duplication, story grouping and delayed label availability?
 
