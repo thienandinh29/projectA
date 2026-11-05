@@ -183,6 +183,7 @@ class TestLedger(Case):
             stories.select_as_of(self.ledger, self.cohort, self.eligible_sha256, datetime.now(timezone.utc) + timedelta(days=1))
         with self.assertRaisesRegex(ValueError, 'recovered'):
             self.append()
+        later_than_now()
         self.assertEqual(len(stories.recover_pending(self.ledger)), 1)
         with closing(sqlite3.connect(self.ledger)) as conn:
             recorded, released = conn.execute('SELECT recorded_at, released_at FROM story_reviews JOIN story_releases USING (review_id)').fetchone()

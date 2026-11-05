@@ -129,6 +129,8 @@ class TestPredictions(Case):
                 self.run_predict()
         self.assertEqual(self.table('prediction_releases'), [])
         computed = self.table()[0]['computed_at']
+        while datetime.now(timezone.utc).isoformat() <= computed:  # Coarse clocks can repeat a stamp.
+            pass
         self.assertEqual(self.run_predict()['released'], 3)
         self.assertGreater(self.table('prediction_releases')[0]['released_at'], computed)
 
