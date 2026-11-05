@@ -82,18 +82,18 @@ Roadmap Phase 1, first item. Record in `docs/research-protocol.md` (not a new do
 - [x] Record the tokenizer, the label mapping (index → positive/negative/neutral, read from
       the model config, not assumed) and the training-data provenance (Financial PhraseBank).
 - [x] Note for the paper: the 2026 headlines post-date the model's training data.
-      Done 2026-11-04: revision `0bc2ac10`, `docs/model-freeze-finbert-20261104.json`. For CP4:
-      the lock file has no torch or transformers, and safetensors = `.bin` is still unchecked.
+      Done 2026-11-04: revision `0bc2ac10`, `docs/model-freeze-finbert-20261104.json`.
+      Safetensors and `.bin` compared: all 202 tensors identical.
 
 ## CP4 — Label-blind predictions (75 min)
 
 `scripts/predict_frozen.py`: CPU inference over a frozen snapshot.
 
-- [ ] Append-only predictions table keyed by content hash + model revision, with logits,
+- [x] Append-only predictions table keyed by content hash + model revision, with logits,
       probabilities, predicted class and prediction time. Re-running never rewrites a row.
-- [ ] **Label-blind:** the script must not open the annotation ledger or selections.
+- [x] **Label-blind:** the script must not open the annotation ledger or selections.
       A test enforces it.
-- [ ] Tests: immutability, label-blind isolation, identical output on a re-run, and a
+- [x] Tests: immutability, label-blind isolation, identical output on a re-run, and a
       wrong model hash being rejected.
 - [ ] Run on `session01-20261006-snapshot` (all 41 versions; scoring filters later).
       Save the run's printed summary as the evidence.

@@ -168,6 +168,22 @@ services:
     entrypoint: ["python"]
     command: ["-m", "scripts.inspect_research_database"]
 
+  # Frozen-model predictions. No network: it cannot fetch anything or reach the broker.
+  research-inference:
+    profiles: ["inference"]
+    build:
+      context: .
+      dockerfile: Dockerfile.inference
+    network_mode: none
+    volumes:
+      - ingestion-data:/app/data
+    environment:
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
+      - COLLECTION_CODE_REVISION=${COLLECTION_CODE_REVISION:-unrecorded}
+      - COLLECTION_WORKTREE_STATE=${COLLECTION_WORKTREE_STATE:-unrecorded}
+    command: ["-m", "scripts.predict_frozen", "--help"]
+
 volumes:
   redpanda-data:
     driver: local

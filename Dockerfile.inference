@@ -1,0 +1,14 @@
+# Frozen-model predictions only. Kept apart so collectors and the writer never gain torch.
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+COPY requirements.txt requirements.lock requirements-inference.lock ./
+RUN pip install --no-cache-dir -r requirements-inference.lock
+
+COPY . .
+
+ENTRYPOINT ["python"]

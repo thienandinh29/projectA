@@ -78,7 +78,9 @@ any time with `-m scripts.freeze_model --revision <sha> --verify <manifest>`.
   hub's hashes for `pytorch_model.bin`, `config.json`, `vocab.txt` and both tokenizer
   files are the same at this revision and at `4556d13015211d73dccd3fdd39d39232506f3e43`
   (2023), so the October 2026 commits changed no existing weight or tokenizer file.
-  **Not yet checked:** that the safetensors tensors equal those in `pytorch_model.bin`.
+  Compared 2026-11-04 at the pinned revision, with both files matching the hub's
+  hashes and the pickle read under `weights_only=True`: all 202 tensors are identical to
+  those in `pytorch_model.bin` (torch 2.14.1+cpu, safetensors 0.8.0).
 - **Label map, read from `config.json`:** `0` positive, `1` negative, `2` neutral. The
   classifier weight has shape `[3, 768]`, which matches.
 - **Tokenizer:** the `vocab.txt` and `tokenizer_config.json` files above; lower-casing
@@ -92,6 +94,28 @@ any time with `-m scripts.freeze_model --revision <sha> --verify <manifest>`.
 For the paper: the 2026 headlines post-date the model's training data, so results
 measure a fixed older model on later news and are exposed to vocabulary and topic
 drift. Sources in this study may also differ in style from PhraseBank's sentences.
+
+### Predictions
+
+`scripts/predict_frozen.py` runs in the separate `research-inference` image
+(`requirements-inference.lock`), which has no network. It reads only the snapshot, the
+frozen model and the committed manifest, and writes only
+`/app/data/research/predictions.sqlite3`. A row is keyed by content hash and model
+revision and holds the exact input, logits, probabilities, predicted class and
+`computed_at`; `prediction_releases.released_at` is sampled after contents commit, so
+it is the time to use for availability. Re-runs recompute and compare: they add a run
+record and never change a prediction. A difference is reported and exits non-zero.
+Refused before any model load: changed, missing or extra model files, and a changed or
+invalidated snapshot. Predictions are created for every snapshot version; scoring
+filters later. Scoring code is separate, and this tool opens no labels.
+
+```powershell
+$env:COLLECTION_CODE_REVISION = git rev-parse HEAD
+$env:COLLECTION_WORKTREE_STATE = if (git status --porcelain) { 'dirty' } else { 'clean' }
+docker compose --profile inference build research-inference
+docker compose --profile inference run --rm --no-deps research-inference -m scripts.predict_frozen --snapshot-dir /app/data/research/<snapshot> --check
+docker compose --profile inference run --rm --no-deps research-inference -m scripts.predict_frozen --snapshot-dir /app/data/research/<snapshot>
+```
 
 ## First-time database procedure
 
