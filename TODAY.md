@@ -8,6 +8,33 @@ Roadmap: this finishes Phase 1 and the portfolio track in [ROADMAP.md](ROADMAP.m
 About 2–3 sessions. Check a box only after its output exists. The order matters: your
 judgments come before anyone sees a prediction.
 
+## Today — Tuesday, November 10 (about 4 h)
+
+Start state: stack restarted 09:41 UTC; collection ran in windows since Nov 4 (RSS 393 attempts,
+longest gap about 47 h). CI passed on `1ad172b`. Three grouping commits are local, not pushed.
+
+| Time | Checkpoint | Whose | Done when |
+| --- | --- | --- | --- |
+| 0:00–0:10 | T0 Push the grouping tool | Your go-ahead | CI passes on the pushed commit |
+| 0:10–0:40 | T1 Group the 34 headlines (CP2) | You | Answers written in the guide's format |
+| 0:40–0:55 | T2 Record and select groups | Tool | Review released; `story-groups.json` saved |
+| 0:55–1:20 | T3 Run predictions (CP3) | Your go-ahead | 41 versions stored; re-run inserts 0 |
+| 1:20–3:30 | T4 Build `scripts/score.py` (CP4) | Tool | Toy-example tests pass |
+| 3:30–4:00 | T5 Pilot table + close | Your go-ahead | Table saved, labeled pilot; commit and push |
+
+- [ ] **T0:** push `cc5797f`..`91a6aa9`; rebuild `research-tools` from the main folder at that
+      commit (it needs the new code and guide).
+- [ ] **T1:** read `docs/story-grouping-dev-v1.md` first; change it now if you disagree, because
+      its hash is recorded with your answers. Worksheet: `/app/data/research/stories-20261105/`.
+- [ ] **T2:** `review_stories record` (reviewer `project-owner`), then `select` with a cutoff after
+      the release. Uncertain headlines stay out of B and C and are counted.
+- [ ] **T3:** only after T2. `--check` first, then the run, then the run again.
+- [ ] **T4:** conditions A, B, C; weighted confusion matrices; story-group bootstrap; counts for
+      unresolved, assisted, uncertain and ungrouped. Tests before any real run.
+- [ ] **T5:** run on the 26 development labels; note the numbers describe the method, not FinBERT.
+
+If the session is short: T0–T2 only. Grouping must happen before predictions exist.
+
 | Step | Work | Whose | Done when |
 | --- | --- | --- | --- |
 | CP1 | Close open labels (optional) | You | Decided or left unresolved, before predictions exist |
@@ -22,8 +49,8 @@ judgments come before anyone sees a prediction.
 
 Must happen before CP3: once predictions exist, you could no longer review blind to them.
 
-- [ ] Revisit the 4 earlier unresolved labels, or leave them unresolved. Unresolved is not
-      neutral and is counted separately.
+- [x] Revisit the 4 earlier unresolved labels, or leave them unresolved. Unresolved is not
+      neutral and is counted separately. Decided 2026-11-05: left unresolved.
 
 ## CP2 — Story grouping (tool 1 session; your review about 30 min)
 
