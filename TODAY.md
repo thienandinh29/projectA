@@ -44,7 +44,11 @@ longest gap about 47 h). CI passed on `1ad172b`. Three grouping commits are loca
       Built 2026-11-11: `research/scoring.py` (arithmetic), `scripts/score.py` (verifies links,
       writes the report), 28 tests (hand-computed examples, refusals, byte-identical output).
       Not run on your labels yet: that is T5 and needs your go-ahead.
-- [ ] **T5:** run on the 26 development labels; note the numbers describe the method, not FinBERT.
+- [x] **T5:** run on the 26 development labels; note the numbers describe the method, not FinBERT.
+      Done 2026-11-12 at tool commit `e8bf35a`: `docs/pilot-score-20261111.md` and `.json`; the
+      repeat run gave byte-identical files (sha256 table `1ec0f282…`, report `771a3f51…`). All 26
+      labels: accuracy 0.769, macro-F1 0.752 (interval 0.562–0.909); the 11 unassisted labels:
+      0.636 and 0.600. A, B and C are equal because all stories are single headlines. Pilot only.
 
 - [ ] **T6 (after T3; decided 2026-11-11): move Docker's disk to D:** C: has 17.5 GB free and
       `C:\Users\Hp\AppData\Local\Docker\wsl\disk\docker_data.vhdx` is 24 GB (D: has 173 GB free).
