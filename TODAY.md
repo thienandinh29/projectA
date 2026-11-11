@@ -38,6 +38,16 @@ longest gap about 47 h). CI passed on `1ad172b`. Three grouping commits are loca
       unresolved, assisted, uncertain and ungrouped. Tests before any real run.
 - [ ] **T5:** run on the 26 development labels; note the numbers describe the method, not FinBERT.
 
+- [ ] **T6 (after T3; decided 2026-11-11): move Docker's disk to D:** C: has 17.5 GB free and
+      `C:\Users\Hp\AppData\Local\Docker\wsl\disk\docker_data.vhdx` is 24 GB (D: has 173 GB free).
+      The project folder is only 0.02 GB, so it stays where it is. Order, on your go-ahead:
+      collectors stop, health check shows every partition `"unread": 0`, writer stops; back up
+      the volumes and note their SHA-256; you set Docker Desktop, Settings, Resources, Advanced,
+      Disk image location to a D: folder; after Docker restarts, check that all 6 containers and
+      the `ingestion-data` volume are back and the writer shows `batch_committed`; then clear
+      the build cache (about 5 GB). Delete the old `.vhdx` only if Docker has not removed it, and
+      only after you've confirmed the new location works.
+
 If the session is short: T0–T2 only. Grouping must happen before predictions exist.
 
 | Step | Work | Whose | Done when |
