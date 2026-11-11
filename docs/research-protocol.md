@@ -117,6 +117,27 @@ docker compose --profile inference run --rm --no-deps research-inference -m scri
 docker compose --profile inference run --rm --no-deps research-inference -m scripts.predict_frozen --snapshot-dir /app/data/research/<snapshot>
 ```
 
+Run it from Git Bash with `MSYS_NO_PATHCONV=1`, or `/app/...` is rewritten to a Windows path.
+
+Run on `session01-20261006-snapshot` on 2026-11-11 at tool commit `b98467e`: 41 versions
+(38 distinct titles) stored and released; the repeat run inserted 0 and matched all 41.
+Summaries: `predictions-run1-session01-20261111.json`, `predictions-run2-session01-20261111.json`.
+
+### Scoring
+
+`scripts/score.py` is label-aware and runs after predictions exist. It reads the saved
+sentiment selection, the story selection and the prediction ledger (read-only), checks that
+all of them link to the same snapshot and eligibility selection, recomputes every story's
+anchor, and writes a new folder holding `score-report.json` and `score-table.md`. The report
+holds no wall-clock time, so the same inputs give the same bytes. It implements conditions A, B
+and C of `research-counting-draft-v1.md`: C scores only the story's fixed first available
+version and never substitutes a later one, and the paired table restricts A, B and C to the
+same stories. Metrics come from weighted confusion matrices. Intervals are a seeded percentile
+bootstrap over whole stories. Unresolved labels are never scored as neutral. Each report is
+repeated for all labels and for unassisted labels only, and discloses that labels were released
+before these predictions. All metric conventions are development choices to freeze before a
+final test. Output is a pilot, not a finding about the model.
+
 ## First-time database procedure
 
 Set the code identity before building or running collection containers:

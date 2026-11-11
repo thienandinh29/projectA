@@ -39,8 +39,11 @@ longest gap about 47 h). CI passed on `1ad172b`. Three grouping commits are loca
       `docs/predictions-run1-session01-20261111.json`, `docs/predictions-run2-session01-20261111.json`.
       Ledger `/app/data/research/predictions.sqlite3`. Predicted classes: 14 positive, 11 negative,
       16 neutral (no labels were opened; this is not a score).
-- [ ] **T4:** conditions A, B, C; weighted confusion matrices; story-group bootstrap; counts for
+- [x] **T4:** conditions A, B, C; weighted confusion matrices; story-group bootstrap; counts for
       unresolved, assisted, uncertain and ungrouped. Tests before any real run.
+      Built 2026-11-11: `research/scoring.py` (arithmetic), `scripts/score.py` (verifies links,
+      writes the report), 28 tests (hand-computed examples, refusals, byte-identical output).
+      Not run on your labels yet: that is T5 and needs your go-ahead.
 - [ ] **T5:** run on the 26 development labels; note the numbers describe the method, not FinBERT.
 
 - [ ] **T6 (after T3; decided 2026-11-11): move Docker's disk to D:** C: has 17.5 GB free and
