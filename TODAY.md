@@ -24,10 +24,15 @@ longest gap about 47 h). CI passed on `1ad172b`. Three grouping commits are loca
 
 - [ ] **T0:** push `cc5797f`..`91a6aa9`; rebuild `research-tools` from the main folder at that
       commit (it needs the new code and guide).
-- [ ] **T1:** read `docs/story-grouping-dev-v1.md` first; change it now if you disagree, because
+- [x] **T1:** read `docs/story-grouping-dev-v1.md` first; change it now if you disagree, because
       its hash is recorded with your answers. Worksheet: `/app/data/research/stories-20261105/`.
-- [ ] **T2:** `review_stories record` (reviewer `project-owner`), then `select` with a cutoff after
+      Done 2026-11-11: all 34 headlines judged `alone` (a proposed 2/3/6 story was split after
+      the guide's same-event rule was checked).
+- [x] **T2:** `review_stories record` (reviewer `project-owner`), then `select` with a cutoff after
       the release. Uncertain headlines stay out of B and C and are counted.
+      Done 2026-11-11: review `b0ac7cc2`, released 16:29:46 UTC, tool commit `7d68d03`, guide hash
+      `b4642d16`; selection at `/app/data/research/stories-20261105/selection/story-groups.json`.
+      0 multi-headline stories, 34 alone, 0 uncertain, so conditions A, B and C will coincide.
 - [ ] **T3:** only after T2. `--check` first, then the run, then the run again.
 - [ ] **T4:** conditions A, B, C; weighted confusion matrices; story-group bootstrap; counts for
       unresolved, assisted, uncertain and ungrouped. Tests before any real run.
@@ -57,10 +62,10 @@ Must happen before CP3: once predictions exist, you could no longer review blind
 Conditions B and C need reviewed stories. None exist yet, and reference clusters must not be
 presented as verified stories (`docs/research-counting-draft-v1.md`, section 6).
 
-- [ ] Tool: worksheet of the included headlines plus an append-only grouping ledger. It shows
+- [x] Tool: worksheet of the included headlines plus an append-only grouping ledger. It shows
       no sentiment labels or predictions.
-- [ ] You: assign the groups. Mark unclear relations as uncertain; they stay visible and don't
-      silently become single-headline stories.
+- [x] You: assign the groups. Mark unclear relations as uncertain; they stay visible and don't
+      silently become single-headline stories. Recorded 2026-11-11 (see T2).
 
 ## CP3 — Run predictions (10 min)
 
