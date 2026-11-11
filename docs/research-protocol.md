@@ -138,6 +138,17 @@ repeated for all labels and for unassisted labels only, and discloses that label
 before these predictions. All metric conventions are development choices to freeze before a
 final test. Output is a pilot, not a finding about the model.
 
+Reproduction (one command): `docs/pilot-inputs-20261111.json` records the input paths, the seed,
+the resample count and the SHA-256 of each output. `scripts/reproduce_pilot.py` builds the report
+twice in memory and passes only if both builds are identical to each other, to the recorded hashes
+and to the saved copies `docs/pilot-score-20261111.md` and `.json`. It writes nothing and exits 1
+on any difference. If an input was changed, `scripts/score.py` refuses it with its own error.
+
+```powershell
+docker compose --profile tools build research-tools
+docker compose --profile tools run --rm --no-deps research-tools -m scripts.reproduce_pilot --inputs /app/docs/pilot-inputs-20261111.json
+```
+
 ## First-time database procedure
 
 Set the code identity before building or running collection containers:

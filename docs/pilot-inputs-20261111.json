@@ -1,0 +1,24 @@
+{
+  "expected": {
+    "score-report.json": {
+      "saved_copy": "pilot-score-20261111.json",
+      "sha256": "771a3f5188c511053f6839708da9cb17bcf5e1510b618dfe2ed5ba032cd373ce"
+    },
+    "score-table.md": {
+      "saved_copy": "pilot-score-20261111.md",
+      "sha256": "1ec0f282afc282cd341181dd22dc7be6fd65f912a73a8397cb6ff3c3322860bc"
+    }
+  },
+  "inputs": {
+    "eligibility_selection": "/app/data/research/eligibility-20261019/selection",
+    "model_manifest": "/app/docs/model-freeze-finbert-20261104.json",
+    "predictions": "/app/data/research/predictions.sqlite3",
+    "sentiment_selection": "/app/data/research/sentiment-20261020/selection",
+    "snapshot_dir": "/app/data/research/session01-20261006-snapshot",
+    "story_selection": "/app/data/research/stories-20261105/selection"
+  },
+  "kind": "pilot_reproduction_inputs_v1",
+  "note": "Container paths: run inside research-tools. Pilot only.",
+  "resamples": 2000,
+  "seed": 20261111
+}

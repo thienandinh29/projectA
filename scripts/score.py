@@ -223,6 +223,12 @@ def _rounded(value):
     return value
 
 
+def report_files(report):
+    """The exact text of each output file, keyed by file name (shared by `main` and the reproduction check)."""
+    return {'score-report.json': json.dumps(report, indent=2, sort_keys=True) + '\n',
+            'score-table.md': render_table(report)}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--snapshot-dir', type=Path, required=True)
@@ -239,9 +245,8 @@ def main():
                                    args.story_selection, args.predictions, args.model_manifest,
                                    seed=args.seed, resamples=args.resamples))
     args.output.mkdir(parents=True, exist_ok=False)
-    (args.output / 'score-report.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n',
-                                                   encoding='utf-8', newline='\n')
-    (args.output / 'score-table.md').write_text(render_table(report), encoding='utf-8', newline='\n')
+    for name, text in report_files(report).items():
+        (args.output / name).write_text(text, encoding='utf-8', newline='\n')
     print(json.dumps({'written': str(args.output), 'counts': report['counts']}, indent=2))
 
 
