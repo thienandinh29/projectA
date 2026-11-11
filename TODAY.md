@@ -33,7 +33,12 @@ longest gap about 47 h). CI passed on `1ad172b`. Three grouping commits are loca
       Done 2026-11-11: review `b0ac7cc2`, released 16:29:46 UTC, tool commit `7d68d03`, guide hash
       `b4642d16`; selection at `/app/data/research/stories-20261105/selection/story-groups.json`.
       0 multi-headline stories, 34 alone, 0 uncertain, so conditions A, B and C will coincide.
-- [ ] **T3:** only after T2. `--check` first, then the run, then the run again.
+- [x] **T3:** only after T2. `--check` first, then the run, then the run again.
+      Done 2026-11-11 (tool commit `b98467e`): 41 versions (38 distinct inputs) stored and
+      released; re-run inserted 0, 41 identical, 0 mismatched. Summaries:
+      `docs/predictions-run1-session01-20261111.json`, `docs/predictions-run2-session01-20261111.json`.
+      Ledger `/app/data/research/predictions.sqlite3`. Predicted classes: 14 positive, 11 negative,
+      16 neutral (no labels were opened; this is not a score).
 - [ ] **T4:** conditions A, B, C; weighted confusion matrices; story-group bootstrap; counts for
       unresolved, assisted, uncertain and ungrouped. Tests before any real run.
 - [ ] **T5:** run on the 26 development labels; note the numbers describe the method, not FinBERT.
@@ -84,9 +89,10 @@ From the main folder, on a clean pushed commit. The commands are in
 has only about 4 GB of memory and went down during a Nov 4 image rebuild (cause unknown), so
 check the stack after building.
 
-- [ ] Build `research-inference`; `--check` prints `"ready": true`.
-- [ ] Run on `session01-20261006-snapshot` (all 41 versions; scoring filters later).
-- [ ] Save the printed summary as the evidence. Run once more: `inserted` 0, nothing mismatched.
+- [x] Build `research-inference`; `--check` prints `"ready": true`.
+- [x] Run on `session01-20261006-snapshot` (all 41 versions; scoring filters later).
+- [x] Save the printed summary as the evidence. Run once more: `inserted` 0, nothing mismatched.
+      Note for Git Bash: set `MSYS_NO_PATHCONV=1` or `/app/...` is rewritten to a Windows path.
 
 ## CP4 — `scripts/score.py` (1 session)
 

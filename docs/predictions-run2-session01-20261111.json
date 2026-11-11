@@ -1,0 +1,27 @@
+{
+  "run_id": "2a67bc27-688e-4753-b1ba-a3056c665dff",
+  "dataset_sha256": "2913b3515cbee1b762dd4f091a30a1ebf44c7194e14281d203b85a297c13f4da",
+  "model_revision": "0bc2ac10dda6929bcb1f77ccc43c7ec5c424f031",
+  "model_manifest_sha256": "69fe160a0cf43b4591aa1c4ba6be0bddff4f5768e56e2b28c3d91278252b88dd",
+  "tool_revision": "b98467e5878c87a52540acf6f8a0951fe0ae4518",
+  "environment": {
+    "python": "3.11.18",
+    "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+    "threads": 1,
+    "torch": "2.14.1+cpu",
+    "transformers": "5.20.2",
+    "tokenizers": "0.23.3",
+    "safetensors": "0.8.0"
+  },
+  "versions": 41,
+  "distinct_inputs": 38,
+  "inserted": 0,
+  "identical_on_rerun": 41,
+  "mismatched_never_rewritten": [],
+  "released": 0,
+  "class_counts": {
+    "negative": 11,
+    "neutral": 16,
+    "positive": 14
+  }
+}
