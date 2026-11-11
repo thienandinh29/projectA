@@ -50,7 +50,7 @@ longest gap about 47 h). CI passed on `1ad172b`. Three grouping commits are loca
       labels: accuracy 0.769, macro-F1 0.752 (interval 0.562–0.909); the 11 unassisted labels:
       0.636 and 0.600. A, B and C are equal because all stories are single headlines. Pilot only.
 
-- [ ] **T6 (after T3; decided 2026-11-11): move Docker's disk to D:** C: has 17.5 GB free and
+- [x] **T6 (done 2026-11-12; was decided 2026-11-11): move Docker's disk to D:** C: has 17.5 GB free and
       `C:\Users\Hp\AppData\Local\Docker\wsl\disk\docker_data.vhdx` is 24 GB (D: has 173 GB free).
       The project folder is only 0.02 GB, so it stays where it is. Order, on your go-ahead:
       collectors stop, health check shows every partition `"unread": 0`, writer stops; back up
@@ -59,6 +59,11 @@ longest gap about 47 h). CI passed on `1ad172b`. Three grouping commits are loca
       the `ingestion-data` volume are back and the writer shows `batch_committed`; then clear
       the build cache (about 5 GB). Delete the old `.vhdx` only if Docker has not removed it, and
       only after you've confirmed the new location works.
+      Done: collectors, writer, broker and Redis stopped with every partition at unread 0; four volume
+      archives with SHA-256 in `D:nthien\lmao\docker-volume-backup-20261112\SHA256SUMS.txt`; after
+      the move C: free went from 17.5 to 43 GB; stack restarted (broker, writer, then collectors),
+      writer logged `batch_committed`, health check all unread 0; build cache cleared (5.6 GB).
+      Collection was off roughly 02:00-02:45 local on Nov 12 (about 45 min).
 
 If the session is short: T0–T2 only. Grouping must happen before predictions exist.
 
