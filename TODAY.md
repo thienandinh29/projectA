@@ -119,8 +119,10 @@ check the stack after building.
 
 ## CP5 — One-command table (30 min)
 
-- [ ] One command regenerates the table from snapshot, selection, grouping, predictions and manifest.
-- [ ] Run twice; the files are byte-identical. This is the Phase 1 exit gate.
+- [x] One command regenerates the table from snapshot, selection, grouping, predictions and manifest.
+- [x] Run twice; the files are byte-identical. This is the Phase 1 exit gate.
+      Done 2026-11-12 at tool commit `b911bbd`: `scripts.reproduce_pilot --inputs /app/docs/pilot-inputs-20261111.json`
+      builds twice in memory and matches the recorded hashes and the saved copies (`reproduced: true`).
 
 ## CP6 — README and demo (1 session)
 
