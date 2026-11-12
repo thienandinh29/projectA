@@ -7,5 +7,5 @@
 data
 **/__pycache__
 **/*.pyc
-changes.txt
+docs/archive/changes.txt
 .claude

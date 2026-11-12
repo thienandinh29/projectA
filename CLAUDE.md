@@ -50,4 +50,4 @@ Plan and gates: ROADMAP.md. Daily checklist: TODAY.md.
 - Match surrounding style: compact Python, short docstrings stating guarantees and
   limits, tests named for the behaviour they protect.
 - Every behaviour change gets a regression test that fails on the old code.
-- `changes.txt` is a generated patch artifact; don't hand-edit it.
+- `docs/archive/changes.txt` is a generated patch artifact; don't hand-edit it.

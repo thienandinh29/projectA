@@ -210,9 +210,9 @@ Exit gate: an outsider can clone the tag and regenerate every table.
 
 This project is a strong portfolio piece once a result exists.
 
-- [ ] Split README: a short landing page (question, one figure, one result,
+- [x] Split README (2026-11-12): a short landing page (question, one figure, one result,
       how to run in 5 minutes) + `docs/infrastructure.md` for the pipeline.
-- [ ] Move `changes.txt` out of the root (archive it under `docs/archive/`).
+- [x] Move `changes.txt` out of the root (now `docs/archive/changes.txt`).
 - [ ] A `make demo` path on a small bundled sample that runs without live feeds.
 - [ ] Write one blog post now, without waiting for the paper: **"Why no cosine
       threshold separates same-event rewrites from different events"** — Tier 3

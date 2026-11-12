@@ -126,11 +126,14 @@ check the stack after building.
 
 ## CP6 — README and demo (1 session)
 
-- [ ] Landing page: the question, the pipeline diagram, the pilot table, how to run it, and
+- [x] Landing page: the question, the pipeline diagram, the pilot table, how to run it, and
       limits. Move the infrastructure details to `docs/infrastructure.md`.
-- [ ] Move `changes.txt` to `docs/archive/` only after checking what refers to it.
-- [ ] Small demo on invented headlines that needs no live feeds.
-- [ ] Say plainly what is not done: a research prototype and pilot, not a finished study.
+- [x] Move `changes.txt` to `docs/archive/` only after checking what refers to it.
+- [x] Small demo on invented headlines that needs no live feeds.
+- [x] Say plainly what is not done: a research prototype and pilot, not a finished study.
+      Done 2026-11-12: new `README.md`, `docs/infrastructure.md` (old text, unedited), `scripts/demo_weighting.py`
+      (`python -m scripts.demo_weighting`), `changes.txt` now `docs/archive/changes.txt` (`.gitattributes`,
+      `.dockerignore` and CLAUDE.md updated). The blog post stays optional and unwritten.
 - [ ] Optional: blog post on why no cosine threshold separates rewrites from different events.
 
 ## CP7 — Clean stop and tag (30 min)
