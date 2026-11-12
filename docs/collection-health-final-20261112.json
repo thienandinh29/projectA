@@ -1,0 +1,215 @@
+{
+  "kind": "collection_health_v1",
+  "generated_at": "2026-11-12T08:10:04.468815+00:00",
+  "since": "2026-11-11T08:10:04.468815+00:00",
+  "gap_threshold_minutes": 30,
+  "unfinished_sessions": [],
+  "sources": {
+    "financial.news.gdelt | GDELT GKG batch downloads": {
+      "attempts": 16,
+      "outcomes": {
+        "success": 10,
+        "failed": 6
+      },
+      "http_statuses": {
+        "200": 10,
+        "404": 6
+      },
+      "items_reported": 500,
+      "first_attempt": "2026-11-11T15:48:41.953821+00:00",
+      "last_attempt": "2026-11-12T08:04:23.807601+00:00",
+      "max_gap_minutes": 753.7,
+      "minutes_since_last_attempt": 5.7,
+      "gap_over_threshold": true
+    },
+    "financial.news.gdelt | https://api.gdeltproject.org/api/v2/doc/doc": {
+      "attempts": 16,
+      "outcomes": {
+        "failed": 16
+      },
+      "http_statuses": {
+        "429": 15,
+        "200": 1
+      },
+      "items_reported": 0,
+      "first_attempt": "2026-11-11T15:48:29.680629+00:00",
+      "last_attempt": "2026-11-12T08:04:08.112763+00:00",
+      "max_gap_minutes": 753.6,
+      "minutes_since_last_attempt": 5.9,
+      "gap_over_threshold": true
+    },
+    "financial.news.gdelt | https://data.gdeltproject.org/gdeltv2/lastupdate.txt": {
+      "attempts": 16,
+      "outcomes": {
+        "success": 16
+      },
+      "http_statuses": {
+        "200": 16
+      },
+      "items_reported": 48,
+      "first_attempt": "2026-11-11T15:48:41.486697+00:00",
+      "last_attempt": "2026-11-12T08:04:22.832624+00:00",
+      "max_gap_minutes": 753.7,
+      "minutes_since_last_attempt": 5.7,
+      "gap_over_threshold": true
+    },
+    "financial.news.rss | BBC Business": {
+      "attempts": 66,
+      "outcomes": {
+        "success": 66
+      },
+      "http_statuses": {
+        "200": 66
+      },
+      "items_reported": 3482,
+      "first_attempt": "2026-11-11T15:48:56.570743+00:00",
+      "last_attempt": "2026-11-12T08:08:17.387027+00:00",
+      "max_gap_minutes": 748.6,
+      "minutes_since_last_attempt": 1.8,
+      "gap_over_threshold": true
+    },
+    "financial.news.rss | CNBC Economy": {
+      "attempts": 66,
+      "outcomes": {
+        "success": 66
+      },
+      "http_statuses": {
+        "200": 66
+      },
+      "items_reported": 1980,
+      "first_attempt": "2026-11-11T15:48:29.684769+00:00",
+      "last_attempt": "2026-11-12T08:07:58.246880+00:00",
+      "max_gap_minutes": 748.4,
+      "minutes_since_last_attempt": 2.1,
+      "gap_over_threshold": true
+    },
+    "financial.news.rss | Guardian Business": {
+      "attempts": 66,
+      "outcomes": {
+        "success": 66
+      },
+      "http_statuses": {
+        "200": 66
+      },
+      "items_reported": 2626,
+      "first_attempt": "2026-11-11T15:48:54.614856+00:00",
+      "last_attempt": "2026-11-12T08:08:16.093005+00:00",
+      "max_gap_minutes": 748.5,
+      "minutes_since_last_attempt": 1.8,
+      "gap_over_threshold": true
+    },
+    "financial.news.rss | Investing.com Economy": {
+      "attempts": 66,
+      "outcomes": {
+        "failed": 60,
+        "success": 6
+      },
+      "http_statuses": {
+        "none": 60,
+        "200": 6
+      },
+      "items_reported": 60,
+      "first_attempt": "2026-11-11T15:48:39.519764+00:00",
+      "last_attempt": "2026-11-12T08:08:00.918749+00:00",
+      "max_gap_minutes": 748.5,
+      "minutes_since_last_attempt": 2.1,
+      "gap_over_threshold": true
+    },
+    "financial.news.rss | MarketWatch Top Stories": {
+      "attempts": 66,
+      "outcomes": {
+        "success": 66
+      },
+      "http_statuses": {
+        "200": 66
+      },
+      "items_reported": 660,
+      "first_attempt": "2026-11-11T15:48:37.621923+00:00",
+      "last_attempt": "2026-11-12T08:07:59.386333+00:00",
+      "max_gap_minutes": 748.5,
+      "minutes_since_last_attempt": 2.1,
+      "gap_over_threshold": true
+    },
+    "financial.news.rss | NYT Business": {
+      "attempts": 66,
+      "outcomes": {
+        "success": 66
+      },
+      "http_statuses": {
+        "200": 66
+      },
+      "items_reported": 3168,
+      "first_attempt": "2026-11-11T15:48:58.639417+00:00",
+      "last_attempt": "2026-11-12T08:08:18.757048+00:00",
+      "max_gap_minutes": 748.6,
+      "minutes_since_last_attempt": 1.8,
+      "gap_over_threshold": true
+    },
+    "financial.news.rss | Seeking Alpha Market Currents": {
+      "attempts": 66,
+      "outcomes": {
+        "success": 66
+      },
+      "http_statuses": {
+        "200": 66
+      },
+      "items_reported": 462,
+      "first_attempt": "2026-11-11T15:49:00.531671+00:00",
+      "last_attempt": "2026-11-12T08:08:20.636210+00:00",
+      "max_gap_minutes": 748.6,
+      "minutes_since_last_attempt": 1.7,
+      "gap_over_threshold": true
+    }
+  },
+  "broker": {
+    "group": "lakehouse-writer-v1",
+    "writer_members": 0,
+    "partitions": {
+      "financial.news.rss:0": {
+        "committed": 2272,
+        "log_start": 1243,
+        "high": 2272,
+        "retention_ms": 2592000000,
+        "oldest_unread_ms": null,
+        "unread": 0
+      },
+      "financial.news.gdelt:0": {
+        "committed": null,
+        "log_start": 50,
+        "high": 50,
+        "retention_ms": 2592000000,
+        "oldest_unread_ms": null,
+        "unread": 0
+      },
+      "financial.filings.sec:0": {
+        "committed": null,
+        "log_start": 106,
+        "high": 106,
+        "retention_ms": 2592000000,
+        "oldest_unread_ms": null,
+        "unread": 0
+      },
+      "financial.research.observations:0": {
+        "committed": 145012,
+        "log_start": 50270,
+        "high": 145012,
+        "retention_ms": 2592000000,
+        "oldest_unread_ms": null,
+        "unread": 0
+      }
+    }
+  },
+  "problems": [
+    "writer not running: consumer group has no members",
+    "financial.news.gdelt | GDELT GKG batch downloads",
+    "financial.news.gdelt | https://api.gdeltproject.org/api/v2/doc/doc",
+    "financial.news.gdelt | https://data.gdeltproject.org/gdeltv2/lastupdate.txt",
+    "financial.news.rss | BBC Business",
+    "financial.news.rss | CNBC Economy",
+    "financial.news.rss | Guardian Business",
+    "financial.news.rss | Investing.com Economy",
+    "financial.news.rss | MarketWatch Top Stories",
+    "financial.news.rss | NYT Business",
+    "financial.news.rss | Seeking Alpha Market Currents"
+  ]
+}

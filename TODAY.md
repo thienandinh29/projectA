@@ -140,13 +140,15 @@ check the stack after building.
 
 Stopping changes the research record, so it runs only on your go-ahead.
 
-- [ ] `docker compose --profile workers stop worker-rss worker-gdelt worker-sec`
-- [ ] Health check until every partition shows `"unread": 0`, then stop `lakehouse-writer`.
+- [x] `docker compose --profile workers stop worker-rss worker-gdelt worker-sec`
+- [x] Health check until every partition shows `"unread": 0`, then stop `lakehouse-writer`.
       Rebuild `research-tools` first: the PC image predates the broker check.
-- [ ] Back up the three Docker volumes outside the PC and note their SHA-256. This PC holds
+- [x] Back up the three Docker volumes outside the PC and note their SHA-256. This PC holds
       the only copy.
-- [ ] Closure note `docs/session-<date>.md`: final numbers, gaps, and how to resume.
-- [ ] ROADMAP Part B metrics: new date column. Commit, push and tag the release.
+      Done on D: 2026-11-12 (`D:nthien\lmao\docker-volume-backup-20261112-final`, SHA256SUMS.txt). Still open:
+      copy that folder off this PC (external drive or cloud).
+- [x] Closure note `docs/session-<date>.md`: final numbers, gaps, and how to resume.
+- [x] ROADMAP Part B metrics: new date column. Commit, push and tag the release.
 - [ ] Check that CI passed on the tagged commit.
 
 ---
